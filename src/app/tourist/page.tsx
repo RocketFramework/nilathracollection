@@ -59,7 +59,7 @@ export default function TouristDashboard() {
                 ) : (
                     <div className="space-y-4">
                         {tours.map((tour) => {
-                            const isActive = tour.status === 'Active' || tour.status === 'Assigned' || tour.status === 'Pending' || tour.status === 'Review Ready';
+                            const isActive = tour.status === 'Active' || tour.status === 'Assigned' || tour.status === 'Pending' || tour.status === 'Review Ready' || ['Approved', 'Booking In Progress', 'Fully Confirmed', 'Documents Sent'].includes(tour.status);
                             return (
                                 <Link
                                     key={tour.id}

@@ -35,7 +35,7 @@ export class TouristService {
                 )
             `)
             .eq('tourist_id', user.id)
-            .in('status', ['Draft', 'Review Ready', 'Active', 'Completed'])
+            .in('status', ['Draft', 'Review Ready', 'Active', 'Approved', 'Booking In Progress', 'Fully Confirmed', 'Documents Sent', 'Completed'])
             .order('start_date', { ascending: true });
 
         if (error) throw error;
