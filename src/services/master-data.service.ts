@@ -591,8 +591,9 @@ export class MasterDataService {
         }
     }
 
-    static async getTransportProvider(id: string) {
-        const { data, error } = await supabase.from('transport_providers').select('*, payment_details(*), transport_vehicles(*)').eq('id', id).single();
+    static async getTransportProvider(id: string, options?: { client?: any }) {
+        const dbClient = options?.client || supabase;
+        const { data, error } = await dbClient.from('transport_providers').select('*, payment_details(*), transport_vehicles(*)').eq('id', id).single();
         if (error) throw error;
         return data as TransportProvider;
     }

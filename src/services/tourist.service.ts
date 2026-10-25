@@ -144,8 +144,25 @@ export class TouristService {
         
         let previewItems: { description: string; amount: number }[] = [];
         try {
+            // Same formula as computeConciergeDisplayTotal (admin-new) so the portal matches the customer PDF.
+            const { data: conciergeRows } = await adminSupabase
+                .from('tour_itinerary_concierges')
+                .select('quantity, cost, tour_itinerary_id, cost_item:seamless_concierge_cost_items(costing_basis)')
+                .eq('tour_id', tourId);
+            const { data: profileRow } = data.tourist_id
+                ? await adminSupabase.from('tourist_profiles').select('duration_days').eq('id', data.tourist_id).maybeSingle()
+                : { data: null };
+            const tourDaysCount = profileRow?.duration_days || (tripData.itinerary || []).length || 5;
+            const conciergeTotal = (conciergeRows || []).reduce((sum: number, row: any) => {
+                const costItem = Array.isArray(row.cost_item) ? row.cost_item[0] : row.cost_item;
+                const cb = (costItem?.costing_basis || '').toLowerCase();
+                const isDaily = cb.includes('day') || cb.includes('daily');
+                const lineCost = (row.quantity || 0) * (row.cost || 0);
+                return sum + (isDaily && !row.tour_itinerary_id ? lineCost * tourDaysCount : lineCost);
+            }, 0);
+
             const { CustomerInvoiceService } = await import('./customer-invoice.service');
-            previewItems = await CustomerInvoiceService.previewInvoiceItems(tourId, {});
+            previewItems = await CustomerInvoiceService.previewInvoiceItems(tourId, {}, { conciergeTotalOverride: conciergeTotal });
         } catch (e) {
             console.warn("Could not preview invoice items for tourist portal:", e);
         }

@@ -5,7 +5,7 @@ import { Search, Plus, Edit2, Trash2, X, ChevronLeft, ChevronRight, Building2, C
 import { MasterDataService, Vendor, Driver, TourGuide, TransportProvider, Restaurant, Activity, SeamlessConciergeCostItem } from "@/services/master-data.service";
 import type { ApprovalRequest } from "@/services/master-data-approvals.service";
 import { HotelService, Hotel } from "@/services/hotel.service";
-import { getUserRoleAction, getPendingApprovalsAction, getActivitiesAction, getHotelAction, getHotelsAction, deleteHotelAction, getVendorsAction, deleteVendorAction, getVendorAction, getRestaurantsAction, deleteRestaurantAction, getTransportProvidersAction, deleteTransportProviderAction, getDriversAction, deleteDriverAction, getTourGuidesAction, deleteTourGuideAction, getSeamlessConciergeCostItemsAction, getSeamlessConciergeCostItemAction, deleteSeamlessConciergeCostItemAction } from "@/actions/admin.actions";
+import { getUserRoleAction, getPendingApprovalsAction, getActivitiesAction, getHotelAction, getHotelsAction, deleteHotelAction, getVendorsAction, deleteVendorAction, getVendorAction, getRestaurantsAction, deleteRestaurantAction, getTransportProvidersAction, getTransportProviderAction, deleteTransportProviderAction, getDriversAction, deleteDriverAction, getTourGuidesAction, deleteTourGuideAction, getSeamlessConciergeCostItemsAction, getSeamlessConciergeCostItemAction, deleteSeamlessConciergeCostItemAction } from "@/actions/admin.actions";
 import HotelFormModal from "./components/HotelFormModal";
 import VendorFormModal from "./components/VendorFormModal";
 import DriverFormModal from "./components/DriverFormModal";
@@ -274,9 +274,13 @@ export default function MasterDataPage() {
                 setSelectedRestaurant(fullItem);
                 setIsRestaurantModalOpen(true);
             } else if (activeTab === 'transports') {
-                const fullItem = await MasterDataService.getTransportProvider(id as string);
-                setSelectedTransport(fullItem);
-                setIsTransportModalOpen(true);
+                const result = await getTransportProviderAction(id as string);
+                if (result.success && result.provider) {
+                    setSelectedTransport(result.provider);
+                    setIsTransportModalOpen(true);
+                } else {
+                    console.error("Failed to load transport provider:", result.error);
+                }
             } else if (activeTab === 'drivers') {
                 const fullItem = await MasterDataService.getDriver(id as string);
                 setSelectedDriver(fullItem);

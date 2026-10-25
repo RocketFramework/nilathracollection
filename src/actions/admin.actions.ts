@@ -719,6 +719,17 @@ export async function getVendorAction(id: string) {
     }
 }
 
+export async function getTransportProviderAction(id: string) {
+    try {
+        const supabase = createAdminClient();
+        const provider = await MasterDataService.getTransportProvider(id, { client: supabase });
+        return { success: true, provider };
+    } catch (error: any) {
+        console.error("Error fetching transport provider:", error);
+        return { error: error.message || "Failed to fetch transport provider." };
+    }
+}
+
 export async function getTransportProvidersAction(options?: any) {
     try {
         if (options && Object.keys(options).length > 0) {

@@ -2,7 +2,7 @@ import React, { useState, useEffect } from "react";
 import { X, Check, Trash2, Plus, Upload, ExternalLink, ShieldCheck, Clock, UserCheck } from "lucide-react";
 import { MasterDataService, TransportProvider, TransportVehicle } from "@/services/master-data.service";
 import { MasterDataApprovalsService } from "@/services/master-data-approvals.service";
-import { saveTransportProviderAction, approvePartnerAction, uploadPartnerImageAction } from "@/actions/admin.actions";
+import { saveTransportProviderAction, getTransportProviderAction, approvePartnerAction, uploadPartnerImageAction } from "@/actions/admin.actions";
 
 interface TransportProviderFormModalProps {
     isOpen: boolean;
@@ -205,13 +205,16 @@ export default function TransportProviderFormModal({ isOpen, onClose, provider, 
 
                 // Re-fetch the saved provider to update form data with any new IDs (from DB)
                 if (savedId) {
-                    const updatedProvider = await MasterDataService.getTransportProvider(savedId);
-                    setFormData({
-                        ...updatedProvider,
-                        payment_details: updatedProvider.payment_details || {},
-                        transport_vehicles: updatedProvider.transport_vehicles || []
-                    });
-                    setCoordinateInput((updatedProvider.lat && updatedProvider.lng) ? `${updatedProvider.lat}, ${updatedProvider.lng}` : "");
+                    const refetched = await getTransportProviderAction(savedId);
+                    if (refetched.success && refetched.provider) {
+                        const updatedProvider = refetched.provider;
+                        setFormData({
+                            ...updatedProvider,
+                            payment_details: updatedProvider.payment_details || {},
+                            transport_vehicles: updatedProvider.transport_vehicles || []
+                        });
+                        setCoordinateInput((updatedProvider.lat && updatedProvider.lng) ? `${updatedProvider.lat}, ${updatedProvider.lng}` : "");
+                    }
                 }
 
                 alert("Transport provider saved successfully.");

@@ -18,7 +18,7 @@ export class CustomerInvoiceService {
     /**
      * Preview consolidated experience category invoice items for a tour
      */
-    static async previewInvoiceItems(tourId: string, options: Partial<GenerateCustomerInvoiceDTO> = {}): Promise<{ description: string; amount: number; dailyActivityIds: string[] }[]> {
+    static async previewInvoiceItems(tourId: string, options: Partial<GenerateCustomerInvoiceDTO> = {}, extra: { conciergeTotalOverride?: number } = {}): Promise<{ description: string; amount: number; dailyActivityIds: string[] }[]> {
         const supabaseAdmin = createAdminClient();
 
         // 1. Fetch tour details
@@ -191,7 +191,8 @@ export class CustomerInvoiceService {
             dailyDriverAssignments: options.dailyDriverAssignments || dailyDriverAssignments,
             dailyVehicleAssignments: options.dailyVehicleAssignments || dailyVehicleAssignments,
             dbActivities: [],
-            tourConcierges: conciergeRows || []
+            tourConcierges: conciergeRows || [],
+            conciergeTotalOverride: extra.conciergeTotalOverride
         });
 
         // Map back to expected structure (ensure dailyActivityIds is strictly string[])
