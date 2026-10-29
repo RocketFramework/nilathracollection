@@ -84,6 +84,7 @@ export const generateHotelPoPdf = async (
         requireSignature: boolean;
         signatureImage: string;
         poNumber?: string;
+        tourCode?: string | null;
         vendorNotes?: string;
         discount?: number;
         tax?: number;
@@ -202,10 +203,11 @@ export const generateHotelPoPdf = async (
     const poNum = options.poNumber || `PO-HOT-${Date.now().toString().slice(-6)}`;
 
     doc.text(`PO Number: ${poNum}`, 108, 39);
-    doc.text(`Check-in: ${formatDate(checkInDate)}`, 108, 44);
-    doc.text(`Check-out: ${formatDate(checkOutDate)}`, 108, 49);
+    doc.text(`Tour ID: ${options.tourCode || '-'}`, 108, 44);
+    doc.text(`Check-in: ${formatDate(checkInDate)}`, 108, 49);
+    doc.text(`Check-out: ${formatDate(checkOutDate)}`, 108, 54);
 
-    const lineY = Math.max(logoBottomY + 6, 54);
+    const lineY = Math.max(logoBottomY + 6, 59);
     doc.setDrawColor(secondaryColor[0], secondaryColor[1], secondaryColor[2]);
     doc.setLineWidth(0.5);
     doc.line(20, lineY, 190, lineY);
@@ -632,6 +634,7 @@ export const generateTransportPoPdf = async (
         requireSignature: boolean;
         signatureImage: string;
         poNumber?: string;
+        tourCode?: string | null;
         vendorNotes?: string;
         discount?: number;
         tax?: number;
@@ -699,10 +702,11 @@ export const generateTransportPoPdf = async (
 
     doc.text(`Date: ${formattedDate}`, 108, 34);
     doc.text(`PO Number: ${poNum}`, 108, 39);
-    doc.text(`Vendor Type: Transport Provider`, 108, 44);
+    doc.text(`Tour ID: ${options.tourCode || '-'}`, 108, 44);
+    doc.text(`Vendor Type: Transport Provider`, 108, 49);
 
     // ─── Divider ─────────────────────────────────────────────────────────────
-    const lineY = Math.max(logoBottomY + 6, 52);
+    const lineY = Math.max(logoBottomY + 6, 57);
     doc.setDrawColor(secondaryColor[0], secondaryColor[1], secondaryColor[2]);
     doc.setLineWidth(0.5);
     doc.line(20, lineY, 190, lineY);
@@ -1035,7 +1039,7 @@ export const generateTransportPoPdf = async (
     doc.setFontSize(8);
     doc.setTextColor(charcoalColor[0], charcoalColor[1], charcoalColor[2]);
     
-    doc.text(`PO Number: ${poNum}`, 24, topY + 11);
+    doc.text(`PO Number: ${poNum}  |  Tour ID: ${options.tourCode || '-'}`, 24, topY + 11);
     doc.text(`Transport Provider: ${hotel?.name || 'Transport Provider'}`, 24, topY + 16);
     doc.text(`Guest Occupancy: ${occupancyStr}`, 24, topY + 21);
 
@@ -1379,6 +1383,7 @@ export const generateDriverPoPdf = async (
         requireSignature: boolean;
         signatureImage: string;
         poNumber?: string;
+        tourCode?: string | null;
         vendorNotes?: string;
         discount?: number;
         tax?: number;
@@ -1440,10 +1445,11 @@ export const generateDriverPoPdf = async (
 
     doc.text(`Date: ${formattedDate}`, 108, 34);
     doc.text(`PO Number: ${poNum}`, 108, 39);
-    doc.text(`Vendor Type: Driver / Chauffeur`, 108, 44);
+    doc.text(`Tour ID: ${options.tourCode || '-'}`, 108, 44);
+    doc.text(`Vendor Type: Driver / Chauffeur`, 108, 49);
 
     // Divider
-    const lineY = Math.max(logoBottomY + 6, 52);
+    const lineY = Math.max(logoBottomY + 6, 57);
     doc.setDrawColor(secondaryColor[0], secondaryColor[1], secondaryColor[2]);
     doc.setLineWidth(0.5);
     doc.line(20, lineY, 190, lineY);

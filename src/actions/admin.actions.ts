@@ -40,6 +40,9 @@ import { TourDailyTransportService } from "@/services/tour-daily-transport.servi
 import { TourDailyTransportDTO } from "@/dtos/tour-daily-transport.dto";
 import { TourDailyVehicleService } from "@/services/tour-daily-vehicle.service";
 import { TourDailyVehicleDTO } from "@/dtos/tour-daily-vehicle.dto";
+import { TourExpenseService } from "@/services/tour-expense.service";
+import { PoNumberService } from "@/services/po-number.service";
+import { TourExpenseDTO } from "@/dtos/tour-expense.dto";
 
 
 export async function getDashboardRequestsAction(filters: any, currentPage: number = 1, pageSize: number = 10) {
@@ -2149,6 +2152,26 @@ export async function createVendorBookingAction(dto: CreateVendorBookingDTO) {
     }
 }
 
+export async function getNextPoNumberAction(vendorType?: string) {
+    try {
+        const poNumber = await PoNumberService.getNextPoNumber(vendorType);
+        return { success: true, poNumber };
+    } catch (error: any) {
+        console.error("Error in getNextPoNumberAction:", error);
+        return { success: false, error: error.message || "Failed to get next PO number." };
+    }
+}
+
+export async function getTourCodeAction(tourId: string) {
+    try {
+        const tourCode = await PoNumberService.getTourCode(tourId);
+        return { success: true, tourCode };
+    } catch (error: any) {
+        console.error("Error in getTourCodeAction:", error);
+        return { success: false, error: error.message || "Failed to get tour code." };
+    }
+}
+
 export async function getVendorBookingsAction(tourId: string) {
     try {
         const bookings = await VendorBookingService.getBookingsForTour(tourId);
@@ -3147,6 +3170,38 @@ export async function updatePurchaseOrderAction(poId: string, updates: any) {
     } catch (error: any) {
         console.error("Error in updatePurchaseOrderAction:", error);
         return { success: false, error: error.message || "Failed to update PO details." };
+    }
+}
+
+export async function getTourExpensesAction(tourId: string) {
+    try {
+        const expenses = await TourExpenseService.getExpensesForTour(tourId);
+        return { success: true, expenses };
+    } catch (error: any) {
+        console.error("Error in getTourExpensesAction:", error);
+        return { success: false, error: error.message || "Failed to load tour expenses." };
+    }
+}
+
+export async function saveTourExpenseAction(expense: TourExpenseDTO) {
+    try {
+        const id = await TourExpenseService.saveExpense(expense);
+        revalidatePath("/admin-new");
+        return { success: true, id };
+    } catch (error: any) {
+        console.error("Error in saveTourExpenseAction:", error);
+        return { success: false, error: error.message || "Failed to save tour expense." };
+    }
+}
+
+export async function deleteTourExpenseAction(id: string) {
+    try {
+        await TourExpenseService.deleteExpense(id);
+        revalidatePath("/admin-new");
+        return { success: true };
+    } catch (error: any) {
+        console.error("Error in deleteTourExpenseAction:", error);
+        return { success: false, error: error.message || "Failed to delete tour expense." };
     }
 }
 

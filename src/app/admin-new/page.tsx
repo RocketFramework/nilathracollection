@@ -85,7 +85,8 @@ import {
   Menu,
   Ticket,
 } from 'lucide-react';
-import { TrackType, BasicStep, PrepareBasicSubStep, FinalStep, TravelStyle, Gender, RequestType, RequestStatus, TRAVEL_STYLES, GENDERS, REQUEST_TYPES, REQUEST_STATUSES, BINDABLE_BLOCK_TYPES, BindableBlockType, ITINERARY_BLOCK_TYPES, ItineraryBlockType, ItineraryBlockTypes, TierSettingDefinitions, RoomSizeName, GUIDE_RATE_KEYS, TravelStyleSettingKeys, Settings, VendorEmailStatus, VENDOR_EMAIL_STATUSES } from '../../types/types';
+import { TrackType, BasicStep, PrepareBasicSubStep, FinalStep, TravelStyle, Gender, RequestType, RequestStatus, TRAVEL_STYLES, GENDERS, REQUEST_TYPES, REQUEST_STATUSES, BINDABLE_BLOCK_TYPES, BindableBlockType, ITINERARY_BLOCK_TYPES, ItineraryBlockType, ItineraryBlockTypes, TierSettingDefinitions, RoomSizeName, GUIDE_RATE_KEYS, TravelStyleSettingKeys, Settings, VendorEmailStatus, VENDOR_EMAIL_STATUSES, TOUR_EXPENSE_CATEGORIES, TourExpenseCategory } from '../../types/types';
+import { TourExpenseDTO } from '@/dtos/tour-expense.dto';
 import { ItineraryElements, TouristActivity, TripData, InternalItineraryBlock, BlockComment, DraftItineraryVersion, ItineraryLock, TourSharedEmail, TourRfqEmail, TourRfpEmail, ProfitLossLineItem, ProfitLossCustomerItem, ProfitLossSummary } from '../../other/interfaces';
 import { POStatus } from '../../types/finance';
 import { TouristDataDTO, TouristTeamMemberDTO, TouristProfileDTO, TravelPreferencesDTO, TripRequestDTO } from '../../dtos/tourist-data.dto';
@@ -189,7 +190,12 @@ import {
   finalizeActivityPricesAction,
   getTransportRfqTemplateAction,
   deleteDailyActivityAction,
-  saveCustomHotelItemAction
+  saveCustomHotelItemAction,
+  getTourExpensesAction,
+  saveTourExpenseAction,
+  getNextPoNumberAction,
+  getTourCodeAction,
+  deleteTourExpenseAction
 } from '@/actions/admin.actions';
 import { SaveTourConciergeItemDTO } from '@/dtos/tour-concierge.dto';
 import { MasterDataService, SeamlessConciergeCostItem } from '@/services/master-data.service';
@@ -218,6 +224,7 @@ import { ItineraryPdfTemplateNew } from './components/ItineraryPdfTemplateNew';
 import { ItineraryPdfTemplateSimple } from './components/ItineraryPdfTemplateSimple';
 import { generateHotelRfqPdf } from '@/utils/rfq-pdf';
 import { generateHotelPoPdf, generateTransportPoPdf, generateDriverPoPdf } from '@/utils/po-pdf';
+import { generateSettlementVoucherPdf, generateExpenseVoucherPdf } from '@/utils/settlement-voucher-pdf';
 
 interface StepItem {
   id: string;
@@ -3966,6 +3973,50 @@ function PlannerWizardWorkspace() {
   const [paymentCurrency, setPaymentCurrency] = useState<string>('USD');
   const [paymentExchangeRate, setPaymentExchangeRate] = useState<string>('1.0');
 
+  // Direct (no-invoice) PO settlement states
+  const [directSettlePoId, setDirectSettlePoId] = useState<string | null>(null);
+  const [directSettleName, setDirectSettleName] = useState<string>('');
+  const [directSettleDate, setDirectSettleDate] = useState<string>('');
+  const [directSettleNotes, setDirectSettleNotes] = useState<string>('');
+  const [directSettleDocUrl, setDirectSettleDocUrl] = useState<string>('');
+  const [isUploadingDirectDoc, setIsUploadingDirectDoc] = useState<boolean>(false);
+  const [isSavingDirectSettle, setIsSavingDirectSettle] = useState<boolean>(false);
+
+  // Miscellaneous tour expense states
+  const [tourExpenses, setTourExpenses] = useState<TourExpenseDTO[]>([]);
+  const [showExpenseForm, setShowExpenseForm] = useState<boolean>(false);
+  const [expenseCategory, setExpenseCategory] = useState<TourExpenseCategory>('Other');
+  const [expenseDescription, setExpenseDescription] = useState<string>('');
+  const [expensePaidTo, setExpensePaidTo] = useState<string>('');
+  const [expenseAmount, setExpenseAmount] = useState<string>('');
+  const [expenseCurrency, setExpenseCurrency] = useState<string>('LKR');
+  const [expenseExchangeRate, setExpenseExchangeRate] = useState<string>('1.0');
+  const [expenseDate, setExpenseDate] = useState<string>('');
+  const [expenseMethod, setExpenseMethod] = useState<string>('Cash');
+  const [expenseRef, setExpenseRef] = useState<string>('');
+  const [expenseNotes, setExpenseNotes] = useState<string>('');
+  const [expenseReceiptUrl, setExpenseReceiptUrl] = useState<string>('');
+  const [isUploadingExpenseReceipt, setIsUploadingExpenseReceipt] = useState<boolean>(false);
+  const [isSavingExpense, setIsSavingExpense] = useState<boolean>(false);
+
+  const loadTourExpenses = async (tid: string) => {
+    if (!tid || tid === 'draft-tour') return;
+    const res = await getTourExpensesAction(tid);
+    if (res.success && res.expenses) setTourExpenses(res.expenses);
+  };
+
+  useEffect(() => {
+    loadTourExpenses(tourId);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [tourId]);
+
+  // Readable tour code (TR-YYYY-NNNN) printed on POs, invoices and vouchers
+  const [tourCode, setTourCode] = useState<string | null>(null);
+  useEffect(() => {
+    if (!tourId || tourId === 'draft-tour') { setTourCode(null); return; }
+    getTourCodeAction(tourId).then(res => setTourCode(res.success ? (res.tourCode || null) : null));
+  }, [tourId]);
+
   // Supplier Refund states
   const [activePoForRefund, setActivePoForRefund] = useState<string | null>(null);
   const [refundAmount, setRefundAmount] = useState<string>('');
@@ -4102,7 +4153,7 @@ function PlannerWizardWorkspace() {
 
   const handleDownloadInvoicePdf = async (inv: any) => {
     try {
-      const doc = await generateCustomerInvoicePdf(inv, appSettings, touristData, guideRfqDetails?.tour);
+      const doc = await generateCustomerInvoicePdf(inv, appSettings, touristData, guideRfqDetails?.tour, tourCode);
       if (doc) {
         doc.save(`Customer_Invoice_${inv.invoice_number || 'Draft'}.pdf`);
       } else {
@@ -4146,6 +4197,7 @@ function PlannerWizardWorkspace() {
     <td style="padding:16px 20px;">
       <p style="margin:0 0 4px;font-size:10px;font-weight:700;letter-spacing:2px;text-transform:uppercase;color:#C9A84C;">Invoice Details</p>
       <p style="margin:0;font-size:16px;font-weight:600;color:#1B3A2D;">Invoice No: ${inv.invoice_number || ''}</p>
+      <p style="margin:4px 0 0;font-size:13px;color:#555;">Tour ID: ${tourCode || '-'}</p>
       <p style="margin:4px 0 0;font-size:14px;color:#333;font-weight:bold;">Total Amount: ${formattedAmount}</p>
     </td>
   </tr>
@@ -4169,7 +4221,7 @@ function PlannerWizardWorkspace() {
       let pdfBase64 = undefined;
       let pdfFilename = undefined;
       if (selectedShareInvoice) {
-        const doc = await generateCustomerInvoicePdf(selectedShareInvoice, appSettings, touristData, guideRfqDetails?.tour);
+        const doc = await generateCustomerInvoicePdf(selectedShareInvoice, appSettings, touristData, guideRfqDetails?.tour, tourCode);
         if (doc) {
           const dataUrl = doc.output('datauristring');
           pdfBase64 = dataUrl.split(',')[1];
@@ -4932,7 +4984,6 @@ function PlannerWizardWorkspace() {
       }, 0);
 
     const netAgreedProfit = totalCustomerAgreed - totalSupplierAgreed;
-    const netActualProfit = totalCustomerPaid - totalSupplierPaid;
 
     // Resolve USD to LKR buying rate of the tour
     let customerPaymentExchangeRate = tourLockedBuyingRate || (defaultUsdLkrRate > 0 ? defaultUsdLkrRate : 300);
@@ -4959,6 +5010,15 @@ function PlannerWizardWorkspace() {
       }
     }
 
+    // Miscellaneous tour expenses converted to USD (LKR expenses use the tour rate)
+    const totalMiscExpenses = (tourExpenses || []).reduce((sum: number, e: any) => {
+      const amt = Number(e.amount) || 0;
+      if (e.currency === 'USD') return sum + amt;
+      const lkrPerUnit = e.currency === 'LKR' ? 1 : (Number(e.exchange_rate) || 0);
+      return sum + (customerPaymentExchangeRate > 0 ? (amt * lkrPerUnit) / customerPaymentExchangeRate : 0);
+    }, 0);
+    const netActualProfit = totalCustomerPaid - totalSupplierPaid - totalMiscExpenses;
+
     const plSummary: ProfitLossSummary = {
       totalCustomerAgreed,
       totalCustomerInvoiced,
@@ -4966,6 +5026,7 @@ function PlannerWizardWorkspace() {
       totalSupplierAgreed,
       totalSupplierInvoiced,
       totalSupplierPaid,
+      totalMiscExpenses,
       netAgreedProfit,
       netActualProfit,
       customerPaymentExchangeRate
@@ -4976,7 +5037,7 @@ function PlannerWizardWorkspace() {
       customerPLItems,
       plSummary
     };
-  }, [dbActivities, purchaseOrders, customerInvoices, customerAdvancePayments, defaultUsdLkrRate, tourLockedBuyingRate]);
+  }, [dbActivities, purchaseOrders, customerInvoices, customerAdvancePayments, defaultUsdLkrRate, tourLockedBuyingRate, tourExpenses]);
 
   const plRate = tourLockedBuyingRate || profitLossReport.plSummary.customerPaymentExchangeRate || defaultUsdLkrRate || 300;
   const formatLkr = (usd: number) => `LKR ${(usd * plRate).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
@@ -6227,8 +6288,12 @@ function PlannerWizardWorkspace() {
     const checkInDateFormatted = checkInDate ? new Date(checkInDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : '';
     const checkOutDateFormatted = checkOutDate ? new Date(checkOutDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : '';
 
-    const prefix = vType === 'hotel' ? 'HOT' : (vType === 'restaurant' ? 'RES' : (vType === 'tour_guide' ? 'GUI' : (vType === 'driver' ? 'DRI' : (vType === 'transport_provider' ? 'TRA' : 'ACT'))));
-    const poNumber = `PO-${prefix}-${Date.now().toString().slice(-6)}`;
+    const poNumRes = await getNextPoNumberAction(vType);
+    if (!poNumRes.success || !poNumRes.poNumber) {
+      alert("Failed to reserve a PO number: " + ((poNumRes as any).error || "unknown error"));
+      return;
+    }
+    const poNumber = poNumRes.poNumber;
     setPoEmailSubject(`Purchase Order ${poNumber} - ${hotel.name}`);
 
     // Calculate total price
@@ -6381,7 +6446,7 @@ function PlannerWizardWorkspace() {
         : '';
 
       defaultBody = `<p>Dear ${hotel.name || 'F&B'} Team,</p>
-<p>Please find below the formal Purchase Order <strong>${poNumber}</strong> confirming our dining arrangement as detailed:</p>
+<p>Please find below the formal Purchase Order <strong>${poNumber}</strong> (Tour ID: <strong>${tourCode || '-'}</strong>) confirming our dining arrangement as detailed:</p>
 <div style="background-color:#F5F3EF; padding: 15px; border-radius: 8px; margin: 15px 0; border: 1px solid #E6E4E0;">
   <strong>Dining Confirmation Details:</strong><br />
   Date: ${mealDate}<br />
@@ -6473,6 +6538,10 @@ function PlannerWizardWorkspace() {
       <tr>
         <td style="padding:4px 8px;width:40%;color:#555;font-weight:600;">PO Number</td>
         <td style="padding:4px 8px;"><strong>${poNumber}</strong></td>
+      </tr>
+      <tr>
+        <td style="padding:4px 8px;color:#555;font-weight:600;">Tour ID</td>
+        <td style="padding:4px 8px;"><strong>${tourCode || '-'}</strong></td>
       </tr>
       <tr style="background-color:#FAFAF9;">
         <td style="padding:4px 8px;color:#555;font-weight:600;">Driver Name</td>
@@ -6899,6 +6968,10 @@ function PlannerWizardWorkspace() {
         <td style="padding:4px 8px;width:40%;color:#555;font-weight:600;">PO Number</td>
         <td style="padding:4px 8px;"><strong>${poNumber}</strong></td>
       </tr>
+      <tr>
+        <td style="padding:4px 8px;color:#555;font-weight:600;">Tour ID</td>
+        <td style="padding:4px 8px;"><strong>${tourCode || '-'}</strong></td>
+      </tr>
       <tr style="background-color:#FAFAF9;">
         <td style="padding:4px 8px;color:#555;font-weight:600;">Transport Provider</td>
         <td style="padding:4px 8px;">${hotel.name}</td>
@@ -6971,7 +7044,7 @@ ${chauffeurHtml}
     } else {
 
       defaultBody = `<p>Dear ${hotel.name} Reservations Team,</p>
-<p>Please find attached the formal Purchase Order <strong>${poNumber}</strong> for the guest stays detailed below:</p>
+<p>Please find attached the formal Purchase Order <strong>${poNumber}</strong> (Tour ID: <strong>${tourCode || '-'}</strong>) for the guest stays detailed below:</p>
 <div style="background-color:#F5F3EF; padding: 15px; border-radius: 8px; margin: 15px 0; border: 1px solid #E6E4E0;">
   <strong>Reservation Details:</strong><br />
   ${[
@@ -7036,9 +7109,13 @@ ${chauffeurHtml}
         agentName = user.user_metadata?.full_name || user.user_metadata?.first_name || user.email?.split('@')[0] || 'Your Concierge Team';
       }
 
-      const poNumMatch = poEmailSubject.match(/PO-[A-Z]+-\d+/);
-      const prefix = poVendorType === 'hotel' ? 'HOT' : (poVendorType === 'restaurant' ? 'RES' : (poVendorType === 'tour_guide' ? 'GUI' : (poVendorType === 'driver' ? 'DRI' : (poVendorType === 'transport_provider' ? 'TRA' : 'ACT'))));
-      const poNum = poNumMatch ? poNumMatch[0] : `PO-${prefix}-${Date.now().toString().slice(-6)}`;
+      const poNumMatch = poEmailSubject.match(/PO-[A-Z]+-\d+(?:-\d+)?/);
+      let poNum = poNumMatch ? poNumMatch[0] : '';
+      if (!poNum) {
+        const poNumRes = await getNextPoNumberAction(poVendorType);
+        if (!poNumRes.success || !poNumRes.poNumber) throw new Error((poNumRes as any).error || "Failed to reserve a PO number");
+        poNum = poNumRes.poNumber;
+      }
 
       let doc: any;
       if (poVendorType === 'transport_provider') {
@@ -7054,6 +7131,7 @@ ${chauffeurHtml}
             requireSignature: poRequireSignature,
             signatureImage: poSignatureImage,
             poNumber: poNum,
+            tourCode,
             vendorNotes: poVendorNotes,
             discount: poDiscount,
             tax: poTax,
@@ -7076,6 +7154,7 @@ ${chauffeurHtml}
             requireSignature: poRequireSignature,
             signatureImage: poSignatureImage,
             poNumber: poNum,
+            tourCode,
             vendorNotes: poVendorNotes,
             discount: poDiscount,
             tax: poTax,
@@ -7094,6 +7173,7 @@ ${chauffeurHtml}
             requireSignature: poRequireSignature,
             signatureImage: poSignatureImage,
             poNumber: poNum,
+            tourCode,
             vendorNotes: poVendorNotes,
             discount: poDiscount,
             tax: poTax,
@@ -7165,9 +7245,13 @@ ${chauffeurHtml}
         });
       }
 
-      const poNumMatch = poEmailSubject.match(/PO-[A-Z]+-\d+/);
-      const prefix = poVendorType === 'hotel' ? 'HOT' : (poVendorType === 'restaurant' ? 'RES' : (poVendorType === 'tour_guide' ? 'GUI' : (poVendorType === 'driver' ? 'DRI' : (poVendorType === 'transport_provider' ? 'TRA' : 'ACT'))));
-      const poNum = poNumMatch ? poNumMatch[0] : `PO-${prefix}-${Date.now().toString().slice(-6)}`;
+      const poNumMatch = poEmailSubject.match(/PO-[A-Z]+-\d+(?:-\d+)?/);
+      let poNum = poNumMatch ? poNumMatch[0] : '';
+      if (!poNum) {
+        const poNumRes = await getNextPoNumberAction(poVendorType);
+        if (!poNumRes.success || !poNumRes.poNumber) throw new Error((poNumRes as any).error || "Failed to reserve a PO number");
+        poNum = poNumRes.poNumber;
+      }
 
       // 1. Insert the parallel booking and PO record
       let finalNotes = poVendorNotes;
@@ -7227,6 +7311,7 @@ ${chauffeurHtml}
               requireSignature: poRequireSignature,
               signatureImage: poSignatureImage,
               poNumber: poNum,
+              tourCode,
               vendorNotes: poVendorNotes,
               discount: poDiscount,
               tax: poTax,
@@ -7249,6 +7334,7 @@ ${chauffeurHtml}
               requireSignature: poRequireSignature,
               signatureImage: poSignatureImage,
               poNumber: poNum,
+              tourCode,
               vendorNotes: poVendorNotes,
               discount: poDiscount,
               tax: poTax,
@@ -7267,6 +7353,7 @@ ${chauffeurHtml}
               requireSignature: poRequireSignature,
               signatureImage: poSignatureImage,
               poNumber: poNum,
+              tourCode,
               vendorNotes: poVendorNotes,
               discount: poDiscount,
               tax: poTax,
@@ -7841,7 +7928,7 @@ ${chauffeurHtml}
       const totalPaidWithNew = existingPaid + amount;
 
       // If total advance payments settle or exceed the PO
-      if (totalPaidWithNew >= poTotal) {
+      if (totalPaidWithNew >= poTotal && currentPO.settlement_mode !== 'direct') {
         const proceed = window.confirm(
           `You are recording an advance payment of ${paymentCurrency} ${amount.toFixed(2)}, which will bring the total advance payments to ${paymentCurrency} ${totalPaidWithNew.toFixed(2)} (PO Total: ${currentPO.currency || 'USD'} ${poTotal.toFixed(2)}).\n\n` +
           `For full settlements, it is recommended to record a Supplier Invoice first and log the payment against that invoice instead of as an advance.\n\n` +
@@ -7892,6 +7979,182 @@ ${chauffeurHtml}
     } catch (err: any) {
       alert("Error: " + err.message);
     }
+  };
+
+  const handleToggleDirectSettlement = async (po: any, enabled: boolean) => {
+    try {
+      const res = await updatePurchaseOrderAction(po.id, { settlement_mode: enabled ? 'direct' : 'invoice' });
+      if (!res.success) {
+        alert("Failed to update settlement mode: " + (res as any).error);
+        return;
+      }
+      await loadProcurementData(tourId);
+      if (enabled) {
+        setDirectSettlePoId(po.id);
+        setDirectSettleName(po.settled_by_name || '');
+        setDirectSettleDate(po.settled_date ? String(po.settled_date).split('T')[0] : new Date().toISOString().split('T')[0]);
+        setDirectSettleNotes(po.settlement_notes || '');
+        setDirectSettleDocUrl(po.signed_document_url || '');
+      } else {
+        setDirectSettlePoId(null);
+      }
+    } catch (err: any) {
+      alert("Error: " + err.message);
+    }
+  };
+
+  const handleOpenDirectSettlement = (po: any) => {
+    setDirectSettlePoId(po.id);
+    setDirectSettleName(po.settled_by_name || '');
+    setDirectSettleDate(po.settled_date ? String(po.settled_date).split('T')[0] : new Date().toISOString().split('T')[0]);
+    setDirectSettleNotes(po.settlement_notes || '');
+    setDirectSettleDocUrl(po.signed_document_url || '');
+  };
+
+  const handleSaveDirectSettlement = async (po: any) => {
+    setIsSavingDirectSettle(true);
+    try {
+      const res = await updatePurchaseOrderAction(po.id, {
+        settlement_mode: 'direct',
+        settled_by_name: directSettleName || null,
+        settled_date: directSettleDate || null,
+        settlement_notes: directSettleNotes || null,
+        signed_document_url: directSettleDocUrl || null
+      });
+      if (!res.success) {
+        alert("Failed to save direct settlement: " + (res as any).error);
+        return;
+      }
+      setDirectSettlePoId(null);
+      await loadProcurementData(tourId);
+    } catch (err: any) {
+      alert("Error: " + err.message);
+    } finally {
+      setIsSavingDirectSettle(false);
+    }
+  };
+
+  const handleUploadSettlementFile = async (file: File | undefined, onUrl: (url: string) => void, setBusy: (b: boolean) => void) => {
+    if (!file) return;
+    setBusy(true);
+    try {
+      const formData = new FormData();
+      formData.append("file", file);
+      const uploadRes = await uploadSupplierInvoiceFileAction(formData);
+      if ((uploadRes as any).error) {
+        alert("Failed to upload file: " + (uploadRes as any).error);
+      } else if ((uploadRes as any).url) {
+        onUrl((uploadRes as any).url);
+      }
+    } catch (err: any) {
+      alert("Error uploading file: " + err.message);
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const handleViewStoredDocument = async (path: string) => {
+    try {
+      const res = await getPayslipSignedUrlAction(path);
+      if (res.success && res.url) {
+        window.open(res.url, '_blank');
+      } else {
+        alert("Failed to generate secure view link: " + (res as any).error);
+      }
+    } catch (err: any) {
+      alert("Error generating secure link: " + err.message);
+    }
+  };
+
+  const handleDownloadSettlementVoucher = async (po: any) => {
+    try {
+      let agentName = 'Your Concierge Team';
+      const supabase = createClient();
+      const { data: { user } } = await supabase.auth.getUser();
+      if (user) {
+        agentName = user.user_metadata?.full_name || user.user_metadata?.first_name || user.email?.split('@')[0] || agentName;
+      }
+      const doc = await generateSettlementVoucherPdf(po, appSettings, agentName, touristData, plRate, tourCode);
+      if (doc) {
+        doc.save(`VCH-${po.po_number || po.id}_${(po.vendor_name || 'supplier').replace(/\s+/g, '_')}.pdf`);
+      }
+    } catch (e: any) {
+      console.error("Failed to generate settlement voucher:", e);
+      alert("Error generating voucher: " + (e?.message || e));
+    }
+  };
+
+  const handleSaveTourExpense = async () => {
+    const amount = parseFloat(expenseAmount);
+    if (!expenseDescription.trim()) {
+      alert("Please enter a description.");
+      return;
+    }
+    if (isNaN(amount) || amount <= 0) {
+      alert("Please enter a valid amount.");
+      return;
+    }
+    setIsSavingExpense(true);
+    try {
+      const res = await saveTourExpenseAction({
+        tour_id: tourId,
+        category: expenseCategory,
+        description: expenseDescription.trim(),
+        paid_to: expensePaidTo || null,
+        amount,
+        currency: expenseCurrency,
+        exchange_rate: expenseCurrency === 'LKR' ? 1 : (parseFloat(expenseExchangeRate) || 1),
+        expense_date: expenseDate || new Date().toISOString().split('T')[0],
+        payment_method: expenseMethod || null,
+        payment_reference: expenseRef || null,
+        receipt_url: expenseReceiptUrl || null,
+        notes: expenseNotes || null
+      });
+      if (!res.success) {
+        alert("Failed to save expense: " + (res as any).error);
+        return;
+      }
+      setExpenseDescription('');
+      setExpensePaidTo('');
+      setExpenseAmount('');
+      setExpenseRef('');
+      setExpenseNotes('');
+      setExpenseReceiptUrl('');
+      setShowExpenseForm(false);
+      await loadTourExpenses(tourId);
+    } catch (err: any) {
+      alert("Error: " + err.message);
+    } finally {
+      setIsSavingExpense(false);
+    }
+  };
+
+  const handleDownloadExpenseVoucher = async (expense: any) => {
+    try {
+      let agentName = 'Your Concierge Team';
+      const supabase = createClient();
+      const { data: { user } } = await supabase.auth.getUser();
+      if (user) {
+        agentName = user.user_metadata?.full_name || user.user_metadata?.first_name || user.email?.split('@')[0] || agentName;
+      }
+      const doc = await generateExpenseVoucherPdf(expense, appSettings, agentName, touristData, tourCode);
+      if (doc) {
+        doc.save(`EXP-${String(expense.id || '').slice(0, 8).toUpperCase()}_${(expense.paid_to || 'expense').replace(/\s+/g, '_')}.pdf`);
+      }
+    } catch (e: any) {
+      console.error("Failed to generate expense voucher:", e);
+      alert("Error generating voucher: " + (e?.message || e));
+    }
+  };
+
+  const handleDeleteTourExpense = async (id: string) => {
+    if (!confirm("Delete this expense record?")) return;
+    const res = await deleteTourExpenseAction(id);
+    if (!res.success) {
+      alert("Failed to delete expense: " + (res as any).error);
+      return;
+    }
+    await loadTourExpenses(tourId);
   };
 
   const handleRecordRefund = async (poId: string) => {
@@ -15706,13 +15969,16 @@ ${chauffeurHtml}
                       <h3 className="text-xl font-serif font-bold text-neutral-800 flex items-center gap-2">
                         <Receipt className="w-5 h-5 text-emerald-800" />
                         Finance Controlling
+                        {tourCode && (
+                          <span className="px-2.5 py-0.5 text-[11px] font-bold font-mono rounded-full bg-emerald-800 text-white tracking-wider">Tour ID: {tourCode}</span>
+                        )}
                       </h3>
                       <p className="text-xs text-neutral-400">
                         Review purchase orders, match invoice line items, and disburse payments (including advances) for hotels, transport providers, drivers, and suppliers.
                       </p>
                     </div>
 
-                    <div className="space-y-6">
+                    <div className="space-y-10">
                       {purchaseOrders.filter(po => (po.vendor_type === 'hotel' || po.vendor_type === 'transport' || po.vendor_type === 'driver' || po.vendor_type === 'vendor') && po.status === 'Accepted').length === 0 ? (
                         <div className="p-6 text-center bg-neutral-50 rounded-2xl border border-dashed border-neutral-250">
                           <p className="text-sm text-neutral-500 italic">There are no purchase orders that are accepted by the suppliers.</p>
@@ -15742,13 +16008,14 @@ ${chauffeurHtml}
                             const balancePayableLkr = poValLkr - totalPaidLkr;
 
                             return (
-                              <div key={po.id} className="border border-neutral-200 rounded-3xl p-6 bg-[#FBFBFA]/50 space-y-6 shadow-sm hover:shadow-md transition-all">
+                              <div key={po.id} className="border-2 border-neutral-300 border-l-8 border-l-emerald-800 rounded-3xl p-6 bg-white space-y-6 shadow-lg hover:shadow-xl transition-all">
                                 {/* PO Summary Card Header */}
-                                <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-neutral-150 pb-4">
+                                <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-emerald-300 bg-emerald-200 -mx-6 -mt-6 px-6 pt-5 pb-4 rounded-tr-3xl">
                                   <div>
                                     <div className="flex items-center gap-2">
-                                      <span className="text-sm font-bold text-neutral-855 font-mono">{po.po_number}</span>
-                                      <span className="text-sm font-semibold text-neutral-600">({po.vendor_name})</span>
+                                       <span className="text-sm font-bold text-neutral-855 font-mono">{po.po_number}</span>
+                                       <span className="text-sm font-semibold text-neutral-600">({po.vendor_name})</span>
+                                       <span className="px-2 py-0.5 text-[9px] font-bold rounded-full bg-emerald-800 text-white uppercase tracking-wider">{({ hotel: 'Hotel', transport: 'Transport', driver: 'Driver', vendor: 'Activity' } as Record<string, string>)[po.vendor_type] || po.vendor_type}</span>
                                       <span className={`px-2 py-0.5 text-[9px] font-bold rounded-full ${po.status === 'Completed' ? 'bg-green-105 text-green-800' :
                                         po.status === 'Sent' ? 'bg-blue-105 text-blue-800' :
                                           po.status === 'Accepted' ? 'bg-emerald-105 text-emerald-800' :
@@ -15805,6 +16072,108 @@ ${chauffeurHtml}
                                       LKR {balancePayableLkr.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                                     </span>
                                   </div>
+                                </div>
+
+                                {/* Direct (no-invoice) Settlement */}
+                                <div className="p-4 bg-white border border-neutral-200 rounded-2xl shadow-sm space-y-3">
+                                  <div className="flex flex-wrap items-center justify-between gap-2">
+                                    <label className="flex items-center gap-2 text-xs font-bold text-neutral-700 cursor-pointer">
+                                      <input
+                                        type="checkbox"
+                                        className="accent-emerald-800"
+                                        checked={po.settlement_mode === 'direct'}
+                                        onChange={(e) => handleToggleDirectSettlement(po, e.target.checked)}
+                                      />
+                                      Settle directly without a supplier invoice (rate agreed by phone, paid by cash / transfer)
+                                    </label>
+                                    {po.settlement_mode === 'direct' && (
+                                      <div className="flex items-center gap-2">
+                                        <button
+                                          type="button"
+                                          onClick={() => handleDownloadSettlementVoucher(po)}
+                                          className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-emerald-800 hover:bg-emerald-950 text-white text-[10px] font-bold shadow-sm cursor-pointer"
+                                        >
+                                          <FileText className="w-3 h-3" />
+                                          Download Voucher (PDF)
+                                        </button>
+                                        <span className="px-2 py-0.5 text-[9px] font-bold rounded-full bg-indigo-50 text-indigo-700 border border-indigo-100 uppercase tracking-wider">Direct Settlement</span>
+                                      </div>
+                                    )}
+                                  </div>
+
+                                  {po.settlement_mode === 'direct' && (
+                                    directSettlePoId === po.id ? (
+                                      <div className="space-y-3 animate-in slide-in-from-top-2 duration-200">
+                                        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                                          <div className="space-y-1">
+                                            <label className="text-[10px] uppercase tracking-wider text-neutral-400 font-bold">Agreed With / Received By</label>
+                                            <input type="text" value={directSettleName} onChange={(e) => setDirectSettleName(e.target.value)} placeholder="Name of the person who signed" className="w-full bg-neutral-50 border border-neutral-200 rounded-xl p-2 text-xs outline-none focus:ring-1 focus:ring-emerald-800" />
+                                          </div>
+                                          <div className="space-y-1">
+                                            <label className="text-[10px] uppercase tracking-wider text-neutral-400 font-bold">Settlement Date</label>
+                                            <input type="date" value={directSettleDate} onChange={(e) => setDirectSettleDate(e.target.value)} className="w-full bg-neutral-50 border border-neutral-200 rounded-xl p-2 text-xs outline-none focus:ring-1 focus:ring-emerald-800" />
+                                          </div>
+                                          <div className="space-y-1">
+                                            <label className="text-[10px] uppercase tracking-wider text-neutral-400 font-bold">Notes (agreement details)</label>
+                                            <input type="text" value={directSettleNotes} onChange={(e) => setDirectSettleNotes(e.target.value)} placeholder="e.g. Rate agreed by phone on 12 Mar" className="w-full bg-neutral-50 border border-neutral-200 rounded-xl p-2 text-xs outline-none focus:ring-1 focus:ring-emerald-800" />
+                                          </div>
+                                        </div>
+
+                                        <div className="flex flex-wrap items-center gap-3">
+                                          <input
+                                            type="file"
+                                            accept=".pdf,.jpg,.jpeg,.png,.webp"
+                                            id={`direct-doc-${po.id}`}
+                                            className="hidden"
+                                            disabled={isUploadingDirectDoc}
+                                            onChange={(e) => {
+                                              handleUploadSettlementFile(e.target.files?.[0], setDirectSettleDocUrl, setIsUploadingDirectDoc);
+                                              e.target.value = '';
+                                            }}
+                                          />
+                                          <label htmlFor={`direct-doc-${po.id}`} className="flex items-center gap-2 px-4 py-2 border border-dashed border-neutral-300 hover:border-emerald-800 rounded-xl bg-neutral-50 text-xs font-bold text-neutral-600 hover:text-emerald-800 transition-all cursor-pointer select-none">
+                                            <Upload className="w-4 h-4" />
+                                            {isUploadingDirectDoc ? 'Uploading...' : 'Upload Signed Document (PDF / image)'}
+                                          </label>
+                                          {directSettleDocUrl && (
+                                            <div className="flex items-center gap-2 bg-emerald-50 text-emerald-800 px-3 py-1.5 rounded-xl border border-emerald-200 text-xs font-semibold">
+                                              <Check className="w-3.5 h-3.5" />
+                                              <span>Document Uploaded</span>
+                                              <button type="button" onClick={() => handleViewStoredDocument(directSettleDocUrl)} className="underline font-bold">View</button>
+                                              <button type="button" onClick={() => setDirectSettleDocUrl('')} className="text-red-500 hover:text-red-700 ml-1 font-bold" title="Remove Document">✕</button>
+                                            </div>
+                                          )}
+                                        </div>
+
+                                        <div className="flex justify-end gap-2 pt-2 border-t border-neutral-100">
+                                          <button type="button" disabled={isSavingDirectSettle} onClick={() => handleSaveDirectSettlement(po)} className="px-4 py-2 bg-emerald-800 hover:bg-emerald-950 text-white rounded-xl text-xs font-bold shadow-sm disabled:opacity-50">
+                                            {isSavingDirectSettle ? 'Saving...' : 'Save Settlement Details'}
+                                          </button>
+                                          <button type="button" onClick={() => setDirectSettlePoId(null)} className="px-4 py-2 border border-neutral-200 text-neutral-600 rounded-xl text-xs font-bold">Cancel</button>
+                                        </div>
+                                      </div>
+                                    ) : (
+                                      <div className="flex flex-wrap items-center justify-between gap-3 text-xs">
+                                        <div className="space-y-0.5 text-neutral-600">
+                                          {po.settled_by_name && <div><span className="text-neutral-400 font-semibold">Agreed with:</span> <span className="font-bold">{po.settled_by_name}</span></div>}
+                                          {po.settled_date && <div><span className="text-neutral-400 font-semibold">Date:</span> <span className="font-mono">{new Date(po.settled_date).toLocaleDateString()}</span></div>}
+                                          {po.settlement_notes && <div className="italic text-neutral-500">{po.settlement_notes}</div>}
+                                          {!po.signed_document_url && (
+                                            <div className="text-amber-600 font-semibold">Signed document not uploaded yet.</div>
+                                          )}
+                                        </div>
+                                        <div className="flex items-center gap-2">
+                                          {po.signed_document_url && (
+                                            <button type="button" onClick={() => handleViewStoredDocument(po.signed_document_url)} className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-neutral-100 hover:bg-emerald-50 text-neutral-600 hover:text-emerald-800 border border-neutral-200 text-[10px] font-bold">
+                                              <Image className="w-3 h-3" />
+                                              View Signed Document
+                                            </button>
+                                          )}
+                                          <button type="button" onClick={() => handleOpenDirectSettlement(po)} className="px-2.5 py-1 rounded-lg border border-neutral-200 text-neutral-600 hover:bg-neutral-50 text-[10px] font-bold">Edit Details</button>
+                                        </div>
+                                      </div>
+                                    )
+                                  )}
                                 </div>
 
                                 {/* Advance Payments Section */}
@@ -17066,6 +17435,185 @@ ${chauffeurHtml}
                           })
                       )}
                     </div>
+
+                    {/* Miscellaneous Expenses (no purchase order) */}
+                    <div className="border-t border-neutral-100 pt-6 space-y-4">
+                      <div className="flex flex-wrap items-center justify-between gap-3">
+                        <div>
+                          <h4 className="text-sm font-serif font-bold text-neutral-800 flex items-center gap-2">
+                            <Coins className="w-4 h-4 text-emerald-800" />
+                            Miscellaneous Expenses
+                          </h4>
+                          <p className="text-[11px] text-neutral-400 mt-0.5">Costs without a purchase order: fuel, parking, tips, entry fees, stationery, gifts, additional transport and similar.</p>
+                        </div>
+                        <div className="flex items-center gap-3">
+                          <div className="text-right">
+                            <span className="text-[10px] text-neutral-400 block font-bold">Total (LKR)</span>
+                            <span className="text-sm font-bold text-neutral-800 font-mono">
+                              {tourExpenses.reduce((sum, ex) => sum + Number(ex.amount) * Number(ex.exchange_rate || 1), 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                            </span>
+                          </div>
+                          {!showExpenseForm && (
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setShowExpenseForm(true);
+                                setExpenseDate(new Date().toISOString().split('T')[0]);
+                                setExpenseExchangeRate(expenseCurrency === 'LKR' ? '1.0' : plRate.toString());
+                              }}
+                              className="flex items-center gap-1 px-3 py-1.5 text-xs font-bold text-emerald-800 border border-neutral-250 bg-white hover:bg-emerald-50 rounded-lg shadow-sm cursor-pointer"
+                            >
+                              <Plus className="w-3.5 h-3.5" />
+                              Add Expense
+                            </button>
+                          )}
+                        </div>
+                      </div>
+
+                      {showExpenseForm && (
+                        <div className="p-4 bg-white border border-neutral-200 rounded-2xl space-y-4 shadow-sm animate-in slide-in-from-top-2 duration-200">
+                          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4">
+                            <div className="space-y-1">
+                              <label className="text-[10px] uppercase tracking-wider text-neutral-400 font-bold">Category</label>
+                              <select value={expenseCategory} onChange={(e) => setExpenseCategory(e.target.value as TourExpenseCategory)} className="w-full bg-neutral-50 border border-neutral-200 rounded-xl p-2 text-xs outline-none focus:ring-1 focus:ring-emerald-800">
+                                {TOUR_EXPENSE_CATEGORIES.map(c => <option key={c} value={c}>{c}</option>)}
+                              </select>
+                            </div>
+                            <div className="space-y-1 sm:col-span-2">
+                              <label className="text-[10px] uppercase tracking-wider text-neutral-400 font-bold">Description</label>
+                              <input type="text" value={expenseDescription} onChange={(e) => setExpenseDescription(e.target.value)} placeholder="e.g. Welcome gift for guests" className="w-full bg-neutral-50 border border-neutral-200 rounded-xl p-2 text-xs outline-none focus:ring-1 focus:ring-emerald-800" />
+                            </div>
+                            <div className="space-y-1">
+                              <label className="text-[10px] uppercase tracking-wider text-neutral-400 font-bold">Paid To</label>
+                              <input type="text" value={expensePaidTo} onChange={(e) => setExpensePaidTo(e.target.value)} placeholder="Shop / person" className="w-full bg-neutral-50 border border-neutral-200 rounded-xl p-2 text-xs outline-none focus:ring-1 focus:ring-emerald-800" />
+                            </div>
+                          </div>
+
+                          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4">
+                            <div className="space-y-1">
+                              <label className="text-[10px] uppercase tracking-wider text-neutral-400 font-bold">Currency</label>
+                              <select value={expenseCurrency} onChange={(e) => { setExpenseCurrency(e.target.value); setExpenseExchangeRate(e.target.value === 'LKR' ? '1.0' : plRate.toString()); }} className="w-full bg-neutral-50 border border-neutral-200 rounded-xl p-2 text-xs outline-none focus:ring-1 focus:ring-emerald-800">
+                                <option value="LKR">LKR</option>
+                                <option value="USD">USD</option>
+                                <option value="EUR">EUR</option>
+                                <option value="GBP">GBP</option>
+                              </select>
+                            </div>
+                            <div className="space-y-1">
+                              <label className="text-[10px] uppercase tracking-wider text-neutral-400 font-bold">Amount</label>
+                              <input type="number" value={expenseAmount} onChange={(e) => setExpenseAmount(e.target.value)} placeholder="0.00" className="w-full bg-neutral-50 border border-neutral-200 rounded-xl p-2 text-xs outline-none focus:ring-1 focus:ring-emerald-800" />
+                            </div>
+                            {expenseCurrency !== 'LKR' && (
+                              <div className="space-y-1">
+                                <label className="text-[10px] uppercase tracking-wider text-neutral-400 font-bold">Exchange Rate (to LKR)</label>
+                                <input type="number" value={expenseExchangeRate} onChange={(e) => setExpenseExchangeRate(e.target.value)} className="w-full bg-neutral-50 border border-neutral-200 rounded-xl p-2 text-xs outline-none focus:ring-1 focus:ring-emerald-800" />
+                              </div>
+                            )}
+                            <div className="space-y-1">
+                              <label className="text-[10px] uppercase tracking-wider text-neutral-400 font-bold">Date</label>
+                              <input type="date" value={expenseDate} onChange={(e) => setExpenseDate(e.target.value)} className="w-full bg-neutral-50 border border-neutral-200 rounded-xl p-2 text-xs outline-none focus:ring-1 focus:ring-emerald-800" />
+                            </div>
+                          </div>
+
+                          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                            <div className="space-y-1">
+                              <label className="text-[10px] uppercase tracking-wider text-neutral-400 font-bold">Method</label>
+                              <select value={expenseMethod} onChange={(e) => setExpenseMethod(e.target.value)} className="w-full bg-neutral-50 border border-neutral-200 rounded-xl p-2 text-xs outline-none focus:ring-1 focus:ring-emerald-800">
+                                <option value="Cash">Cash</option>
+                                <option value="Bank Transfer">Bank Transfer</option>
+                                <option value="Card">Card</option>
+                                <option value="Cheque">Cheque</option>
+                              </select>
+                            </div>
+                            <div className="space-y-1">
+                              <label className="text-[10px] uppercase tracking-wider text-neutral-400 font-bold">Reference</label>
+                              <input type="text" value={expenseRef} onChange={(e) => setExpenseRef(e.target.value)} placeholder="Bill / txn no." className="w-full bg-neutral-50 border border-neutral-200 rounded-xl p-2 text-xs outline-none focus:ring-1 focus:ring-emerald-800" />
+                            </div>
+                            <div className="space-y-1">
+                              <label className="text-[10px] uppercase tracking-wider text-neutral-400 font-bold">Notes</label>
+                              <input type="text" value={expenseNotes} onChange={(e) => setExpenseNotes(e.target.value)} className="w-full bg-neutral-50 border border-neutral-200 rounded-xl p-2 text-xs outline-none focus:ring-1 focus:ring-emerald-800" />
+                            </div>
+                          </div>
+
+                          <div className="flex flex-wrap items-center gap-3">
+                            <input
+                              type="file"
+                              accept=".pdf,.jpg,.jpeg,.png,.webp"
+                              id="expense-receipt-upload"
+                              className="hidden"
+                              disabled={isUploadingExpenseReceipt}
+                              onChange={(e) => {
+                                handleUploadSettlementFile(e.target.files?.[0], setExpenseReceiptUrl, setIsUploadingExpenseReceipt);
+                                e.target.value = '';
+                              }}
+                            />
+                            <label htmlFor="expense-receipt-upload" className="flex items-center gap-2 px-4 py-2 border border-dashed border-neutral-300 hover:border-emerald-800 rounded-xl bg-neutral-50 text-xs font-bold text-neutral-600 hover:text-emerald-800 transition-all cursor-pointer select-none">
+                              <Upload className="w-4 h-4" />
+                              {isUploadingExpenseReceipt ? 'Uploading...' : 'Upload Receipt (PDF / image)'}
+                            </label>
+                            {expenseReceiptUrl && (
+                              <div className="flex items-center gap-2 bg-emerald-50 text-emerald-800 px-3 py-1.5 rounded-xl border border-emerald-200 text-xs font-semibold">
+                                <Check className="w-3.5 h-3.5" />
+                                <span>Receipt Uploaded</span>
+                                <button type="button" onClick={() => setExpenseReceiptUrl('')} className="text-red-500 hover:text-red-700 ml-1 font-bold" title="Remove Receipt">✕</button>
+                              </div>
+                            )}
+                          </div>
+
+                          <div className="flex justify-end gap-2 pt-2 border-t border-neutral-100">
+                            <button type="button" disabled={isSavingExpense} onClick={handleSaveTourExpense} className="px-4 py-2 bg-emerald-800 hover:bg-emerald-950 text-white rounded-xl text-xs font-bold shadow-sm disabled:opacity-50">
+                              {isSavingExpense ? 'Saving...' : 'Save Expense'}
+                            </button>
+                            <button type="button" onClick={() => setShowExpenseForm(false)} className="px-4 py-2 border border-neutral-200 text-neutral-600 rounded-xl text-xs font-bold">Cancel</button>
+                          </div>
+                        </div>
+                      )}
+
+                      {tourExpenses.length === 0 ? (
+                        <p className="text-xs text-neutral-400 italic">No miscellaneous expenses recorded.</p>
+                      ) : (
+                        <div className="bg-white border border-neutral-200 rounded-xl p-4 shadow-sm text-xs divide-y divide-neutral-100">
+                          {tourExpenses.map((ex) => (
+                            <div key={ex.id} className="py-2 flex flex-wrap items-center justify-between gap-2 first:pt-0 last:pb-0">
+                              <div>
+                                <div className="flex items-center gap-2">
+                                  <span className="px-2 py-0.5 text-[9px] font-bold rounded-full bg-neutral-100 text-neutral-600 uppercase tracking-wider">{ex.category}</span>
+                                  <span className="font-bold text-neutral-700">{ex.description}</span>
+                                </div>
+                                <div className="text-[10px] text-neutral-400 mt-0.5 font-mono">
+                                  {new Date(ex.expense_date).toLocaleDateString()}
+                                  {ex.paid_to ? ` · ${ex.paid_to}` : ''}
+                                  {ex.payment_method ? ` · ${ex.payment_method}` : ''}
+                                  {ex.payment_reference ? ` · Ref: ${ex.payment_reference}` : ''}
+                                </div>
+                              </div>
+                              <div className="flex items-center gap-3">
+                                {ex.receipt_url && (
+                                  <button type="button" onClick={() => handleViewStoredDocument(ex.receipt_url as string)} className="inline-flex items-center gap-1 px-2 py-0.5 rounded-lg bg-neutral-100 hover:bg-emerald-50 text-neutral-600 hover:text-emerald-800 border border-neutral-200 text-[9px] font-bold">
+                                    <Image className="w-2.5 h-2.5" />
+                                    View Receipt
+                                  </button>
+                                )}
+                                <div className="text-right font-mono">
+                                  <span className="font-bold text-neutral-800">{ex.currency} {Number(ex.amount).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+                                  {ex.currency !== 'LKR' && (
+                                    <span className="text-[10px] text-neutral-400 block">≈ LKR {(Number(ex.amount) * Number(ex.exchange_rate || 1)).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+                                  )}
+                                </div>
+                                <button type="button" onClick={() => handleDownloadExpenseVoucher(ex)} className="inline-flex items-center gap-1 px-2 py-0.5 rounded-lg bg-emerald-800 hover:bg-emerald-950 text-white text-[9px] font-bold shadow-sm cursor-pointer" title="Download Voucher (PDF)">
+                                  <FileText className="w-2.5 h-2.5" />
+                                  Voucher
+                                </button>
+                                <button type="button" onClick={() => handleDeleteTourExpense(ex.id as string)} className="p-1 text-neutral-400 hover:text-red-600 hover:bg-red-50 rounded-lg cursor-pointer" title="Delete Expense">
+                                  <Trash2 className="w-3.5 h-3.5" />
+                                </button>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+
                   </div>
                 ) : track === 'final' && currentStep.id === 'payment-receive' ? (
                   <div className="bg-white rounded-2xl sm:rounded-3xl p-4 sm:p-6 lg:p-8 border border-neutral-200 shadow-md animate-in fade-in slide-in-from-bottom-3 duration-300 space-y-6">
@@ -18372,6 +18920,13 @@ ${chauffeurHtml}
                                 <span className="font-bold text-amber-700">${profitLossReport.plSummary.totalSupplierPaid.toLocaleString(undefined, { minimumFractionDigits: 2 })}</span>
                               </div>
                               <span className="text-[9px] text-amber-700/80 font-bold text-right">≈ {formatLkr(profitLossReport.plSummary.totalSupplierPaid)}</span>
+                            </div>
+                            <div className="flex flex-col">
+                              <div className="flex justify-between">
+                                <span>Misc. Expenses:</span>
+                                <span className="font-bold text-amber-700">${profitLossReport.plSummary.totalMiscExpenses.toLocaleString(undefined, { minimumFractionDigits: 2 })}</span>
+                              </div>
+                              <span className="text-[9px] text-amber-700/80 font-bold text-right">≈ {formatLkr(profitLossReport.plSummary.totalMiscExpenses)}</span>
                             </div>
                           </div>
                         </div>

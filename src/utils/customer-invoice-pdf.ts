@@ -51,7 +51,8 @@ export const generateCustomerInvoicePdf = async (
     invoice: DBCustomerInvoice,
     appSettings: any,
     touristData?: any,
-    tour?: any
+    tour?: any,
+    tourCode?: string | null
 ): Promise<any> => {
     const jspdfModule = await loadJsPDF();
     if (!jspdfModule) return null;
@@ -125,8 +126,9 @@ export const generateCustomerInvoicePdf = async (
     doc.text(`Invoice Date: ${formattedCreatedDate}`, 115, 39);
     doc.text(`Due Date: ${formattedDueDate}`, 115, 44);
     doc.text(`Status: ${(invoice.status || 'Pending').toUpperCase()}`, 115, 49);
+    doc.text(`Tour ID: ${tourCode || '-'}`, 115, 54);
 
-    const lineY = Math.max(logoBottomY + 6, 54);
+    const lineY = Math.max(logoBottomY + 6, 59);
     doc.setDrawColor(secondaryColor[0], secondaryColor[1], secondaryColor[2]);
     doc.setLineWidth(0.5);
     doc.line(20, lineY, 190, lineY);

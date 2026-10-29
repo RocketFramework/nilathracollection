@@ -583,6 +583,7 @@ export interface ProfitLossSummary {
     totalSupplierAgreed: number;
     totalSupplierInvoiced: number;
     totalSupplierPaid: number;
+    totalMiscExpenses: number;
     netAgreedProfit: number;
     netActualProfit: number;
     customerPaymentExchangeRate: number;

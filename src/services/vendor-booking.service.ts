@@ -2,6 +2,7 @@ import { createAdminClient } from '@/utils/supabase/admin';
 import { CreateVendorBookingDTO, UpdateBookingStatusDTO } from '../dtos/vendor-booking.dto';
 import { VendorBooking } from '../types/vendor-booking.type';
 import { FinanceService } from './finance.service';
+import { PoNumberService } from './po-number.service';
 
 export class VendorBookingService {
     /**
@@ -341,8 +342,7 @@ export class VendorBookingService {
             }
         }
 
-        const poPrefix = `PO-${bookingData.vendor_type.substring(0, 3).toUpperCase()}-`;
-        let poNumber = bookingData.po_number || `${poPrefix}${Date.now().toString().slice(-6)}`;
+        let poNumber = bookingData.po_number || await PoNumberService.getNextPoNumber(bookingData.vendor_type);
         let poRecordId = crypto.randomUUID();
 
         // po_number is unique. A retry (e.g. after a failed email send) reuses the number:
@@ -356,11 +356,7 @@ export class VendorBookingService {
             if (existingPo.tour_id === bookingData.tour_id && existingPo.status === 'Draft') {
                 poRecordId = existingPo.id;
             } else {
-                do {
-                    poNumber = `${poPrefix}${Date.now().toString().slice(-6)}${Math.floor(Math.random() * 90 + 10)}`;
-                    const { data: clash } = await supabase.from('purchase_orders').select('id').eq('po_number', poNumber).maybeSingle();
-                    if (!clash) break;
-                } while (true);
+                poNumber = await PoNumberService.getNextPoNumber(bookingData.vendor_type);
             }
         }
 

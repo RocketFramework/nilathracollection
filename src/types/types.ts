@@ -186,6 +186,11 @@ export const VENDOR_EMAIL_STATUSES = {
 } as const;
 export type VendorEmailStatus = typeof VENDOR_EMAIL_STATUSES[keyof typeof VENDOR_EMAIL_STATUSES];
 
+export const TOUR_EXPENSE_CATEGORIES = ['Fuel', 'Parking & Tolls', 'Tips', 'Entry Fees', 'Stationery', 'Gifts', 'Additional Transport', 'Other'] as const;
+export type TourExpenseCategory = typeof TOUR_EXPENSE_CATEGORIES[number];
+
+export type PoSettlementMode = 'invoice' | 'direct';
+
 export interface TourConciergeItem {
     id?: string;
     tour_id: string;
