@@ -9,6 +9,11 @@ export interface DBPurchaseOrderItem {
     unit_price: number;
     total_price: number;
 
+    // Agreed USD->LKR conversion (manual, contracted side). Null until entered.
+    fx_rate?: number | null;
+    unit_price_lkr?: number | null;
+    total_price_lkr?: number | null;
+
     // Hotel specific
     check_in_date?: string;
     check_out_date?: string;

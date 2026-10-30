@@ -16,6 +16,10 @@ export interface TourDailyDriverDTO {
     contracted_meal_cost?: number;
     contracted_other_allowance?: number;
 
+    // Agreed USD->LKR rate (manual) and the resulting LKR total for the day. Null until entered.
+    contracted_fx_rate?: number | null;
+    contracted_total_lkr?: number | null;
+
     // Charged Price (selling price for tourist invoice & PDF)
     charged_per_day_rate?: number;
     charged_accommodation_cost?: number;

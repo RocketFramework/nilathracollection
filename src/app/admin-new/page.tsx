@@ -720,6 +720,8 @@ function PlannerWizardWorkspace() {
   const [customRateUnit, setCustomRateUnit] = useState<string>('');
   const [customRateTotal, setCustomRateTotal] = useState<string>('');
   const [customRateNote, setCustomRateNote] = useState<string>('');
+  // Agreed USD->LKR conversion rate, entered manually (one rate for both unit and total).
+  const [customRateFx, setCustomRateFx] = useState<string>('');
   // Inline line-item edit panel (non-hotel steps)
   const [editingLineItemId, setEditingLineItemId] = useState<string | null>(null);
 
@@ -1049,7 +1051,7 @@ function PlannerWizardWorkspace() {
 
   // Driver-Selection states
   const [driverActivities, setDriverActivities] = useState<any[]>([]);
-  const [driverRatesState, setDriverRatesState] = useState<Record<string, Record<number, { rateType: string; contractedPrice: number; chargedPrice: number; note: string }>>>({});
+  const [driverRatesState, setDriverRatesState] = useState<Record<string, Record<number, { rateType: string; contractedPrice: number; chargedPrice: number; note: string; fxRate: string }>>>({});
   const [isLoadingDriverRates, setIsLoadingDriverRates] = useState(false);
   const [isSavingDriverRates, setIsSavingDriverRates] = useState<string | null>(null);
 
@@ -1095,6 +1097,7 @@ function PlannerWizardWorkspace() {
           day_number: dayNum,
           driver_id: driverId,
           contracted_per_day_rate: rateData.contractedPrice,
+          contracted_fx_rate: (parseFloat(rateData.fxRate) > 0) ? parseFloat(rateData.fxRate) : null,
           charged_per_day_rate: rateData.chargedPrice,
           notes: rateData.note || rateData.rateType || ''
         } as TourDailyDriverDTO);
@@ -1114,6 +1117,7 @@ function PlannerWizardWorkspace() {
               contracted_accommodation_cost: Number(dAss.contracted_accommodation_cost ?? 0),
               contracted_meal_cost: Number(dAss.contracted_meal_cost ?? 0),
               contracted_other_allowance: Number(dAss.contracted_other_allowance ?? 0),
+              contracted_fx_rate: dAss.contracted_fx_rate ?? null,
               charged_per_day_rate: Number(dAss.charged_per_day_rate ?? 0),
               charged_accommodation_cost: Number(dAss.charged_accommodation_cost ?? 0),
               charged_meal_cost: Number(dAss.charged_meal_cost ?? 0),
@@ -1928,6 +1932,9 @@ function PlannerWizardWorkspace() {
     const unitPrice = isNaN(parsedUnit) ? undefined : parsedUnit;
     const totalPrice = isNaN(parsedTotal) ? undefined : parsedTotal;
     const note = customRateNote.trim() || undefined;
+    const parsedFx = parseFloat(customRateFx);
+    const fxRate = isNaN(parsedFx) || parsedFx <= 0 ? null : parsedFx;
+    const toLkr = (usd: number | undefined | null, fx: number | null) => (usd != null && fx != null) ? Math.round(usd * fx * 100) / 100 : null;
 
     setIsApplyingRateOverride(true);
 
@@ -1993,6 +2000,9 @@ function PlannerWizardWorkspace() {
           guide_room_discount: customRateGuideRoomDiscount === 'None' ? null : customRateGuideRoomDiscount,
           contracted_price: isCurrent ? (unitPrice ?? act.contracted_price) : act.contracted_price,
           contracted_total_price: isCurrent ? (totalPrice ?? act.contracted_total_price) : act.contracted_total_price,
+          contracted_fx_rate: isCurrent ? fxRate : act.contracted_fx_rate,
+          contracted_unit_price_lkr: isCurrent ? toLkr(unitPrice, fxRate) : act.contracted_unit_price_lkr,
+          contracted_total_price_lkr: isCurrent ? toLkr(totalPrice, fxRate) : act.contracted_total_price_lkr,
           description: note ?? act.description
         };
       })
@@ -2011,6 +2021,9 @@ function PlannerWizardWorkspace() {
               ...act,
               contracted_price: isCurrent ? (unitPrice ?? act.contracted_price) : act.contracted_price,
               contracted_total_price: isCurrent ? (totalPrice ?? act.contracted_total_price) : act.contracted_total_price,
+              contracted_fx_rate: isCurrent ? fxRate : act.contracted_fx_rate,
+              contracted_unit_price_lkr: isCurrent ? toLkr(unitPrice, fxRate) : act.contracted_unit_price_lkr,
+              contracted_total_price_lkr: isCurrent ? toLkr(totalPrice, fxRate) : act.contracted_total_price_lkr,
               description: note ?? act.description,
               driver_meal_included: customRateDriverMeal,
               driver_acc_included: customRateDriverAcc,
@@ -2032,6 +2045,7 @@ function PlannerWizardWorkspace() {
           id: id,
           contracted_price: isCurrent ? (unitPrice !== undefined ? unitPrice : null) : undefined,
           contracted_total_price: isCurrent ? (totalPrice !== undefined ? totalPrice : null) : undefined,
+          contracted_fx_rate: isCurrent ? fxRate : undefined,
           driver_meal_included: customRateDriverMeal,
           driver_acc_included: customRateDriverAcc,
           parking_included: customRateParking,
@@ -2064,6 +2078,9 @@ function PlannerWizardWorkspace() {
     const parsedTotal = parseFloat(customRateTotal);
     const unitPrice = isNaN(parsedUnit) ? undefined : parsedUnit;
     const totalPrice = isNaN(parsedTotal) ? undefined : parsedTotal;
+    const parsedFx = parseFloat(customRateFx);
+    const fxRate = isNaN(parsedFx) || parsedFx <= 0 ? null : parsedFx;
+    const toLkr = (usd: number | undefined | null, fx: number | null) => (usd != null && fx != null) ? Math.round(usd * fx * 100) / 100 : null;
 
     if (unitPrice === undefined && totalPrice === undefined) return;
 
@@ -2087,6 +2104,9 @@ function PlannerWizardWorkspace() {
           ...act,
           contracted_price: unitPrice ?? act.contracted_price,
           contracted_total_price: (legIdx === 0 ? firstLegTotal : perLegTotal) ?? act.contracted_total_price,
+          contracted_fx_rate: fxRate,
+          contracted_unit_price_lkr: toLkr(unitPrice, fxRate),
+          contracted_total_price_lkr: toLkr(legIdx === 0 ? firstLegTotal : perLegTotal, fxRate),
           description: customRateNote.trim() || act.description,
         };
       }),
@@ -2137,6 +2157,7 @@ function PlannerWizardWorkspace() {
         id,
         contracted_price: unitPrice,
         contracted_total_price: legIdx === 0 ? firstLegTotal : perLegTotal,
+        contracted_fx_rate: fxRate,
       }))
     )
       .then(async (res) => {
@@ -2176,6 +2197,8 @@ function PlannerWizardWorkspace() {
     setCustomRateParking(act.parking_included || false);
     setCustomRateGuideRoomDiscount(act.guide_room_discount || 'None');
     setCustomRateApplyToAllInBlock(false);
+
+    setCustomRateFx(act.contracted_fx_rate != null ? String(act.contracted_fx_rate) : '');
 
     if (acc) {
       setCustomRateUnit(acc.customContractedUnitPrice !== undefined ? String(acc.customContractedUnitPrice) : String(act.contracted_price ?? ''));
@@ -3251,7 +3274,8 @@ function PlannerWizardWorkspace() {
                 rateType: rateType,
                 contractedPrice: contractedTotal,
                 chargedPrice: chargedTotal,
-                note: noteText
+                note: noteText,
+                fxRate: row.contracted_fx_rate != null ? String(row.contracted_fx_rate) : ''
               };
             });
           } else {
@@ -3267,7 +3291,8 @@ function PlannerWizardWorkspace() {
                 rateType: defaultRateType,
                 contractedPrice: defaultRate,
                 chargedPrice: defaultRate,
-                note: `Rate Type: ${defaultRateType}`
+                note: `Rate Type: ${defaultRateType}`,
+                fxRate: ''
               };
             }
           }
@@ -11604,12 +11629,18 @@ ${chauffeurHtml}
                                             <div className="text-right">
                                               <span className="text-[9px] text-neutral-400 uppercase block font-mono">Unit Rate (Cost)</span>
                                               <span className="font-mono text-neutral-600 font-bold">${Number(stay.contracted_price ?? stay.charged_unit_price).toFixed(2)}</span>
+                                              {stay.contracted_fx_rate != null && stay.contracted_unit_price_lkr != null && (
+                                                <span className="font-mono text-[9px] text-amber-700 font-bold block">LKR {Number(stay.contracted_unit_price_lkr).toLocaleString('en-LK', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} @ {Number(stay.contracted_fx_rate)}</span>
+                                              )}
                                             </div>
                                           )}
                                           {(stay.contracted_total_price ?? stay.charged_total_price) !== undefined && (stay.contracted_total_price ?? stay.charged_total_price) !== null && (
                                             <div className="text-right">
                                               <span className="text-[9px] text-emerald-605 uppercase block font-mono">Total Rate (Cost)</span>
                                               <span className="font-mono text-emerald-850 font-bold">${Number(stay.contracted_total_price ?? stay.charged_total_price).toFixed(2)}</span>
+                                              {stay.contracted_fx_rate != null && stay.contracted_total_price_lkr != null && (
+                                                <span className="font-mono text-[9px] text-amber-700 font-bold block">LKR {Number(stay.contracted_total_price_lkr).toLocaleString('en-LK', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} @ {Number(stay.contracted_fx_rate)}</span>
+                                              )}
                                             </div>
                                           )}
                                           <button
@@ -15204,6 +15235,7 @@ ${chauffeurHtml}
                                       <th className="p-3.5 font-bold text-neutral-500 uppercase tracking-wider text-[10px]">Day / Date</th>
                                       <th className="p-3.5 font-bold text-neutral-500 uppercase tracking-wider text-[10px]">Rate Type Preset</th>
                                       <th className="p-3.5 font-bold text-neutral-500 uppercase tracking-wider text-[10px] w-36">Contracted Price ($)</th>
+                                      <th className="p-3.5 font-bold text-neutral-500 uppercase tracking-wider text-[10px] w-44">FX Rate (LKR per $)</th>
                                       <th className="p-3.5 font-bold text-neutral-500 uppercase tracking-wider text-[10px]">Note / Remarks</th>
                                     </tr>
                                   </thead>
@@ -15288,6 +15320,35 @@ ${chauffeurHtml}
                                               disabled={isLockedByOther}
                                               className="w-24 border border-neutral-200 rounded-lg px-2 py-1 text-xs focus:outline-none focus:ring-1 focus:ring-emerald-800"
                                             />
+                                          </td>
+                                          <td className="p-3.5">
+                                            <input
+                                              type="number"
+                                              min="0"
+                                              step="0.0001"
+                                              placeholder="e.g. 305.50"
+                                              value={dayRate.fxRate ?? ''}
+                                              onChange={(e) => {
+                                                const fx = e.target.value;
+                                                setDriverRatesState(prev => ({
+                                                  ...prev,
+                                                  [driverId]: {
+                                                    ...prev[driverId],
+                                                    [day.dayNum]: {
+                                                      ...prev[driverId][day.dayNum],
+                                                      fxRate: fx
+                                                    }
+                                                  }
+                                                }));
+                                              }}
+                                              disabled={isLockedByOther}
+                                              className="w-24 border border-neutral-200 rounded-lg px-2 py-1 text-xs font-mono focus:outline-none focus:ring-1 focus:ring-amber-600"
+                                            />
+                                            <span className="block text-[10px] font-mono font-bold text-amber-700 mt-1">
+                                              {parseFloat(dayRate.fxRate) > 0
+                                                ? `= LKR ${(dayRate.contractedPrice * parseFloat(dayRate.fxRate)).toLocaleString('en-LK', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
+                                                : 'Not entered'}
+                                            </span>
                                           </td>
                                           <td className="p-3.5">
                                             <input
@@ -21861,6 +21922,41 @@ ${chauffeurHtml}
                     />
                   </div>
                 </div>
+
+                {/* Agreed USD -> LKR conversion rate (one rate applies to both unit and total) */}
+                {(() => {
+                  const fxNum = parseFloat(customRateFx);
+                  const validFx = !isNaN(fxNum) && fxNum > 0;
+                  const unitNum = parseFloat(customRateUnit);
+                  const totalNum = parseFloat(customRateTotal);
+                  const fmt = (v: number) => v.toLocaleString('en-LK', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+                  return (
+                    <div>
+                      <label className="text-[10px] font-bold text-neutral-400 uppercase tracking-wider block mb-1.5">
+                        FX Rate (LKR per $)
+                      </label>
+                      <input
+                        id="custom-rate-fx"
+                        type="number"
+                        step="0.0001"
+                        min="0"
+                        placeholder="e.g. 305.50"
+                        value={customRateFx}
+                        onChange={(e) => setCustomRateFx(e.target.value)}
+                        className="w-full text-xs border border-neutral-200 rounded-xl px-3.5 py-2.5 bg-white text-neutral-800 focus:outline-none focus:ring-4 focus:ring-amber-600/10 focus:border-amber-600 transition-all font-medium shadow-sm font-mono"
+                      />
+                      <div className="grid grid-cols-2 gap-4 mt-1">
+                        <span className="text-[10px] font-mono font-bold text-amber-700">
+                          {validFx && !isNaN(unitNum) ? `Unit = LKR ${fmt(unitNum * fxNum)}` : 'Unit LKR: not entered'}
+                        </span>
+                        <span className="text-[10px] font-mono font-bold text-amber-700">
+                          {validFx && !isNaN(totalNum) ? `Total = LKR ${fmt(totalNum * fxNum)}` : 'Total LKR: not entered'}
+                        </span>
+                      </div>
+                    </div>
+                  );
+                })()}
+
 
                 <div className="text-[10px] text-neutral-400 bg-neutral-50 p-3 rounded-xl border border-neutral-200 flex flex-col gap-1">
                   <div className="flex justify-between">

@@ -1238,6 +1238,7 @@ export async function finalizeActivityPricesAction(
         driver_acc_included?: boolean;
         parking_included?: boolean;
         guide_room_discount?: string | null;
+        contracted_fx_rate?: number | null;
     }[]
 ) {
     try {
@@ -1268,6 +1269,17 @@ export async function finalizeActivityPricesAction(
                 dbFields.guide_room_discount = update.guide_room_discount;
             }
 
+            // Agreed USD->LKR rates (manual). LKR amount = saved USD value x rate; never guessed when no rate is entered.
+            const lkr = (usd: number | null | undefined, rate: number | null | undefined) =>
+                (usd != null && rate != null && Number(rate) > 0) ? Math.round(Number(usd) * Number(rate) * 100) / 100 : null;
+            const unitLkr = update.contracted_fx_rate !== undefined ? lkr(update.contracted_price, update.contracted_fx_rate) : undefined;
+            const totalLkr = update.contracted_fx_rate !== undefined ? lkr(update.contracted_total_price, update.contracted_fx_rate) : undefined;
+            if (update.contracted_fx_rate !== undefined) {
+                dbFields.contracted_fx_rate = update.contracted_fx_rate;
+                dbFields.contracted_unit_price_lkr = unitLkr;
+                dbFields.contracted_total_price_lkr = totalLkr;
+            }
+
             // 1. Update daily_activities table
             const { error } = await adminSupabase
                 .from('daily_activities')
@@ -1278,11 +1290,17 @@ export async function finalizeActivityPricesAction(
             // 2. Sync to purchase_order_items if a PO exists
             if (update.contracted_total_price !== undefined && update.contracted_total_price !== null) {
                 const newPrice = Number(update.contracted_total_price);
+                const poFields: any = { unit_price: newPrice, total_price: newPrice };
+                if (update.contracted_fx_rate !== undefined) {
+                    poFields.fx_rate = update.contracted_fx_rate;
+                    poFields.unit_price_lkr = unitLkr;
+                    poFields.total_price_lkr = totalLkr;
+                }
 
                 // Check direct purchase_order_items
                 const { data: directPoItems } = await adminSupabase
                     .from('purchase_order_items')
-                    .update({ unit_price: newPrice, total_price: newPrice })
+                    .update(poFields)
                     .eq('daily_activity_id', update.id)
                     .select('purchase_order_id');
 

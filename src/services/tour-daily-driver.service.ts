@@ -8,6 +8,12 @@ const getSupabaseClient = () => {
 };
 
 export class TourDailyDriverService {
+    /** LKR total = (day rate + accommodation + meal + other, contracted) x agreed FX rate. Null when no rate was entered. */
+    private static toLkrTotal(fxRate: number | null, rate: number, acc: number, meal: number, other: number): number | null {
+        if (fxRate === null || !(fxRate > 0)) return null;
+        return Math.round((Number(rate) + Number(acc) + Number(meal) + Number(other)) * fxRate * 100) / 100;
+    }
+
     static async getDailyDriversByTourId(tourId: string, client?: any): Promise<TourDailyDriverDTO[]> {
         const sb = client || getSupabaseClient();
 
@@ -64,6 +70,8 @@ export class TourDailyDriverService {
                 contracted_accommodation_cost: contractedAcc,
                 contracted_meal_cost: contractedMeal,
                 contracted_other_allowance: contractedOther,
+                contracted_fx_rate: row.contracted_fx_rate != null ? Number(row.contracted_fx_rate) : null,
+                contracted_total_lkr: row.contracted_total_lkr != null ? Number(row.contracted_total_lkr) : null,
 
                 charged_per_day_rate: chargedRate,
                 charged_accommodation_cost: chargedAcc,
@@ -126,6 +134,8 @@ export class TourDailyDriverService {
             const chargedAcc = p.charged_accommodation_cost ?? 0;
             const chargedMeal = p.charged_meal_cost ?? 0;
             const chargedOther = p.charged_other_allowance ?? 0;
+            const fxRate = (p.contracted_fx_rate != null && Number(p.contracted_fx_rate) > 0) ? Number(p.contracted_fx_rate) : null;
+            const totalLkr = TourDailyDriverService.toLkrTotal(fxRate, contractedRate, Number(contractedAcc), Number(contractedMeal), Number(contractedOther));
 
             if (p.applyScope === 'all') {
                 // Replicate across all itineraries
@@ -139,6 +149,8 @@ export class TourDailyDriverService {
                         contracted_accommodation_cost: contractedAcc,
                         contracted_meal_cost: contractedMeal,
                         contracted_other_allowance: contractedOther,
+                        contracted_fx_rate: fxRate,
+                        contracted_total_lkr: totalLkr,
 
                         charged_per_day_rate: chargedRate,
                         charged_accommodation_cost: chargedAcc,
@@ -182,6 +194,8 @@ export class TourDailyDriverService {
                     contracted_accommodation_cost: contractedAcc,
                     contracted_meal_cost: contractedMeal,
                     contracted_other_allowance: contractedOther,
+                    contracted_fx_rate: fxRate,
+                    contracted_total_lkr: totalLkr,
 
                     charged_per_day_rate: chargedRate,
                     charged_accommodation_cost: chargedAcc,
@@ -197,6 +211,8 @@ export class TourDailyDriverService {
         if (formattedPayloads.length === 0) return [];
 
         // 3. Delete and Insert driver assignments into tour_itinerary_drivers
+        // Back up the current rows first so a failed insert can never leave the tour without its driver assignments.
+        const { data: backupRows } = await sb.from('tour_itinerary_drivers').select('*').eq('tour_id', tourId);
         await sb.from('tour_itinerary_drivers').delete().eq('tour_id', tourId);
 
         // Deduplicate to avoid unique constraint violations
@@ -214,6 +230,10 @@ export class TourDailyDriverService {
 
         if (upsertErr) {
             console.error('Error upserting tour_itinerary_drivers:', upsertErr);
+            if (backupRows && backupRows.length > 0) {
+                const { error: restoreErr } = await sb.from('tour_itinerary_drivers').insert(backupRows);
+                if (restoreErr) console.error('Failed to restore tour_itinerary_drivers backup:', restoreErr);
+            }
             throw upsertErr;
         }
 
@@ -246,6 +266,8 @@ export class TourDailyDriverService {
                 contracted_accommodation_cost: contractedAcc,
                 contracted_meal_cost: contractedMeal,
                 contracted_other_allowance: contractedOther,
+                contracted_fx_rate: row.contracted_fx_rate != null ? Number(row.contracted_fx_rate) : null,
+                contracted_total_lkr: row.contracted_total_lkr != null ? Number(row.contracted_total_lkr) : null,
 
                 charged_per_day_rate: chargedRate,
                 charged_accommodation_cost: chargedAcc,
