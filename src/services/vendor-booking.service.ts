@@ -275,6 +275,9 @@ export class VendorBookingService {
                             quantity: qty,
                             unit_price: unitPrice,
                             total_price: totalPrice,
+                            fx_rate: act.contracted_fx_rate ?? null,
+                            unit_price_lkr: act.contracted_unit_price_lkr ?? null,
+                            total_price_lkr: act.contracted_total_price_lkr ?? null,
                             day_number: dayNum,
                             special_notes: act.isCustomPO ? 'Custom PO Service item' : undefined,
                             service_details

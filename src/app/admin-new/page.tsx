@@ -5067,21 +5067,34 @@ function PlannerWizardWorkspace() {
   const plRate = tourLockedBuyingRate || profitLossReport.plSummary.customerPaymentExchangeRate || defaultUsdLkrRate || 300;
   const formatLkr = (usd: number) => `LKR ${(usd * plRate).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 
-  const initInvoiceItems = (po: any) => {
-    if (po.items && po.items.length > 0) {
-      setInvoiceItems(po.items.map((item: any) => ({
+  // True when every PO item has an agreed LKR unit price saved (purchase_order_items.unit_price_lkr).
+  const poHasAgreedLkrItems = (po: any) =>
+    po.vendor_type !== 'driver' && (po.items || []).length > 0 && (po.items || []).every((i: any) => i.unit_price_lkr != null);
+
+  const buildInvoiceItemsFromPo = (po: any) => {
+    const lkr = poHasAgreedLkrItems(po);
+    return (po.items || []).map((item: any) => {
+      const unit = lkr ? Number(item.unit_price_lkr) : item.unit_price;
+      return {
         purchase_order_item_id: item.id,
         description: item.description,
         quantity: item.quantity.toString(),
-        unit_price: item.unit_price.toString(),
+        unit_price: unit.toString(),
         po_quantity: item.quantity,
-        po_unit_price: item.unit_price,
+        po_unit_price: unit,
+        po_item_currency: lkr ? 'LKR' : undefined,
         room_type: item.service_details?.room_type || item.room_type,
         meal_plan: item.service_details?.meal_plan || item.meal_plan,
         number_of_nights: item.service_details?.number_of_nights || item.number_of_nights,
         check_in_date: item.service_details?.check_in_date || item.check_in_date,
         check_out_date: item.service_details?.check_out_date || item.check_out_date
-      })));
+      };
+    });
+  };
+
+  const initInvoiceItems = (po: any) => {
+    if (po.items && po.items.length > 0) {
+      setInvoiceItems(buildInvoiceItemsFromPo(po));
     } else {
       setInvoiceItems([]);
     }
@@ -7843,9 +7856,16 @@ ${chauffeurHtml}
       return;
     }
 
-    const invoiceAmtLKR = amount * rate;
+    const invoiceAmtLKR = invoiceCurrency === 'LKR' ? amount : amount * rate;
+    // Same rule as the on-screen tally: when the PO has agreed LKR (all items priced), compare in LKR against it
+    const poItemsForLkr: any[] = po.vendor_type !== 'driver' ? (po.items || []) : [];
+    const agreedLkr: number | null = (poItemsForLkr.length > 0 && poItemsForLkr.every((i: any) => i.total_price_lkr != null))
+      ? poItemsForLkr.reduce((s: number, i: any) => s + Number(i.total_price_lkr), 0)
+      : null;
     const poAmtLKR = po.currency === 'USD' ? po.total_amount * rate : po.total_amount;
-    const discrepancy = po.currency === invoiceCurrency ? (amount - po.total_amount) : (invoiceAmtLKR - poAmtLKR);
+    const discrepancy = agreedLkr !== null
+      ? (invoiceAmtLKR - agreedLkr)
+      : (po.currency === invoiceCurrency ? (amount - po.total_amount) : (invoiceAmtLKR - poAmtLKR));
     const isTallied = Math.abs(discrepancy) < 0.01;
 
     try {
@@ -12323,12 +12343,18 @@ ${chauffeurHtml}
                                             <div className="text-right">
                                               <span className="text-[9px] text-neutral-400 uppercase block font-mono">Per Head</span>
                                               <span className="font-mono text-neutral-600 font-bold">${Number(unitRate).toFixed(2)}</span>
+                                              {meal.contracted_unit_price_lkr != null && meal.contracted_fx_rate != null && (
+                                                <span className="block text-[9px] font-mono text-emerald-700">LKR {Number(meal.contracted_unit_price_lkr).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })} @ {Number(meal.contracted_fx_rate)}</span>
+                                              )}
                                             </div>
                                           )}
                                           {totalRate !== undefined && totalRate !== null && (
                                             <div className="text-right">
                                               <span className="text-[9px] text-emerald-600 uppercase block font-mono">Total</span>
                                               <span className="font-mono text-emerald-800 font-bold">${Number(totalRate).toFixed(2)}</span>
+                                              {meal.contracted_total_price_lkr != null && meal.contracted_fx_rate != null && (
+                                                <span className="block text-[9px] font-mono text-emerald-700">LKR {Number(meal.contracted_total_price_lkr).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+                                              )}
                                             </div>
                                           )}
                                           <button
@@ -12338,6 +12364,7 @@ ${chauffeurHtml}
                                               setCustomRateUnit(String(meal.contracted_price ?? meal.charged_unit_price ?? ''));
                                               setCustomRateTotal(String(meal.contracted_total_price ?? meal.charged_total_price ?? ''));
                                               setCustomRateNote(meal.description || '');
+                                              setCustomRateFx(meal.contracted_fx_rate != null ? String(meal.contracted_fx_rate) : '');
                                             }}
                                             disabled={isLockedByOther}
                                             className="p-1.5 rounded-lg border border-neutral-200 hover:border-rose-400/40 hover:bg-rose-50/20 text-neutral-400 hover:text-rose-600 transition-all shadow-sm shrink-0 disabled:opacity-40"
@@ -12881,12 +12908,18 @@ ${chauffeurHtml}
                                             <div className="text-right">
                                               <span className="text-[9px] text-neutral-400 uppercase block font-mono">Unit Rate</span>
                                               <span className="font-mono text-neutral-600 font-bold">${Number(unitRate).toFixed(2)}</span>
+                                              {act.contracted_fx_rate != null && act.contracted_unit_price_lkr != null && (
+                                                <span className="font-mono text-[9px] text-amber-700 font-bold block">LKR {Number(act.contracted_unit_price_lkr).toLocaleString('en-LK', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} @ {Number(act.contracted_fx_rate)}</span>
+                                              )}
                                             </div>
                                           )}
                                           {totalRate !== undefined && totalRate !== null && (
                                             <div className="text-right">
                                               <span className="text-[9px] text-emerald-600 uppercase block font-mono">Total</span>
                                               <span className="font-mono text-emerald-800 font-bold">${Number(totalRate).toFixed(2)}</span>
+                                              {act.contracted_fx_rate != null && act.contracted_total_price_lkr != null && (
+                                                <span className="font-mono text-[9px] text-amber-700 font-bold block">LKR {Number(act.contracted_total_price_lkr).toLocaleString('en-LK', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} @ {Number(act.contracted_fx_rate)}</span>
+                                              )}
                                             </div>
                                           )}
                                           <button
@@ -12896,6 +12929,7 @@ ${chauffeurHtml}
                                               setCustomRateUnit(String(act.contracted_price ?? act.charged_unit_price ?? ''));
                                               setCustomRateTotal(String(act.contracted_total_price ?? act.charged_total_price ?? ''));
                                               setCustomRateNote(act.description || '');
+                                              setCustomRateFx(act.contracted_fx_rate != null ? String(act.contracted_fx_rate) : '');
                                             }}
                                             disabled={isLockedByOther}
                                             className="p-1.5 rounded-lg border border-neutral-200 hover:border-indigo-400/40 hover:bg-indigo-50/20 text-neutral-400 hover:text-indigo-600 transition-all shadow-sm shrink-0 disabled:opacity-40"
@@ -16040,13 +16074,13 @@ ${chauffeurHtml}
                     </div>
 
                     <div className="space-y-10">
-                      {purchaseOrders.filter(po => (po.vendor_type === 'hotel' || po.vendor_type === 'transport' || po.vendor_type === 'driver' || po.vendor_type === 'vendor') && po.status === 'Accepted').length === 0 ? (
+                      {purchaseOrders.filter(po => (po.vendor_type === 'hotel' || po.vendor_type === 'transport' || po.vendor_type === 'driver' || po.vendor_type === 'vendor' || po.vendor_type === 'restaurant' || po.vendor_type === 'guide') && po.status === 'Accepted').length === 0 ? (
                         <div className="p-6 text-center bg-neutral-50 rounded-2xl border border-dashed border-neutral-250">
                           <p className="text-sm text-neutral-500 italic">There are no purchase orders that are accepted by the suppliers.</p>
                         </div>
                       ) : (
                         purchaseOrders
-                          .filter(po => (po.vendor_type === 'hotel' || po.vendor_type === 'transport' || po.vendor_type === 'driver' || po.vendor_type === 'vendor') && po.status === 'Accepted')
+                          .filter(po => (po.vendor_type === 'hotel' || po.vendor_type === 'transport' || po.vendor_type === 'driver' || po.vendor_type === 'vendor' || po.vendor_type === 'restaurant' || po.vendor_type === 'guide') && po.status === 'Accepted')
                           .map(po => {
                             const invoices = po.invoices || [];
                             const advPayments = po.advance_payments || [];
@@ -16065,8 +16099,24 @@ ${chauffeurHtml}
 
                             // Active rate for PO converted value (dollar buying rate of customer paid date)
                             const activeRate = plRate;
-                            const poValLkr = poCurrency === 'LKR' ? totalPoVal : totalPoVal * activeRate;
+                            // Driver POs: the LKR value is the sum of the LKR totals agreed in driver-selection
+                            // (tour_itinerary_drivers.contracted_total_lkr). If any of the driver's days has no agreed
+                            // rate yet, the whole PO falls back to the P&L rate display (no mixing, no guessing).
+                            const poDriverRows: any[] = po.vendor_type === 'driver'
+                              ? Object.values(dailyDriverAssignments || {}).flat().filter((r: any) => r.driver_id === po.driver_id)
+                              : [];
+                            const poItemRows: any[] = po.vendor_type !== 'driver' ? (po.items || []) : [];
+                            const agreedLkrTotal: number | null = po.vendor_type === 'driver'
+                              ? ((poDriverRows.length > 0 && poDriverRows.every((r: any) => r.contracted_total_lkr != null))
+                                ? poDriverRows.reduce((s: number, r: any) => s + Number(r.contracted_total_lkr), 0)
+                                : null)
+                              : ((poItemRows.length > 0 && poItemRows.every((i: any) => i.total_price_lkr != null))
+                                ? poItemRows.reduce((s: number, i: any) => s + Number(i.total_price_lkr), 0)
+                                : null);
+                            const poValLkr = poCurrency === 'LKR' ? totalPoVal : (agreedLkrTotal !== null ? agreedLkrTotal : totalPoVal * activeRate);
                             const balancePayableLkr = poValLkr - totalPaidLkr;
+                            // Invoiced total in LKR (each invoice converted with its own saved rate; LKR invoices are 1:1)
+                            const totalInvoicedLkr = invoices.reduce((sum: number, inv: any) => sum + Number(inv.amount) * (inv.currency === 'LKR' ? 1 : Number(inv.exchange_rate || 1.0)), 0);
 
                             return (
                               <div key={po.id} className="border-2 border-neutral-300 border-l-8 border-l-emerald-800 rounded-3xl p-6 bg-white space-y-6 shadow-lg hover:shadow-xl transition-all">
@@ -16076,7 +16126,7 @@ ${chauffeurHtml}
                                     <div className="flex items-center gap-2">
                                        <span className="text-sm font-bold text-neutral-855 font-mono">{po.po_number}</span>
                                        <span className="text-sm font-semibold text-neutral-600">({po.vendor_name})</span>
-                                       <span className="px-2 py-0.5 text-[9px] font-bold rounded-full bg-emerald-800 text-white uppercase tracking-wider">{({ hotel: 'Hotel', transport: 'Transport', driver: 'Driver', vendor: 'Activity' } as Record<string, string>)[po.vendor_type] || po.vendor_type}</span>
+                                       <span className="px-2 py-0.5 text-[9px] font-bold rounded-full bg-emerald-800 text-white uppercase tracking-wider">{({ hotel: 'Hotel', transport: 'Transport', driver: 'Driver', vendor: 'Activity', restaurant: 'Restaurant', guide: 'Guide' } as Record<string, string>)[po.vendor_type] || po.vendor_type}</span>
                                       <span className={`px-2 py-0.5 text-[9px] font-bold rounded-full ${po.status === 'Completed' ? 'bg-green-105 text-green-800' :
                                         po.status === 'Sent' ? 'bg-blue-105 text-blue-800' :
                                           po.status === 'Accepted' ? 'bg-emerald-105 text-emerald-800' :
@@ -16088,8 +16138,7 @@ ${chauffeurHtml}
                                         <button
                                           type="button"
                                           onClick={() => {
-                                            const booking = vendorBookings.find(b => b.purchase_order_id === po.id || b.daily_activity_ids?.some((id: string) => po.items?.some((item: any) => item.daily_activity_id === id)));
-                                            const bookingId = booking?.id || po.booking_id || po.id;
+                                            const bookingId = po.id;
                                             const reason = prompt("Enter reason for cancellation:");
                                             if (reason !== null) handleCancelPO(bookingId, reason);
                                           }}
@@ -16105,9 +16154,9 @@ ${chauffeurHtml}
                                   <div className="flex items-center gap-6">
                                     <div className="text-right">
                                       <span className="text-[10px] text-neutral-400 block font-bold font-sans">PO Total</span>
-                                      <span className="text-base font-bold text-neutral-800 font-mono">{poCurrency} {totalPoVal.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+                                      <span className="text-base font-bold text-neutral-800 font-mono">LKR {poValLkr.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
                                       {poCurrency !== 'LKR' && (
-                                        <span className="text-[10px] text-neutral-405 block font-mono">≈ LKR {poValLkr.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+                                        <span className="text-[10px] text-neutral-405 block font-mono">{agreedLkrTotal !== null ? 'agreed rates' : 'at P&L rate'} · {poCurrency} {totalPoVal.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
                                       )}
                                     </div>
                                   </div>
@@ -16117,11 +16166,11 @@ ${chauffeurHtml}
                                 <div className="grid grid-cols-2 md:grid-cols-4 gap-4 p-4 bg-white border border-neutral-200 rounded-2xl shadow-sm">
                                   <div>
                                     <span className="text-[10px] font-bold text-neutral-400 uppercase block">PO Total Value</span>
-                                    <span className="text-sm font-bold text-neutral-700 font-mono">{poCurrency} {totalPoVal.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+                                    <span className="text-sm font-bold text-neutral-700 font-mono">LKR {poValLkr.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
                                   </div>
                                   <div>
                                     <span className="text-[10px] font-bold text-neutral-400 uppercase block">Total Invoiced</span>
-                                    <span className="text-sm font-bold text-neutral-700 font-mono">{poCurrency} {totalInvoicedVal.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+                                    <span className="text-sm font-bold text-neutral-700 font-mono">LKR {totalInvoicedLkr.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
                                   </div>
                                   <div>
                                     <span className="text-[10px] font-bold text-neutral-400 uppercase block">Total Payments</span>
@@ -16251,8 +16300,8 @@ ${chauffeurHtml}
                                             setActivePoForAdvancePayment(po.id);
                                             setActivePoForRefund(null);
                                             setPaymentAmount('');
-                                            setPaymentCurrency('USD');
-                                            setPaymentExchangeRate(plRate.toString());
+                                            setPaymentCurrency(agreedLkrTotal !== null ? 'LKR' : 'USD');
+                                            setPaymentExchangeRate(agreedLkrTotal !== null ? '1.0' : plRate.toString());
                                             setPaymentDate(new Date().toISOString().split('T')[0]);
                                             setPaymentRef('');
                                             setPaymentNotes('');
@@ -16704,9 +16753,10 @@ ${chauffeurHtml}
                                         onClick={() => {
                                           setEnteringInvoicePoId(po.id);
                                           setInvoiceNumber('');
-                                          setInvoiceAmount(po.total_amount.toString());
-                                          setInvoiceCurrency(po.currency || 'USD');
-                                          setInvoiceExchangeRate(plRate.toString());
+                                          const poLkrItems = poHasAgreedLkrItems(po);
+                                          setInvoiceAmount(poLkrItems ? (po.items || []).reduce((s: number, i: any) => s + Number(i.quantity) * Number(i.unit_price_lkr), 0).toString() : po.total_amount.toString());
+                                          setInvoiceCurrency(poLkrItems ? 'LKR' : (po.currency || 'USD'));
+                                          setInvoiceExchangeRate(poLkrItems ? '1.0' : plRate.toString());
                                           setInvoiceDate(new Date().toISOString().split('T')[0]);
                                           setInvoiceAttachment('');
                                           setInvoiceType('Final');
@@ -16727,20 +16777,14 @@ ${chauffeurHtml}
                                         <button
                                           type="button"
                                           onClick={() => {
-                                            setInvoiceItems(po.items?.map((item: any) => ({
-                                              purchase_order_item_id: item.id,
-                                              description: item.description,
-                                              quantity: item.quantity.toString(),
-                                              unit_price: item.unit_price.toString(),
-                                              po_quantity: item.quantity,
-                                              po_unit_price: item.unit_price,
-                                              room_type: item.service_details?.room_type || item.room_type,
-                                              meal_plan: item.service_details?.meal_plan || item.meal_plan,
-                                              number_of_nights: item.service_details?.number_of_nights || item.number_of_nights,
-                                              check_in_date: item.service_details?.check_in_date || item.check_in_date,
-                                              check_out_date: item.service_details?.check_out_date || item.check_out_date
-                                            })) || []);
-                                            const calcTotal = (po.items || []).reduce((s: number, i: any) => s + (i.quantity * i.unit_price), 0);
+                                            const resetItems = buildInvoiceItemsFromPo(po);
+                                            setInvoiceItems(resetItems);
+                                            const poLkrItems = poHasAgreedLkrItems(po);
+                                            if (poLkrItems) {
+                                              setInvoiceCurrency('LKR');
+                                              setInvoiceExchangeRate('1.0');
+                                            }
+                                            const calcTotal = resetItems.reduce((s: number, i: any) => s + (Number(i.quantity) * Number(i.unit_price)), 0);
                                             setInvoiceAmount(calcTotal.toString());
                                           }}
                                           className="text-[10px] text-emerald-855 hover:text-emerald-950 font-bold underline"
@@ -16932,7 +16976,7 @@ ${chauffeurHtml}
                                                         )}
                                                       </div>
                                                     )}
-                                                    <span className="text-[10px] text-neutral-450 font-mono">PO: {item.po_quantity} x {poCurrency} {item.po_unit_price.toFixed(2)} = {poCurrency} {poTotal.toFixed(2)}</span>
+                                                    <span className="text-[10px] text-neutral-450 font-mono">PO: {item.po_quantity} x {item.po_item_currency || poCurrency} {item.po_unit_price.toFixed(2)} = {item.po_item_currency || poCurrency} {poTotal.toFixed(2)}</span>
                                                   </div>
                                                   <div className="flex flex-1 gap-2">
                                                     <div className="flex-1">
@@ -16980,9 +17024,10 @@ ${chauffeurHtml}
                                           const rate = parseFloat(invoiceExchangeRate) || 1.0;
                                           if (isNaN(amt)) return null;
 
-                                          const invoiceAmtLKR = amt * rate;
-                                          const poAmtLKR = po.currency === 'USD' ? po.total_amount * rate : po.total_amount;
-                                          const diff = po.currency === invoiceCurrency ? (amt - po.total_amount) : (invoiceAmtLKR - poAmtLKR);
+                                          const invoiceAmtLKR = invoiceCurrency === 'LKR' ? amt : amt * rate;
+                                          // When agreed LKR exists for this PO, compare in LKR against it (never USD vs LKR)
+                                          const poAmtLKR = agreedLkrTotal !== null ? agreedLkrTotal : (po.currency === 'USD' ? po.total_amount * rate : po.total_amount);
+                                          const diff = agreedLkrTotal !== null ? (invoiceAmtLKR - agreedLkrTotal) : (po.currency === invoiceCurrency ? (amt - po.total_amount) : (invoiceAmtLKR - poAmtLKR));
                                           const isMatched = Math.abs(diff) < 0.01;
 
                                           return (
@@ -16991,7 +17036,7 @@ ${chauffeurHtml}
                                               <span className={`w-2 h-2 rounded-full ${isMatched ? 'bg-green-500' : 'bg-red-500'}`} />
                                               {isMatched
                                                 ? "Tally Result: MATCHED (0.00 discrepancy)"
-                                                : `Tally Result: MISMATCH (Discrepancy of ${po.currency === invoiceCurrency ? invoiceCurrency : 'LKR'} ${diff.toFixed(2)})`}
+                                                : `Tally Result: MISMATCH (Discrepancy of ${agreedLkrTotal !== null ? 'LKR' : (po.currency === invoiceCurrency ? invoiceCurrency : 'LKR')} ${diff.toFixed(2)})`}
                                             </div>
                                           );
                                         })()
@@ -17017,7 +17062,8 @@ ${chauffeurHtml}
                                   {invoices.length > 0 ? (
                                     <div className="space-y-4">
                                       {invoices.map((inv: any) => {
-                                        const diff = po.currency === inv.currency ? (inv.amount - po.total_amount) : ((inv.amount * (inv.exchange_rate || 1.0)) - (po.currency === 'USD' ? po.total_amount * (inv.exchange_rate || 1.0) : po.total_amount));
+                                        const invAmtLkr = Number(inv.amount) * (inv.currency === 'LKR' ? 1 : Number(inv.exchange_rate || 1.0));
+                                        const diff = agreedLkrTotal !== null ? (invAmtLkr - agreedLkrTotal) : (po.currency === inv.currency ? (inv.amount - po.total_amount) : ((inv.amount * (inv.exchange_rate || 1.0)) - (po.currency === 'USD' ? po.total_amount * (inv.exchange_rate || 1.0) : po.total_amount)));
                                         const isMatched = Math.abs(diff) < 0.01;
                                         const invPayments = inv.payments || [];
                                         const totalPaidInv = invPayments.reduce((sum: number, p: any) => {
