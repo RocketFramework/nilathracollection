@@ -580,6 +580,8 @@ export interface ProfitLossSummary {
     totalCustomerAgreed: number;
     totalCustomerInvoiced: number;
     totalCustomerPaid: number;
+    totalCustomerPaidLkr: number; // sum of each customer payment converted to LKR with its own saved rate
+    totalSupplierPaidLkr: number; // sum of each supplier payment converted to LKR with its own saved rate
     totalSupplierAgreed: number;
     totalSupplierInvoiced: number;
     totalSupplierPaid: number;

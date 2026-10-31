@@ -196,7 +196,9 @@ export interface DBSupplierPayment {
     currency?: string;
     exchange_rate?: number;
     is_refund?: boolean;
-    refund_reason?: string;
+    refund_reason?: string | null;
+    refund_description?: string | null;
+    original_payment_id?: string | null; // the payment this refund reverses (optional)
     attachment_url?: string;
     created_at: string;
 }

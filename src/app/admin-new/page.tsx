@@ -4052,6 +4052,8 @@ function PlannerWizardWorkspace() {
   const [refundMethod, setRefundMethod] = useState<string>('Bank Transfer');
   const [refundRef, setRefundRef] = useState<string>('');
   const [refundNotes, setRefundNotes] = useState<string>('');
+  const [refundSlipUrl, setRefundSlipUrl] = useState<string>('');
+  const [refundOriginalPaymentId, setRefundOriginalPaymentId] = useState<string>('');
   const [isSubmittingRefund, setIsSubmittingRefund] = useState<boolean>(false);
 
   // Customer Invoices states
@@ -4295,6 +4297,17 @@ function PlannerWizardWorkspace() {
     const rate = Number(p.exchange_rate);
     const effectiveRate = (rate && rate > 1.0) ? rate : (tourLockedBuyingRate || defaultUsdLkrRate || 300);
     return effectiveRate > 0 ? amt / effectiveRate : amt;
+  };
+
+  // LKR value of a payment: LKR payments are 1:1; otherwise the payment's own saved rate is used
+  // (same rate-validity rule as getPaymentAmountInUSD above, so USD and LKR figures stay consistent).
+  const getPaymentAmountInLKR = (p: any) => {
+    const amt = Number(p.amount) || 0;
+    if (amt === 0) return 0;
+    if (p.currency === 'LKR') return amt;
+    const rate = Number(p.exchange_rate);
+    const effectiveRate = (rate && rate > 1.0) ? rate : (tourLockedBuyingRate || defaultUsdLkrRate || 300);
+    return amt * effectiveRate;
   };
 
   // Profit & Loss Analysis states & calculations
@@ -4981,6 +4994,12 @@ function PlannerWizardWorkspace() {
 
     const totalCustomerPaid = invoicePaidUSD + advancePaidUSD;
 
+    const totalCustomerPaidLkr = customerInvoices
+      .filter(inv => inv.status !== 'Cancelled')
+      .flatMap(inv => inv.payments || [])
+      .reduce((sum: number, p: any) => sum + getPaymentAmountInLKR(p), 0)
+      + (customerAdvancePayments || []).reduce((sum: number, p: any) => sum + getPaymentAmountInLKR(p), 0);
+
     const totalSupplierAgreed = supplierPLItems.reduce((sum, item) => sum + item.contractedTotal, 0);
     const totalSupplierInvoiced = supplierPLItems.reduce((sum, item) => sum + item.invoicedTotal, 0);
 
@@ -5006,6 +5025,17 @@ function PlannerWizardWorkspace() {
         }, 0);
 
         return sum + advSum + invPaymentsSum;
+      }, 0);
+
+    const totalSupplierPaidLkr = purchaseOrders
+      .filter(po => po.status !== 'Cancelled')
+      .reduce((sum: number, po: any) => {
+        const advLkr = (po.advance_payments || [])
+          .filter((p: any) => !p.supplier_invoice_id)
+          .reduce((s: number, p: any) => s + getPaymentAmountInLKR(p), 0);
+        const invLkr = (po.invoices || []).reduce((sInv: number, inv: any) =>
+          sInv + (inv.payments || []).reduce((sP: number, p: any) => sP + getPaymentAmountInLKR(p), 0), 0);
+        return sum + advLkr + invLkr;
       }, 0);
 
     const netAgreedProfit = totalCustomerAgreed - totalSupplierAgreed;
@@ -5048,6 +5078,8 @@ function PlannerWizardWorkspace() {
       totalCustomerAgreed,
       totalCustomerInvoiced,
       totalCustomerPaid,
+      totalCustomerPaidLkr,
+      totalSupplierPaidLkr,
       totalSupplierAgreed,
       totalSupplierInvoiced,
       totalSupplierPaid,
@@ -8222,8 +8254,12 @@ ${chauffeurHtml}
         exchange_rate: rateVal,
         payment_date: refundDate || new Date().toISOString().split('T')[0],
         payment_method: refundMethod,
-        payment_reference: refundRef ? `REFUND (${refundReason}): ${refundRef}` : `REFUND (${refundReason})`,
-        notes: refundNotes ? `Reason: ${refundReason}. ${refundNotes}` : `Reason: ${refundReason}`
+        payment_reference: refundRef || undefined,
+        is_refund: true,
+        refund_reason: refundReason,
+        refund_description: refundNotes.trim() || undefined,
+        original_payment_id: refundOriginalPaymentId || undefined,
+        attachment_url: refundSlipUrl || undefined
       });
 
       if (res.success) {
@@ -8236,6 +8272,8 @@ ${chauffeurHtml}
         setRefundMethod('Bank Transfer');
         setRefundRef('');
         setRefundNotes('');
+        setRefundSlipUrl('');
+        setRefundOriginalPaymentId('');
         setActivePoForRefund(null);
         if (tourId) {
           loadProcurementData(tourId);
@@ -16325,6 +16363,8 @@ ${chauffeurHtml}
                                             setRefundMethod('Bank Transfer');
                                             setRefundRef('');
                                             setRefundNotes('');
+                                            setRefundSlipUrl('');
+                                            setRefundOriginalPaymentId('');
                                           }}
                                           className="flex items-center gap-1 px-2.5 py-1 text-xs font-bold text-amber-800 hover:text-amber-950 border border-amber-200 bg-amber-50 hover:bg-amber-100 rounded-lg transition-all shadow-sm cursor-pointer"
                                         >
@@ -16645,6 +16685,86 @@ ${chauffeurHtml}
                                         </div>
                                       </div>
 
+                                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                                        <div className="space-y-1">
+                                          <label className="text-[10px] uppercase tracking-wider text-amber-800 font-bold">Original Payment Being Refunded (Optional)</label>
+                                          <select
+                                            value={refundOriginalPaymentId}
+                                            onChange={(e) => setRefundOriginalPaymentId(e.target.value)}
+                                            className="w-full bg-white border border-amber-200 rounded-xl p-2 text-xs outline-none focus:ring-1 focus:ring-amber-800 font-medium"
+                                          >
+                                            <option value="">Not linked to a specific payment</option>
+                                            {allPayments.filter((p: any) => Number(p.amount) > 0).map((p: any) => (
+                                              <option key={p.id} value={p.id}>
+                                                {p.payment_date ? new Date(p.payment_date).toLocaleDateString() : ''} - {p.currency || 'USD'} {Number(p.amount).toLocaleString(undefined, { minimumFractionDigits: 2 })} ({p.payment_method})
+                                              </option>
+                                            ))}
+                                          </select>
+                                        </div>
+                                        <div className="space-y-1">
+                                          <label className="text-[10px] uppercase tracking-wider text-amber-800 font-bold">Description</label>
+                                          <textarea
+                                            value={refundNotes}
+                                            onChange={(e) => setRefundNotes(e.target.value)}
+                                            rows={2}
+                                            placeholder="Explain why this refund was made and any agreement with the supplier"
+                                            className="w-full bg-white border border-amber-200 rounded-xl p-2 text-xs outline-none focus:ring-1 focus:ring-amber-800 font-medium"
+                                          />
+                                        </div>
+                                      </div>
+
+                                      <div className="space-y-1">
+                                        <label className="text-[10px] uppercase tracking-wider text-amber-800 font-bold block">Refund Slip / Receipt</label>
+                                        <div className="flex items-center gap-3">
+                                          <input
+                                            type="file"
+                                            accept=".jpg,.jpeg,.png,.gif,.webp"
+                                            disabled={isUploadingPayslip}
+                                            onChange={async (e) => {
+                                              const file = e.target.files?.[0];
+                                              if (!file) return;
+                                              const validTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/gif', 'image/webp'];
+                                              if (!validTypes.includes(file.type)) {
+                                                alert("Please upload a valid image file (JPG, PNG, GIF, WebP).");
+                                                e.target.value = '';
+                                                return;
+                                              }
+                                              setIsUploadingPayslip(true);
+                                              try {
+                                                const formData = new FormData();
+                                                formData.append("file", file);
+                                                const uploadRes = await uploadPayslipAction(formData);
+                                                if (uploadRes.error) {
+                                                  alert("Failed to upload slip: " + uploadRes.error);
+                                                } else if (uploadRes.url) {
+                                                  setRefundSlipUrl(uploadRes.url);
+                                                }
+                                              } catch (err: any) {
+                                                alert("Error uploading file: " + err.message);
+                                              } finally {
+                                                setIsUploadingPayslip(false);
+                                              }
+                                            }}
+                                            className="hidden"
+                                            id={`refund-slip-upload-${po.id}`}
+                                          />
+                                          <label
+                                            htmlFor={`refund-slip-upload-${po.id}`}
+                                            className="flex items-center gap-2 justify-center px-4 py-2 border border-dashed border-amber-300 hover:border-amber-800 rounded-xl bg-white text-xs font-bold text-amber-800 transition-all cursor-pointer select-none"
+                                          >
+                                            <Upload className="w-4 h-4" />
+                                            {isUploadingPayslip ? 'Uploading & Converting to WebP...' : 'Choose File (Slip/Receipt)'}
+                                          </label>
+                                          {refundSlipUrl && (
+                                            <div className="flex items-center gap-2 bg-emerald-50 text-emerald-800 px-3 py-1.5 rounded-xl border border-emerald-200 text-xs font-semibold">
+                                              <Check className="w-3.5 h-3.5" />
+                                              <span>Slip Uploaded</span>
+                                              <button type="button" onClick={() => setRefundSlipUrl('')} className="text-red-500 hover:text-red-700 ml-2 font-bold focus:outline-none" title="Remove Slip">✕</button>
+                                            </div>
+                                          )}
+                                        </div>
+                                      </div>
+
                                       {refundAmount && refundCurrency !== 'LKR' && (
                                         <p className="text-[10px] text-amber-800 font-bold">
                                           Equivalent Amount: LKR {((parseFloat(refundAmount) || 0) * (parseFloat(refundExchangeRate) || 1.0)).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
@@ -16706,6 +16826,12 @@ ${chauffeurHtml}
                                                   <Image className="w-2.5 h-2.5 text-neutral-500" />
                                                   View Slip
                                                 </button>
+                                              )}
+                                              {pOnPo.is_refund && pOnPo.refund_reason && (
+                                                <span className="text-[10px] text-amber-800 font-semibold block mt-0.5">Reason: {pOnPo.refund_reason}</span>
+                                              )}
+                                              {pOnPo.is_refund && pOnPo.refund_description && (
+                                                <span className="text-[10px] text-neutral-500 italic block mt-0.5">{pOnPo.refund_description}</span>
                                               )}
                                               {pOnPo.notes && (
                                                 <span className="text-[10px] text-neutral-450 italic block mt-0.5">{pOnPo.notes}</span>
@@ -17072,7 +17198,7 @@ ${chauffeurHtml}
                                           } else {
                                             // Convert payment currency using LKR as a bridge
                                             const pLkrValue = Number(p.amount) * Number(p.exchange_rate || 1.0);
-                                            const invExchangeRate = Number(inv.exchange_rate || plRate || 1.0);
+                                            const invExchangeRate = inv.currency === 'LKR' ? 1 : Number(inv.exchange_rate || plRate || 1.0);
                                             return sum + (pLkrValue / invExchangeRate);
                                           }
                                         }, 0);
@@ -17084,7 +17210,7 @@ ${chauffeurHtml}
                                           } else {
                                             // Convert currencies using LKR as a bridge
                                             const lkrValue = Number(p.amount) * Number(p.exchange_rate || 1.0);
-                                            const invExchangeRate = Number(inv.exchange_rate || plRate || 1.0);
+                                            const invExchangeRate = inv.currency === 'LKR' ? 1 : Number(inv.exchange_rate || plRate || 1.0);
                                             return sum + (lkrValue / invExchangeRate);
                                           }
                                         }, 0);
@@ -17169,9 +17295,12 @@ ${chauffeurHtml}
                                                 }).map((item: any) => {
                                                   const poItem = po.items?.find((p: any) => p.id === item.purchase_order_item_id);
                                                   const totalItemPrice = item.quantity * item.unit_price;
-                                                  const poItemPrice = poItem ? (poItem.quantity * poItem.unit_price) : 0;
-                                                  const itemDiff = totalItemPrice - poItemPrice;
-                                                  const hasDiff = Math.abs(itemDiff) > 0.01;
+                                                  // LKR invoice vs USD PO: compare against the PO item's saved LKR values (never LKR vs USD)
+                                                  const cmpInLkr = inv.currency === 'LKR' && (po.currency || 'USD') !== 'LKR';
+                                                  const poCmpUnit: number | null = !poItem ? null : (cmpInLkr ? (poItem.unit_price_lkr != null ? Number(poItem.unit_price_lkr) : null) : Number(poItem.unit_price));
+                                                  const poCmpTotal: number | null = !poItem ? 0 : (cmpInLkr ? (poItem.total_price_lkr != null ? Number(poItem.total_price_lkr) : null) : (poItem.quantity * poItem.unit_price));
+                                                  const itemDiff = poCmpTotal === null ? 0 : totalItemPrice - poCmpTotal;
+                                                  const hasDiff = poCmpTotal !== null && Math.abs(itemDiff) > 0.01;
 
                                                   return (
                                                     <div key={item.id} className="flex justify-between items-center py-1 text-xs border-b border-neutral-100 last:border-b-0">
@@ -17215,9 +17344,9 @@ ${chauffeurHtml}
                                                         </span>
                                                         <p className="text-[9px] text-neutral-450 mt-0.5">
                                                           {item.quantity} Qty @ {inv.currency || 'USD'} {item.unit_price.toFixed(2)}
-                                                          {poItem && (item.quantity !== poItem.quantity || item.unit_price !== poItem.unit_price) && (
+                                                          {poItem && poCmpUnit !== null && (item.quantity !== poItem.quantity || item.unit_price !== poCmpUnit) && (
                                                             <span className="text-red-500 ml-1">
-                                                              (PO: {poItem.quantity} @ {poItem.unit_price.toFixed(2)})
+                                                              (PO: {poItem.quantity} @ {poCmpUnit.toFixed(2)})
                                                             </span>
                                                           )}
                                                         </p>
@@ -18993,7 +19122,7 @@ ${chauffeurHtml}
                                 <span>Actual Payments:</span>
                                 <span className="font-bold text-emerald-700">${profitLossReport.plSummary.totalCustomerPaid.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
                               </div>
-                              <span className="text-[9px] text-emerald-700/80 font-bold text-right">≈ {formatLkr(profitLossReport.plSummary.totalCustomerPaid)}</span>
+                              <span className="text-[9px] text-emerald-700/80 font-bold text-right">≈ LKR {profitLossReport.plSummary.totalCustomerPaidLkr.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
                             </div>
                           </div>
                         </div>
@@ -19026,7 +19155,7 @@ ${chauffeurHtml}
                                 <span>Actual Disbursements:</span>
                                 <span className="font-bold text-amber-700">${profitLossReport.plSummary.totalSupplierPaid.toLocaleString(undefined, { minimumFractionDigits: 2 })}</span>
                               </div>
-                              <span className="text-[9px] text-amber-700/80 font-bold text-right">≈ {formatLkr(profitLossReport.plSummary.totalSupplierPaid)}</span>
+                              <span className="text-[9px] text-amber-700/80 font-bold text-right">≈ LKR {profitLossReport.plSummary.totalSupplierPaidLkr.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
                             </div>
                             <div className="flex flex-col">
                               <div className="flex justify-between">
