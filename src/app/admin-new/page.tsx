@@ -16188,6 +16188,18 @@ ${chauffeurHtml}
                                       )}
                                     </div>
                                     <p className="text-[10px] text-neutral-400 mt-1">Date: {new Date(po.po_date).toLocaleDateString()}</p>
+                                    {(() => {
+                                      const poRateTxt = poCurrency === 'LKR'
+                                        ? '1.00 (LKR)'
+                                        : (agreedLkrTotal !== null && totalPoVal > 0 ? (agreedLkrTotal / totalPoVal) : activeRate).toFixed(2);
+                                      const invRates = Array.from(new Set(invoices.filter((inv: any) => inv.currency !== 'LKR').map((inv: any) => Number(inv.exchange_rate || 1.0).toFixed(2))));
+                                      const invRateTxt = invoices.length === 0 ? 'not recorded yet' : (invRates.length === 0 ? '1.00 (LKR)' : invRates.join(', '));
+                                      return (
+                                        <p className="text-[10px] text-neutral-600 mt-1 max-w-xl">
+                                          The PO value is converted to LKR using the PO related conversion rate <span className="font-bold font-mono">{poRateTxt}</span> and the invoiced value is converted to LKR using the invoice / vendor given conversion rate <span className="font-bold font-mono">{invRateTxt}</span>.
+                                        </p>
+                                      );
+                                    })()}
                                   </div>
                                   <div className="flex items-center gap-6">
                                     <div className="text-right">
@@ -17276,7 +17288,7 @@ ${chauffeurHtml}
                                                 <div className="flex items-center justify-end gap-1 mt-1">
                                                   <span className={`w-1.5 h-1.5 rounded-full ${isMatched ? 'bg-green-500' : 'bg-red-500'}`} />
                                                   <span className={`text-[9px] font-bold ${isMatched ? 'text-green-600' : 'text-red-600'}`}>
-                                                    {isMatched ? 'TALLIED' : `DISCREPANCY: ${inv.currency || 'USD'} ${diff.toFixed(2)}`}
+                                                    {isMatched ? 'TALLIED' : `DISCREPANCY: ${agreedLkrTotal !== null ? 'LKR' : (inv.currency || 'USD')} ${diff.toFixed(2)}`}
                                                   </span>
                                                 </div>
                                               </div>
