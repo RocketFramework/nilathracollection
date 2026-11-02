@@ -3610,7 +3610,8 @@ function PlannerWizardWorkspace() {
             if (state.activeFinalStepIndex !== undefined) restoredFinalIdx = state.activeFinalStepIndex;
             if (state.elements) restoredElements = state.elements;
             if (state.selectedActivityIds) setSelectedActivityIds(state.selectedActivityIds);
-            if (state.itinerary) {
+            // An empty saved itinerary must never override the itinerary loaded from the tour record
+            if (Array.isArray(state.itinerary) && state.itinerary.length > 0) {
               setItinerary(sortItineraryChronologically(state.itinerary));
             }
             if (state.dbActivities) {
@@ -3634,7 +3635,7 @@ function PlannerWizardWorkspace() {
             if (parsed.activeBasicStepIndex !== undefined) restoredBasicIdx = parsed.activeBasicStepIndex;
             if (parsed.activeFinalStepIndex !== undefined) restoredFinalIdx = parsed.activeFinalStepIndex;
             if (parsed.selectedActivityIds) setSelectedActivityIds(parsed.selectedActivityIds);
-            if (parsed.itinerary) {
+            if (Array.isArray(parsed.itinerary) && parsed.itinerary.length > 0) {
               setItinerary(sortItineraryChronologically(parsed.itinerary));
             }
             if (parsed.dbActivities) {
