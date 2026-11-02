@@ -213,3 +213,37 @@ export interface TourConciergeItem {
 
 export type { ActivityBookingItem, ActivityBookingStatus } from './activity-booking.type';
 export type { ActivityBooking as CustomerActivityBooking } from './activity-booking.type';
+
+// ---- Task management ----
+export type TaskStatus = 'pending' | 'in_progress' | 'on_hold' | 'in_review' | 'completed' | 'cancelled';
+export type TaskPriority = 'low' | 'medium' | 'high' | 'urgent';
+export type TaskDueBasis = 'creation' | 'tour_start';
+export type TaskStepKey =
+    | 'ai-builder' | 'concierge-config' | 'hotel-selection' | 'activity' | 'restaurant'
+    | 'transport' | 'guide' | 'driver' | 'po-creation' | 'payment-receive'
+    | 'finance-controlling' | 'profit-loss' | 'general';
+
+export const TASK_STEPS: { key: TaskStepKey; label: string }[] = [
+    { key: 'ai-builder', label: 'AI Builder' },
+    { key: 'concierge-config', label: 'Concierge Config' },
+    { key: 'hotel-selection', label: 'Hotel Selection' },
+    { key: 'activity', label: 'Activity' },
+    { key: 'restaurant', label: 'Restaurant' },
+    { key: 'transport', label: 'Transport Provider' },
+    { key: 'guide', label: 'Guide' },
+    { key: 'driver', label: 'Driver' },
+    { key: 'po-creation', label: 'PO Creation' },
+    { key: 'payment-receive', label: 'Customer Payment' },
+    { key: 'finance-controlling', label: 'Finance Controlling' },
+    { key: 'profit-loss', label: 'Profit & Loss' },
+    { key: 'general', label: 'General' },
+];
+
+export const PLANNER_STEP_TO_TASK_STEP: Record<string, TaskStepKey> = {
+    'tourist-data': 'general', 'activity-selection': 'activity', 'ai-builder': 'ai-builder',
+    'concierge-config': 'concierge-config', 'share-tourist': 'general', 'element-selection': 'general',
+    'po-creation': 'po-creation', 'hotel-selection': 'hotel-selection', 'activity-provider': 'activity',
+    'restaurant-selection': 'restaurant', 'transport-provider': 'transport', 'security-service': 'general',
+    'guide-selection': 'guide', 'driver-selection': 'driver', 'payment-receive': 'payment-receive',
+    'finance-controlling': 'finance-controlling', 'profit-loss': 'profit-loss',
+};

@@ -1,5 +1,6 @@
 "use client";
 
+import AssignTaskButton from '@/components/tasks/AssignTaskButton';
 import { PriceResolutionService, NOT_NEGOTIATED_LABEL } from '@/services/price-resolution.service';
 import React, { useState, useEffect, useMemo, startTransition } from 'react';
 import { createPortal } from 'react-dom';
@@ -9437,6 +9438,7 @@ ${chauffeurHtml}
                     </span>
                     <h2 className="text-2xl font-serif font-bold text-neutral-800 mt-0.5">{currentStep.label}</h2>
                   </div>
+                  <AssignTaskButton tourId={tourId || null} plannerStepId={currentStep.id} />
                 </div>
 
                 {/* 1. Tourist Data Workspace Form (Basic Track Step 1) */}

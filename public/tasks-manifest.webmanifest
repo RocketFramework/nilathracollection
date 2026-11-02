@@ -1,0 +1,10 @@
+{
+  "name": "Nilathra Tasks",
+  "short_name": "Tasks",
+  "start_url": "/admin/m-tasks",
+  "scope": "/admin/m-tasks",
+  "display": "standalone",
+  "background_color": "#F8F6F2",
+  "theme_color": "#D4AF37",
+  "icons": [{ "src": "/pwa-icon.png", "sizes": "512x512", "type": "image/png" }]
+}

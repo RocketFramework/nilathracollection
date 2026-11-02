@@ -1287,27 +1287,42 @@ export async function finalizeActivityPricesAction(
                 .eq('id', update.id);
             if (error) throw error;
 
-            // 2. Sync to purchase_order_items if a PO exists
-            if (update.contracted_total_price !== undefined && update.contracted_total_price !== null) {
-                const newPrice = Number(update.contracted_total_price);
-                const poFields: any = { unit_price: newPrice, total_price: newPrice };
-                if (update.contracted_fx_rate !== undefined) {
-                    poFields.fx_rate = update.contracted_fx_rate;
-                    poFields.unit_price_lkr = unitLkr;
-                    poFields.total_price_lkr = totalLkr;
+            // 2. Sync to purchase_order_items if a PO exists.
+            // PO lines are mirrors: price, rate and LKR are copied from what daily_activities now holds
+            // (read back after the save), never recomputed, so hotel-selection and finance-controlling always agree.
+            const touchesPrice = update.contracted_total_price !== undefined && update.contracted_total_price !== null;
+            const touchesFx = update.contracted_fx_rate !== undefined;
+            if (touchesPrice || touchesFx) {
+                const { data: savedAct } = await adminSupabase
+                    .from('daily_activities')
+                    .select('contracted_total_price, contracted_fx_rate, contracted_unit_price_lkr, contracted_total_price_lkr')
+                    .eq('id', update.id)
+                    .maybeSingle();
+
+                const poFields: any = {};
+                if (touchesPrice) {
+                    const newPrice = Number(update.contracted_total_price);
+                    poFields.unit_price = newPrice;
+                    poFields.total_price = newPrice;
+                }
+                if (touchesFx && savedAct) {
+                    poFields.fx_rate = savedAct.contracted_fx_rate ?? null;
+                    poFields.unit_price_lkr = savedAct.contracted_unit_price_lkr ?? null;
+                    poFields.total_price_lkr = savedAct.contracted_total_price_lkr ?? null;
                 }
 
-                // Check direct purchase_order_items
-                const { data: directPoItems } = await adminSupabase
-                    .from('purchase_order_items')
-                    .update(poFields)
-                    .eq('daily_activity_id', update.id)
-                    .select('purchase_order_id');
+                if (Object.keys(poFields).length > 0) {
+                    const { data: directPoItems } = await adminSupabase
+                        .from('purchase_order_items')
+                        .update(poFields)
+                        .eq('daily_activity_id', update.id)
+                        .select('purchase_order_id');
 
-                if (directPoItems) {
-                    directPoItems.forEach(item => {
-                        if (item.purchase_order_id) affectedPoIds.add(item.purchase_order_id);
-                    });
+                    if (directPoItems) {
+                        directPoItems.forEach(item => {
+                            if (item.purchase_order_id) affectedPoIds.add(item.purchase_order_id);
+                        });
+                    }
                 }
             }
         }
