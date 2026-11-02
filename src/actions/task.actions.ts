@@ -27,6 +27,14 @@ export async function savePushSubscriptionAction(sub: { endpoint: string; p256dh
     return PushService.saveSubscription(await me(), sub, userAgent);
 }
 export async function updateTaskStatusAction(id: string, s: TaskStatus, note?: string, resumeOn?: string) { return TaskService.updateStatus(id, s, await me(), note, resumeOn); }
+export async function deleteTaskAction(id: string) {
+    const supabase = await createClient();
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) throw new Error('Not authenticated');
+    const { data: role } = await supabase.rpc('get_user_role', { user_id: user.id });
+    if (role !== 'admin') throw new Error('Only admins can delete tasks');
+    return TaskService.deleteTask(id);
+}
 export async function reassignTaskAction(id: string, to: string) { return TaskService.reassign(id, to, await me()); }
 export async function updateTaskDueAction(id: string, due: string | null) { return TaskService.updateDue(id, due, await me()); }
 export async function addTaskCommentAction(id: string, body: string | null, url?: string | null) { return TaskService.addComment(id, await me(), body, url); }

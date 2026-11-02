@@ -112,6 +112,11 @@ export class TaskService {
         if (status === 'completed') await this.awardPoints({ ...cur, ...patch });
     }
 
+    static async deleteTask(taskId: string): Promise<void> {
+        const { error } = await this.db().from('tour_tasks').delete().eq('id', taskId);
+        if (error) throw new Error(error.message);
+    }
+
     static async reassign(taskId: string, newAssignee: string, actorId: string): Promise<void> {
         const db = this.db();
         const { data: cur } = await db.from('tour_tasks').select('assigned_to').eq('id', taskId).single();
@@ -220,6 +225,10 @@ export class TaskService {
     static async deleteTemplate(id: string): Promise<void> {
         const { error } = await this.db().from('task_templates').delete().eq('id', id);
         if (error) throw new Error(error.message);
+    }
+
+    static async getUserName(userId: string): Promise<string> {
+        return (await this.names([userId]))[userId] || 'User';
     }
 
     static async listTourOptions(): Promise<TaskTourOptionDTO[]> {

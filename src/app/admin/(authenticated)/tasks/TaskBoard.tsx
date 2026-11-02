@@ -1,7 +1,7 @@
 'use client';
 
 import { useMemo, useState, useTransition } from 'react';
-import { createTaskAction, listTasksAction, updateTaskStatusAction } from '@/actions/task.actions';
+import { deleteTaskAction, createTaskAction, listTasksAction, updateTaskStatusAction } from '@/actions/task.actions';
 import TaskDetailPanel from '@/components/tasks/TaskDetailPanel';
 import type { TaskDTO, TaskUserOptionDTO, TaskTemplateDTO, TaskTourOptionDTO } from '@/dtos/task.dto';
 import { TASK_STEPS, type TaskStatus } from '@/types/types';
@@ -35,6 +35,11 @@ export default function TaskBoard({ initialTasks, users, templates, tourOptions,
         let note: string | undefined;
         if (status === 'on_hold') { note = prompt('Why is this task on hold? (required)') || undefined; if (!note) return; }
         start(async () => { try { await updateTaskStatusAction(t.id, status, note); await reload(); } catch (e: any) { alert(e.message); } });
+    };
+
+    const remove = (t: TaskDTO) => {
+        if (!confirm(`Delete task "${t.title}"? This also removes its comments and history.`)) return;
+        start(async () => { try { await deleteTaskAction(t.id); await reload(); } catch (e: any) { alert(e.message); } });
     };
 
     const pickTemplate = (id: string) => {
@@ -93,6 +98,7 @@ export default function TaskBoard({ initialTasks, users, templates, tourOptions,
                                         <div className="text-xs text-[#6B7280]">{t.assignedToName}</div>
                                         {t.dueAt && <div className={`text-xs ${t.isOverdue ? 'text-red-600' : 'text-[#6B7280]'}`}>Due {new Date(t.dueAt).toLocaleDateString()}</div>}
                                         {t.holdNote && t.status === 'on_hold' && <div className="text-xs text-amber-700 mt-1">“{t.holdNote}”</div>}
+                                        {isAdmin && <button disabled={pending} onClick={() => remove(t)} className="text-xs text-red-500 mt-2 block">Delete</button>}
                                         {t.status !== 'completed' && (
                                             <div className="flex flex-wrap gap-1 mt-2">
                                                 {t.status !== 'in_progress' && <button disabled={pending} onClick={() => move(t, 'in_progress')} className="text-xs px-2 py-1 rounded bg-blue-50 text-blue-600">Start</button>}

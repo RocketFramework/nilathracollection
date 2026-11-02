@@ -2,13 +2,14 @@
 
 import { useEffect, useState, useTransition } from 'react';
 import { listMyTasksAction, updateTaskStatusAction, savePushSubscriptionAction } from '@/actions/task.actions';
+import { logoutAction } from '@/app/actions/auth';
 import TaskDetailPanel from '@/components/tasks/TaskDetailPanel';
 import type { TaskDTO, TaskTourOptionDTO } from '@/dtos/task.dto';
 import type { TaskStatus } from '@/types/types';
 
 type Tab = 'pending' | 'hold' | 'done';
 
-export default function MobileTasks({ initialTasks, tourOptions }: { initialTasks: TaskDTO[]; tourOptions: TaskTourOptionDTO[] }) {
+export default function MobileTasks({ initialTasks, tourOptions, userName }: { initialTasks: TaskDTO[]; tourOptions: TaskTourOptionDTO[]; userName: string }) {
     const [tasks, setTasks] = useState(initialTasks);
     const [tab, setTab] = useState<Tab>('pending');
     const [tour, setTour] = useState('');
@@ -54,10 +55,16 @@ export default function MobileTasks({ initialTasks, tourOptions }: { initialTask
     return (
         <div className="min-h-screen bg-[#F8F6F2] pb-8">
             <header className="sticky top-0 z-10 bg-[#D4AF37] text-white px-4 pt-5 pb-3">
-                <div className="flex items-center justify-between">
-                    <h1 className="text-lg font-semibold">My Tasks</h1>
+                <div className="flex items-center justify-between gap-2">
+                    <div className="min-w-0">
+                        <h1 className="text-lg font-semibold">My Tasks</h1>
+                        <p id="m-user-name" className="text-xs opacity-90 truncate">{userName}</p>
+                    </div>
                     {pushState === 'off' && <button id="m-enable-push" onClick={enablePush} className="text-xs bg-white/20 rounded-full px-3 py-1">Enable alerts</button>}
                     {pushState === 'on' && <span className="text-xs opacity-80">Alerts on</span>}
+                    <form action={logoutAction}>
+                        <button id="m-logout" type="submit" className="text-xs bg-white/20 rounded-full px-3 py-1">Log out</button>
+                    </form>
                 </div>
                 <div className="flex gap-2 mt-3 overflow-x-auto">
                     <button onClick={() => setTour('')} className={`px-3 py-1 rounded-full text-xs whitespace-nowrap ${!tour ? 'bg-white text-[#8a6d12]' : 'bg-white/20'}`}>All tours</button>

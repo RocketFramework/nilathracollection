@@ -14,6 +14,6 @@ export default async function MobileTasksPage() {
     const supabase = await createClient();
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) redirect('/admin/login');
-    const [tasks, tourOptions] = await Promise.all([TaskService.listTasks({ assignedTo: user.id }), TaskService.listTourOptions()]);
-    return <MobileTasks initialTasks={tasks} tourOptions={tourOptions} />;
+    const [tasks, tourOptions, userName] = await Promise.all([TaskService.listTasks({ assignedTo: user.id }), TaskService.listTourOptions(), TaskService.getUserName(user.id)]);
+    return <MobileTasks initialTasks={tasks} tourOptions={tourOptions} userName={userName} />;
 }
