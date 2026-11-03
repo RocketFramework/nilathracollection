@@ -1239,6 +1239,7 @@ export async function finalizeActivityPricesAction(
         parking_included?: boolean;
         guide_room_discount?: string | null;
         contracted_fx_rate?: number | null;
+        distance?: number | string | null;
     }[]
 ) {
     try {
@@ -1267,6 +1268,12 @@ export async function finalizeActivityPricesAction(
             }
             if (update.guide_room_discount !== undefined) {
                 dbFields.guide_room_discount = update.guide_room_discount;
+            }
+            if (update.distance !== undefined) {
+                const parsedDist = update.distance === null || update.distance === ''
+                    ? null
+                    : (Math.round(parseFloat(String(update.distance).replace(/[^\d.]/g, ''))) || 0);
+                dbFields.distance = parsedDist;
             }
 
             // Agreed USD->LKR rates (manual). LKR amount = saved USD value x rate; never guessed when no rate is entered.

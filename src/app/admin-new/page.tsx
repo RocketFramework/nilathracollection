@@ -725,6 +725,9 @@ function PlannerWizardWorkspace() {
   const [customRateFx, setCustomRateFx] = useState<string>('');
   // Inline line-item edit panel (non-hotel steps)
   const [editingLineItemId, setEditingLineItemId] = useState<string | null>(null);
+  // Inline daily KM edit state (transport-provider step)
+  const [editingDayKmKey, setEditingDayKmKey] = useState<string | null>(null);
+  const [editingDayKmValue, setEditingDayKmValue] = useState<string>('');
 
   // Change Hotel Drawer States (Local Only)
   const [isChangeHotelDrawerOpen, setIsChangeHotelDrawerOpen] = useState(false);
@@ -2169,6 +2172,78 @@ function PlannerWizardWorkspace() {
       })
       .catch(err => console.error('Rate override persist failed:', err))
       .finally(() => setIsApplyingRateOverride(false));
+  };
+
+  const handleSaveDayKm = (block: any, dayNum: number, legs: any[], currentEffectiveKm: number, rawValue: string) => {
+    setEditingDayKmKey(null);
+    if (rawValue.trim() === '') return;
+    const parsed = parseFloat(rawValue);
+    if (isNaN(parsed)) return;
+    const nextKm = Math.max(0, Math.round(parsed));
+    if (nextKm === currentEffectiveKm) return;
+
+    const allLegIds: string[] = legs.map((l: any) => l.id).filter(Boolean);
+    const legDistanceMap: Record<string, string> = {};
+    allLegIds.forEach((id, idx) => {
+      legDistanceMap[id] = idx === 0 ? String(nextKm) : '0';
+    });
+
+    // 1. Optimistically update poBlocks and dbActivities
+    setPoBlocks(prev => prev.map(pb => {
+      if (pb.id !== block.id) return pb;
+      return {
+        ...pb,
+        daily_activities: (pb.daily_activities || []).map((da: any) =>
+          legDistanceMap[da.id] !== undefined ? { ...da, distance: legDistanceMap[da.id] } : da
+        ),
+      };
+    }));
+
+    setDbActivities(prev => prev.map(act =>
+      legDistanceMap[act.id] !== undefined ? { ...act, distance: legDistanceMap[act.id] } : act
+    ));
+
+    // 2. Update tour_itinerary_vehicles.distance_km if vehicles are assigned for this day/block
+    if (tourId) {
+      const blockProviderId = block.transport_provider_id || (block.name?.includes(' | ID: ') ? block.name.split(' | ID: ')[1] : null);
+      const blockTransportsForDay = (dailyTransportAssignments[dayNum] || [])
+        .filter((t: any) => !blockProviderId || t.transport_provider_id === blockProviderId);
+      const blockVehicleIds = new Set(blockTransportsForDay.map((t: any) => t.vehicle_id).filter(Boolean));
+      const dayVehicles = dailyVehicleAssignments[dayNum] || [];
+      const matchesBlock = (vAss: any) => {
+        if (blockVehicleIds.size > 0) return blockVehicleIds.has(vAss.vehicle_id);
+        if (blockProviderId) {
+          const vObj = masterData.transportVehicles?.find((mv: any) => mv.id === vAss.vehicle_id) || vAss.vehicles || vAss.vehicle;
+          const provId = vAss.transport_provider_id || vObj?.transport_provider_id;
+          return provId === blockProviderId;
+        }
+        return false;
+      };
+      const matched = dayVehicles.filter(matchesBlock);
+      if (matched.length > 0) {
+        let mIdx = 0;
+        const updatedDay = dayVehicles.map((v: any) => {
+          if (!matchesBlock(v)) return v;
+          const distShare = mIdx === 0 ? nextKm : 0;
+          mIdx++;
+          return { ...v, distance_km: distShare };
+        });
+        const nextVehicleAssignments = { ...dailyVehicleAssignments, [dayNum]: updatedDay };
+        setDailyVehicleAssignments(nextVehicleAssignments);
+        saveTourDailyVehiclesAction(tourId, JSON.parse(JSON.stringify(Object.values(nextVehicleAssignments).flat())))
+          .catch((err: any) => console.error('Failed to save vehicle daily KM:', err));
+      }
+    }
+
+    // 3. Persist daily_activities.distance
+    if (allLegIds.length > 0) {
+      finalizeActivityPricesAction(
+        allLegIds.map((id, idx) => ({
+          id,
+          distance: idx === 0 ? nextKm : 0,
+        }))
+      ).catch((err: any) => console.error('Failed to persist daily activity distance:', err));
+    }
   };
 
   const handleResetCustomRateOverride = () => {
@@ -13380,8 +13455,25 @@ ${chauffeurHtml}
                                                       return sum + ((Number(v?.additional_km_rate) || 0) * (Number(trv.quantity) || 1));
                                                     }, 0);
 
+                                                    const blockProviderId = block.transport_provider_id || (block.name?.includes(' | ID: ') ? block.name.split(' | ID: ')[1] : null);
                                                     for (const [, legs] of groupedDaysMap.entries()) {
-                                                      const totalDistance = legs.reduce((sum: number, t: any) => sum + (parseFloat(String(t.distance || '').replace(/[^\d.]/g, '')) || 0), 0);
+                                                      const firstLeg = legs[0];
+                                                      const dayNum = firstLeg?.tour_itineraries?.day_number || firstLeg?.day_number || 0;
+                                                      const blockTransportsForDay = (dailyTransportAssignments[dayNum] || [])
+                                                        .filter((t: any) => !blockProviderId || t.transport_provider_id === blockProviderId);
+                                                      const blockVehicleIds = new Set(blockTransportsForDay.map((t: any) => t.vehicle_id).filter(Boolean));
+                                                      const assignedVehicles = (dailyVehicleAssignments[dayNum] || []).filter((vAss: any) => {
+                                                        if (blockVehicleIds.size > 0) return blockVehicleIds.has(vAss.vehicle_id);
+                                                        if (blockProviderId) {
+                                                          const vObj = masterData.transportVehicles?.find((mv: any) => mv.id === vAss.vehicle_id) || vAss.vehicles || vAss.vehicle;
+                                                          const provId = vAss.transport_provider_id || vObj?.transport_provider_id;
+                                                          return provId === blockProviderId;
+                                                        }
+                                                        return false;
+                                                      });
+                                                      const vehicleSavedKm = assignedVehicles.reduce((sum: number, v: any) => sum + (Number(v.distance_km) || 0), 0);
+                                                      const legDistance = legs.reduce((sum: number, t: any) => sum + (parseFloat(String(t.distance || '').replace(/[^\d.]/g, '')) || 0), 0);
+                                                      const totalDistance = vehicleSavedKm > 0 ? vehicleSavedKm : legDistance;
                                                       const excessDistance = Math.max(0, totalDistance - maxMileage);
                                                       const extraKmCost = excessDistance * extraKmRate;
                                                       const recommendedRate = baseRate + extraKmCost;
@@ -13492,7 +13584,34 @@ ${chauffeurHtml}
                                   })()}
                                   {/* Total distance */}
                                   {(() => {
-                                    const totalDist = travelItems.reduce((sum: number, t: any) => sum + (parseFloat(String(t.distance || '').replace(/[^\d.]/g, '')) || 0), 0);
+                                    const blockProviderId = block.transport_provider_id || (block.name?.includes(' | ID: ') ? block.name.split(' | ID: ')[1] : null);
+                                    const dayMap = new globalThis.Map<string, any[]>();
+                                    travelItems.forEach((trip: any) => {
+                                      const dayNum = trip.tour_itineraries?.day_number || trip.day_number || 0;
+                                      const dateVal = trip.tour_itineraries?.date || trip.service_date;
+                                      const dayKey = dateVal ? String(dateVal) : `Day ${dayNum}`;
+                                      if (!dayMap.has(dayKey)) dayMap.set(dayKey, []);
+                                      dayMap.get(dayKey)!.push(trip);
+                                    });
+                                    let totalDist = 0;
+                                    dayMap.forEach((legs) => {
+                                      const dayNum = legs[0]?.tour_itineraries?.day_number || legs[0]?.day_number || 0;
+                                      const blockTransportsForDay = (dailyTransportAssignments[dayNum] || [])
+                                        .filter((t: any) => !blockProviderId || t.transport_provider_id === blockProviderId);
+                                      const blockVehicleIds = new Set(blockTransportsForDay.map((t: any) => t.vehicle_id).filter(Boolean));
+                                      const assignedVehicles = (dailyVehicleAssignments[dayNum] || []).filter((vAss: any) => {
+                                        if (blockVehicleIds.size > 0) return blockVehicleIds.has(vAss.vehicle_id);
+                                        if (blockProviderId) {
+                                          const vObj = masterData.transportVehicles?.find((mv: any) => mv.id === vAss.vehicle_id) || vAss.vehicles || vAss.vehicle;
+                                          const provId = vAss.transport_provider_id || vObj?.transport_provider_id;
+                                          return provId === blockProviderId;
+                                        }
+                                        return false;
+                                      });
+                                      const vehicleSavedKm = assignedVehicles.reduce((sum: number, v: any) => sum + (Number(v.distance_km) || 0), 0);
+                                      const legDist = legs.reduce((sum: number, t: any) => sum + (parseFloat(String(t.distance || '').replace(/[^\d.]/g, '')) || 0), 0);
+                                      totalDist += vehicleSavedKm > 0 ? vehicleSavedKm : legDist;
+                                    });
                                     if (totalDist === 0) return null;
                                     return (
                                       <div className="text-[10px] font-bold text-neutral-400 font-mono flex items-center gap-1 bg-white px-2.5 py-1 rounded-xl border border-neutral-200 shadow-sm">
@@ -13815,7 +13934,12 @@ ${chauffeurHtml}
                                       const vehicleSavedKm = assignedVehicles.reduce(
                                         (sum: number, v: any) => sum + (Number(v.distance_km) || 0), 0
                                       );
-                                      const effectiveDayKm = vehicleSavedKm > 0 ? vehicleSavedKm : totalDayDistance;
+                                      const savedEffectiveDayKm = vehicleSavedKm > 0 ? vehicleSavedKm : totalDayDistance;
+                                      const rowKmKey = `${block.id}_${dayKey}`;
+                                      const isEditingThisKm = editingDayKmKey === rowKmKey;
+                                      const effectiveDayKm = isEditingThisKm
+                                        ? Math.max(0, Math.round(parseFloat(editingDayKmValue) || 0))
+                                        : savedEffectiveDayKm;
 
                                       // Resolve actual vehicle names for assignedVehicles
                                       const assignedVehicleDisplayNames: string[] = [];
@@ -13912,10 +14036,31 @@ ${chauffeurHtml}
                                           <div className="flex items-center justify-end gap-3 flex-shrink-0 ml-auto">
                                             <div className={`px-2.5 py-1 rounded-xl text-[10px] font-bold border font-mono shadow-sm flex items-center gap-1 ${isHighMileage
                                               ? 'bg-rose-50 border-rose-200 text-rose-700 ring-1 ring-rose-500/10'
-                                              : 'bg-white border-neutral-200 text-neutral-700'
-                                              }`} title={vehicleSavedKm > 0 ? 'Saved KM distance from tour_itinerary_vehicles table' : (isHighMileage ? 'Exceeds typical daily limit of 150 km' : 'Combined daily distance')}>
+                                              : 'bg-white border-neutral-200 text-neutral-700 hover:border-amber-400/60'
+                                              }`} title="Click to edit daily KM distance">
                                               <span>KM:</span>
-                                              <span className="font-extrabold text-xs">{effectiveDayKm}</span>
+                                              <input
+                                                type="number"
+                                                min="0"
+                                                step="1"
+                                                disabled={isLockedByOther}
+                                                value={isEditingThisKm ? editingDayKmValue : String(savedEffectiveDayKm)}
+                                                onFocus={(e) => {
+                                                  setEditingDayKmKey(rowKmKey);
+                                                  setEditingDayKmValue(String(savedEffectiveDayKm));
+                                                  e.currentTarget.select();
+                                                }}
+                                                onChange={(e) => setEditingDayKmValue(e.target.value)}
+                                                onBlur={(e) => handleSaveDayKm(block, dayNum, legs, savedEffectiveDayKm, e.target.value)}
+                                                onKeyDown={(e) => {
+                                                  if (e.key === 'Enter') {
+                                                    e.currentTarget.blur();
+                                                  } else if (e.key === 'Escape') {
+                                                    setEditingDayKmKey(null);
+                                                  }
+                                                }}
+                                                className="w-14 font-extrabold text-xs text-center bg-transparent border-b border-dashed border-neutral-300 focus:border-amber-600 focus:bg-amber-50/40 focus:outline-none rounded px-1 transition-colors disabled:opacity-50"
+                                              />
                                             </div>
 
                                             {recommendedDailyRate > 0 && (
@@ -22185,7 +22330,22 @@ ${chauffeurHtml}
                     return tDayKey === dayKey;
                   });
 
-                  const totalDayDistance = legs.reduce((sum: number, t: any) => sum + (parseFloat(String(t.distance || '').replace(/[^\d.]/g, '')) || 0), 0);
+                  const blockProviderId = block.transport_provider_id || (block.name?.includes(' | ID: ') ? block.name.split(' | ID: ')[1] : null);
+                  const blockTransportsForDay = (dailyTransportAssignments[dayNum] || [])
+                    .filter((t: any) => !blockProviderId || t.transport_provider_id === blockProviderId);
+                  const blockVehicleIds = new Set(blockTransportsForDay.map((t: any) => t.vehicle_id).filter(Boolean));
+                  const assignedVehicles = (dailyVehicleAssignments[dayNum] || []).filter((vAss: any) => {
+                    if (blockVehicleIds.size > 0) return blockVehicleIds.has(vAss.vehicle_id);
+                    if (blockProviderId) {
+                      const vObj = masterData.transportVehicles?.find((mv: any) => mv.id === vAss.vehicle_id) || vAss.vehicles || vAss.vehicle;
+                      const provId = vAss.transport_provider_id || vObj?.transport_provider_id;
+                      return provId === blockProviderId;
+                    }
+                    return false;
+                  });
+                  const vehicleSavedKm = assignedVehicles.reduce((sum: number, v: any) => sum + (Number(v.distance_km) || 0), 0);
+                  const legDayDistance = legs.reduce((sum: number, t: any) => sum + (parseFloat(String(t.distance || '').replace(/[^\d.]/g, '')) || 0), 0);
+                  const totalDayDistance = vehicleSavedKm > 0 ? vehicleSavedKm : legDayDistance;
                   const blockVehicles = block.transport_requirement?.transport_requirement_vehicles || [];
 
                   let baseDayRate = 0;
