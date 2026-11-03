@@ -1279,20 +1279,49 @@ export async function finalizeActivityPricesAction(
             // Agreed USD->LKR rates (manual). LKR amount = saved USD value x rate; never guessed when no rate is entered.
             const lkr = (usd: number | null | undefined, rate: number | null | undefined) =>
                 (usd != null && rate != null && Number(rate) > 0) ? Math.round(Number(usd) * Number(rate) * 100) / 100 : null;
-            const unitLkr = update.contracted_fx_rate !== undefined ? lkr(update.contracted_price, update.contracted_fx_rate) : undefined;
-            const totalLkr = update.contracted_fx_rate !== undefined ? lkr(update.contracted_total_price, update.contracted_fx_rate) : undefined;
+            const unitUsd = update.contracted_price !== undefined ? update.contracted_price : update.contracted_total_price;
+            const totalUsd = update.contracted_total_price !== undefined ? update.contracted_total_price : update.contracted_price;
+            const unitLkr = update.contracted_fx_rate !== undefined ? lkr(unitUsd, update.contracted_fx_rate) : undefined;
+            const totalLkr = update.contracted_fx_rate !== undefined ? lkr(totalUsd, update.contracted_fx_rate) : undefined;
             if (update.contracted_fx_rate !== undefined) {
                 dbFields.contracted_fx_rate = update.contracted_fx_rate;
                 dbFields.contracted_unit_price_lkr = unitLkr;
                 dbFields.contracted_total_price_lkr = totalLkr;
             }
 
-            // 1. Update daily_activities table
-            const { error } = await adminSupabase
+            // 1. Update daily_activities table (or resolve travel itinerary_id when update.id is a synthesized transport/vehicle ID)
+            let targetActivityId = update.id;
+            const { data: updatedActs, error } = await adminSupabase
                 .from('daily_activities')
                 .update(dbFields)
-                .eq('id', update.id);
+                .eq('id', update.id)
+                .select('id');
             if (error) throw error;
+
+            if (!updatedActs || updatedActs.length === 0) {
+                const { data: trRow } = await adminSupabase
+                    .from('tour_itinerary_transports')
+                    .select('tour_itinerary_id')
+                    .eq('id', update.id)
+                    .maybeSingle();
+                const itinId = trRow?.tour_itinerary_id || (await adminSupabase
+                    .from('tour_itinerary_vehicles')
+                    .select('tour_itinerary_id')
+                    .eq('id', update.id)
+                    .maybeSingle()).data?.tour_itinerary_id;
+
+                if (itinId) {
+                    const { data: fallbackActs } = await adminSupabase
+                        .from('daily_activities')
+                        .update(dbFields)
+                        .eq('itinerary_id', itinId)
+                        .eq('activity_type', 'travel')
+                        .select('id');
+                    if (fallbackActs && fallbackActs.length > 0) {
+                        targetActivityId = fallbackActs[0].id;
+                    }
+                }
+            }
 
             // 2. Sync to purchase_order_items if a PO exists.
             // PO lines are mirrors: price, rate and LKR are copied from what daily_activities now holds
@@ -1302,8 +1331,8 @@ export async function finalizeActivityPricesAction(
             if (touchesPrice || touchesFx) {
                 const { data: savedAct } = await adminSupabase
                     .from('daily_activities')
-                    .select('contracted_total_price, contracted_fx_rate, contracted_unit_price_lkr, contracted_total_price_lkr')
-                    .eq('id', update.id)
+                    .select('contracted_total_price, contracted_fx_rate, contracted_unit_price_lkr, contracted_total_price_lkr, activity_type, tour_id, itinerary_id, tour_itineraries(day_number, tour_id)')
+                    .eq('id', targetActivityId)
                     .maybeSingle();
 
                 const poFields: any = {};
@@ -1312,23 +1341,49 @@ export async function finalizeActivityPricesAction(
                     poFields.unit_price = newPrice;
                     poFields.total_price = newPrice;
                 }
-                if (touchesFx && savedAct) {
-                    poFields.fx_rate = savedAct.contracted_fx_rate ?? null;
-                    poFields.unit_price_lkr = savedAct.contracted_unit_price_lkr ?? null;
-                    poFields.total_price_lkr = savedAct.contracted_total_price_lkr ?? null;
+                if (touchesFx) {
+                    poFields.fx_rate = savedAct ? (savedAct.contracted_fx_rate ?? null) : (update.contracted_fx_rate ?? null);
+                    poFields.unit_price_lkr = savedAct ? (savedAct.contracted_unit_price_lkr ?? null) : (unitLkr ?? null);
+                    poFields.total_price_lkr = savedAct ? (savedAct.contracted_total_price_lkr ?? null) : (totalLkr ?? null);
                 }
 
                 if (Object.keys(poFields).length > 0) {
+                    const targetIds = Array.from(new Set([update.id, targetActivityId]));
                     const { data: directPoItems } = await adminSupabase
                         .from('purchase_order_items')
                         .update(poFields)
-                        .eq('daily_activity_id', update.id)
+                        .in('daily_activity_id', targetIds)
                         .select('purchase_order_id');
 
                     if (directPoItems) {
                         directPoItems.forEach(item => {
                             if (item.purchase_order_id) affectedPoIds.add(item.purchase_order_id);
                         });
+                    }
+
+                    // Also sync transport PO items matching day_number for this tour
+                    const dayNum = (savedAct as any)?.tour_itineraries?.day_number;
+                    const tourIdForTra = savedAct?.tour_id || (savedAct as any)?.tour_itineraries?.tour_id;
+                    if (dayNum && tourIdForTra) {
+                        const { data: transportPos } = await adminSupabase
+                            .from('purchase_orders')
+                            .select('id')
+                            .eq('tour_id', tourIdForTra)
+                            .in('vendor_type', ['transport', 'transport_provider']);
+                        if (transportPos && transportPos.length > 0) {
+                            const traPoIds = transportPos.map((p: any) => p.id);
+                            const { data: syncedTraItems } = await adminSupabase
+                                .from('purchase_order_items')
+                                .update(poFields)
+                                .in('purchase_order_id', traPoIds)
+                                .eq('day_number', dayNum)
+                                .select('purchase_order_id');
+                            if (syncedTraItems) {
+                                syncedTraItems.forEach(item => {
+                                    if (item.purchase_order_id) affectedPoIds.add(item.purchase_order_id);
+                                });
+                            }
+                        }
                     }
                 }
             }

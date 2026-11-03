@@ -18,7 +18,7 @@ export class POBlockService {
         const blockIds = blocks.map(b => b.id);
 
         // 2. Fetch mappings, activities, rfq vendors, driver assignments, transport assignments, and vehicle assignments in parallel
-        const [mappingsResult, vendorsResult, driverItinResult, transportItinResult, vehicleItinResult] = await Promise.all([
+        const [mappingsResult, vendorsResult, driverItinResult, transportItinResult, vehicleItinResult, tourTravelActsResult] = await Promise.all([
             adminSupabase
                 .from('po_block_daily_activities')
                 .select('*')
@@ -38,7 +38,12 @@ export class POBlockService {
             adminSupabase
                 .from('tour_itinerary_vehicles')
                 .select('*, tour_itineraries(day_number, date), vehicles(*)')
-                .eq('tour_id', tourId)
+                .eq('tour_id', tourId),
+            adminSupabase
+                .from('daily_activities')
+                .select('*, tour_itineraries!inner(day_number, date, tour_id)')
+                .eq('tour_itineraries.tour_id', tourId)
+                .eq('activity_type', 'travel')
         ]);
 
         if (mappingsResult.error) throw mappingsResult.error;
@@ -46,6 +51,7 @@ export class POBlockService {
         const driverItinRows = driverItinResult.data || [];
         const transportItinRows = transportItinResult.data || [];
         const vehicleItinRows = vehicleItinResult.data || [];
+        const tourTravelActs = tourTravelActsResult.data || [];
 
         // 3. Fetch daily activities in parallel with the vendor fetch above
         const dailyActivityIds = mappings.map(m => m.daily_activity_id);
@@ -161,6 +167,16 @@ export class POBlockService {
                         const vehicleName = vr?.vehicles?.name || (vr?.vehicles?.vehicle_number ? `Vehicle (${vr.vehicles.vehicle_number})` : 'Assigned Vehicle');
                         const pName = tr?.transport_providers?.name || transportProvider?.name || 'Transport Provider';
 
+                        const dayTravelActs = [
+                            ...blockActivities.filter((a: any) => Number(a.tour_itineraries?.day_number || a.day_number) === Number(dayNum)),
+                            ...tourTravelActs.filter((a: any) => Number(a.tour_itineraries?.day_number || a.day_number) === Number(dayNum))
+                        ];
+                        const fxAct = dayTravelActs.find((a: any) => a.contracted_fx_rate != null && Number(a.contracted_fx_rate) > 0);
+                        const fxRate = fxAct ? Number(fxAct.contracted_fx_rate) : null;
+                        const computedLkr = (fxRate != null && vehicleRate > 0)
+                            ? Math.round(vehicleRate * fxRate * 100) / 100
+                            : (fxAct?.contracted_total_price_lkr != null ? Number(fxAct.contracted_total_price_lkr) : null);
+
                         return {
                             id: tr?.id || vr?.id || `travel-day-${dayNum}`,
                             activity_type: 'travel',
@@ -170,6 +186,9 @@ export class POBlockService {
                             tour_itineraries: itin,
                             contracted_price: vehicleRate,
                             contracted_total_price: vehicleRate,
+                            contracted_fx_rate: fxRate,
+                            contracted_unit_price_lkr: computedLkr,
+                            contracted_total_price_lkr: computedLkr,
                             quantity: 1,
                             transport_id: transportProviderId,
                             transport_provider_id: transportProviderId,

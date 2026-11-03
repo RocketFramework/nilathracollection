@@ -66,20 +66,44 @@ export class VendorBookingService {
         let calculatedSubtotal = 0;
 
         if (daily_activity_ids && daily_activity_ids.length > 0) {
-            const isTransport = bookingData.vendor_type === 'transport_provider';
+            const isTransport = (bookingData.vendor_type as string) === 'transport_provider' || (bookingData.vendor_type as string) === 'transport';
 
-            const { data: activities, error: actErr } = await supabase
+            let { data: activities, error: actErr } = await supabase
                 .from('daily_activities')
                 .select('*, tour_itineraries(date, day_number)')
                 .in('id', daily_activity_ids);
 
             if (actErr) throw actErr;
 
+            if (isTransport && (!activities || activities.length === 0)) {
+                // If daily_activity_ids were synthesized IDs from poBlocks, fetch tour travel activities
+                const { data: tourActs } = await supabase
+                    .from('daily_activities')
+                    .select('*, tour_itineraries(date, day_number)')
+                    .eq('tour_id', bookingData.tour_id)
+                    .eq('activity_type', 'travel');
+                if (tourActs && tourActs.length > 0) {
+                    activities = tourActs;
+                }
+            }
+
             if (activities && activities.length > 0) {
 
                 if (isTransport) {
                     // ── TRANSPORT PATH ───────────────────────────────────────────────────
                     // Group all travel legs by their service date → one PO item per day.
+
+                    // Fetch vehicle assignments for this transport provider to accurately get vehicle contracted per day rates
+                    const { data: transItin } = await supabase
+                        .from('tour_itinerary_transports')
+                        .select('*, tour_itineraries(day_number)')
+                        .eq('tour_id', bookingData.tour_id)
+                        .eq('transport_provider_id', bookingData.vendor_id);
+                    const providerVehIds = new Set((transItin || []).map((t: any) => t.vehicle_id).filter(Boolean));
+                    const { data: vehItin } = await supabase
+                        .from('tour_itinerary_vehicles')
+                        .select('*, tour_itineraries(day_number)')
+                        .eq('tour_id', bookingData.tour_id);
 
                     // Group legs by service date
                     const dayGroups = new Map<string, typeof activities>();
@@ -117,14 +141,25 @@ export class VendorBookingService {
                         );
                         const fromLocation = firstLeg.pickup_location || firstLeg.location_name || firstLeg.title || 'Origin';
                         const lastLeg = legs[legs.length - 1] as any;
-                        const toLocation = lastLeg.dropoff_location || lastLeg.destination_location || lastLeg.title || 'Destination';
+                        const toLocation = lastLeg.dropoff_location || lastLeg.destination_location || lastLeg.location_name || lastLeg.title || 'Destination';
                         
                         const routeStr = isStayDay ? 'Vehicle and Driver Stays' : `${fromLocation} → ${toLocation}`;
                         const description = dayNum
                             ? `Day ${dayNum} Transport – ${routeStr}`
                             : `Transport – ${routeStr}`;
 
-                        let dayTotalPrice = legs.reduce((sum: number, a: any) => sum + (Number(a.contracted_total_price) || 0), 0);
+                        const dayVehs = (vehItin || []).filter((v: any) => 
+                            (v.tour_itineraries?.day_number === dayNum || Number(v.day_number) === Number(dayNum)) && 
+                            (providerVehIds.size === 0 || providerVehIds.has(v.vehicle_id))
+                        );
+                        const vRate = dayVehs.reduce((s: number, v: any) => s + Number(v.contracted_per_day_rate || 0), 0);
+                        let dayTotalPrice = vRate || legs.reduce((sum: number, a: any) => sum + (Number(a.contracted_total_price) || 0), 0);
+
+                        const fxRate = legs.find((a: any) => a.contracted_fx_rate != null && Number(a.contracted_fx_rate) > 0)?.contracted_fx_rate ?? null;
+                        const dayLkrTotal = legs.reduce((sum: number, a: any) => sum + (Number(a.contracted_total_price_lkr) || 0), 0);
+                        const effectiveLkr = dayLkrTotal > 0
+                            ? dayLkrTotal
+                            : (fxRate != null && dayTotalPrice > 0 ? Math.round(dayTotalPrice * Number(fxRate) * 100) / 100 : null);
 
                         calculatedSubtotal += dayTotalPrice;
 
@@ -136,8 +171,10 @@ export class VendorBookingService {
                             service_date: dateKey !== 'unknown' ? dateKey : null,
                             quantity: 1,
                             unit_price: dayTotalPrice,
-                            total_price: dayTotalPrice,
                             day_number: dayNum,
+                            fx_rate: fxRate,
+                            unit_price_lkr: effectiveLkr,
+                            total_price_lkr: effectiveLkr,
                         });
                     }
 

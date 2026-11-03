@@ -2093,9 +2093,12 @@ function PlannerWizardWorkspace() {
     // Support multi-leg day groups: distribute total evenly, remainder to first leg
     const allLegIds: string[] = editingCustomRateAct._allLegIds || [editingCustomRateAct.id];
     const numLegs = allLegIds.length;
-    const perLegTotal = totalPrice !== undefined ? parseFloat((totalPrice / numLegs).toFixed(2)) : undefined;
-    const firstLegTotal = totalPrice !== undefined
-      ? parseFloat((totalPrice - (perLegTotal! * (numLegs - 1))).toFixed(2))
+    const effectiveTotalPrice = totalPrice !== undefined
+      ? totalPrice
+      : (editingCustomRateAct.activity_type === 'travel' ? unitPrice : undefined);
+    const perLegTotal = effectiveTotalPrice !== undefined ? parseFloat((effectiveTotalPrice / numLegs).toFixed(2)) : undefined;
+    const firstLegTotal = effectiveTotalPrice !== undefined
+      ? parseFloat((effectiveTotalPrice - (perLegTotal! * (numLegs - 1))).toFixed(2))
       : undefined;
 
     // Optimistic patch
@@ -2104,13 +2107,15 @@ function PlannerWizardWorkspace() {
       daily_activities: (block.daily_activities || []).map((act: any) => {
         const legIdx = allLegIds.indexOf(act.id);
         if (legIdx === -1) return act;
+        const resolvedUnit = unitPrice ?? act.contracted_price;
+        const resolvedTotal = (legIdx === 0 ? firstLegTotal : perLegTotal) ?? act.contracted_total_price;
         return {
           ...act,
-          contracted_price: unitPrice ?? act.contracted_price,
-          contracted_total_price: (legIdx === 0 ? firstLegTotal : perLegTotal) ?? act.contracted_total_price,
+          contracted_price: resolvedUnit,
+          contracted_total_price: resolvedTotal,
           contracted_fx_rate: fxRate,
-          contracted_unit_price_lkr: toLkr(unitPrice, fxRate),
-          contracted_total_price_lkr: toLkr(legIdx === 0 ? firstLegTotal : perLegTotal, fxRate),
+          contracted_unit_price_lkr: toLkr(resolvedUnit ?? resolvedTotal, fxRate),
+          contracted_total_price_lkr: toLkr(resolvedTotal ?? resolvedUnit, fxRate),
           description: customRateNote.trim() || act.description,
         };
       }),
@@ -5176,11 +5181,92 @@ function PlannerWizardWorkspace() {
   const plRate = tourLockedBuyingRate || profitLossReport.plSummary.customerPaymentExchangeRate || defaultUsdLkrRate || 300;
   const formatLkr = (usd: number) => `LKR ${(usd * plRate).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 
-  // True when every PO item has an agreed LKR unit price saved (purchase_order_items.unit_price_lkr).
-  const poHasAgreedLkrItems = (po: any) =>
-    po.vendor_type !== 'driver' && (po.items || []).length > 0 && (po.items || []).every((i: any) => i.unit_price_lkr != null);
+  // Computes day-by-day USD, fx rate and LKR for transport POs from agreed daily travel activities/vehicles
+  const getTransportPoDays = (po: any) => {
+    // If po.items exists and has valid total_price_lkr, use items
+    if (po.items && po.items.length > 0 && po.items.every((i: any) => i.total_price_lkr != null)) {
+      return po.items.map((i: any) => ({
+        dayNum: i.day_number || 1,
+        usd: Number(i.total_price ?? (Number(i.quantity || 1) * Number(i.unit_price || 0))),
+        fxRate: i.fx_rate ? Number(i.fx_rate) : null,
+        lkr: Number(i.total_price_lkr || 0),
+        description: i.description,
+        id: i.id,
+      }));
+    }
+
+    // Otherwise, match travel block from poBlocks
+    const targetProviderId = po.transport_provider_id;
+    const travelBlocks = (poBlocks || []).filter((b: any) => b.block_type === 'travel');
+    const matchedBlock = travelBlocks.find((b: any) => 
+      (po.po_block_id && b.id === po.po_block_id) ||
+      (targetProviderId && (b.transport_provider_id === targetProviderId || (b.name?.includes(' | ID: ') && b.name.split(' | ID: ')[1] === targetProviderId)))
+    ) || (travelBlocks.length === 1 ? travelBlocks[0] : null);
+
+    if (!matchedBlock) return [];
+
+    const travelItems = (matchedBlock.daily_activities || []).filter((a: any) => a.activity_type === 'travel');
+    const dayMap = new Map<number, any[]>();
+    travelItems.forEach((t: any) => {
+      const dn = Number(t.tour_itineraries?.day_number || t.day_number || 1);
+      if (!dayMap.has(dn)) dayMap.set(dn, []);
+      dayMap.get(dn)!.push(t);
+    });
+
+    const bId = matchedBlock.transport_provider_id || (matchedBlock.name?.includes(' | ID: ') ? matchedBlock.name.split(' | ID: ')[1] : null);
+    const result: any[] = [];
+    Array.from(dayMap.keys()).sort((a, b) => a - b).forEach(dn => {
+      const legs = dayMap.get(dn)!;
+      const bTrans = (dailyTransportAssignments[dn] || []).filter((tr: any) => !bId || tr.transport_provider_id === bId);
+      const bVehIds = new Set(bTrans.map((tr: any) => tr.vehicle_id).filter(Boolean));
+      const aVehs = (dailyVehicleAssignments[dn] || []).filter((v: any) => bVehIds.size === 0 || bVehIds.has(v.vehicle_id));
+      const vRate = aVehs.reduce((s: number, v: any) => s + Number(v.contracted_per_day_rate || 0), 0);
+      const totalDayUsd = vRate || legs.reduce((s: number, t: any) => s + (Number(t.contracted_total_price ?? t.contracted_price) || 0), 0);
+
+      const dayFxRate = legs.find((l: any) => l.contracted_fx_rate != null && Number(l.contracted_fx_rate) > 0)?.contracted_fx_rate ?? null;
+      const savedLegsLkr = legs.reduce((s: number, l: any) => s + (Number(l.contracted_total_price_lkr) || 0), 0);
+      const dayTotalLkr = savedLegsLkr > 0
+        ? savedLegsLkr
+        : (totalDayUsd > 0 && dayFxRate != null ? Math.round(totalDayUsd * Number(dayFxRate) * 100) / 100 : null);
+
+      result.push({
+        dayNum: dn,
+        usd: totalDayUsd,
+        fxRate: dayFxRate,
+        lkr: dayTotalLkr,
+        description: `Day ${dn} Transport`,
+        id: `transport-day-${dn}`,
+      });
+    });
+
+    return result;
+  };
+
+  // True when every PO item has an agreed LKR unit price saved (purchase_order_items.unit_price_lkr) or transport agreed rate.
+  const poHasAgreedLkrItems = (po: any) => {
+    if (po.vendor_type === 'driver') return false;
+    if (po.vendor_type === 'transport' || po.vendor_type === 'transport_provider') {
+      const days = getTransportPoDays(po);
+      return days.length > 0 && days.every((d: any) => d.lkr != null);
+    }
+    return (po.items || []).length > 0 && (po.items || []).every((i: any) => i.unit_price_lkr != null);
+  };
 
   const buildInvoiceItemsFromPo = (po: any) => {
+    const isTransport = po.vendor_type === 'transport' || po.vendor_type === 'transport_provider';
+    if (isTransport && (!po.items || po.items.length === 0)) {
+      const days = getTransportPoDays(po);
+      const lkr = days.length > 0 && days.every((d: any) => d.lkr != null);
+      return days.map((d: any) => ({
+        purchase_order_item_id: d.id,
+        description: d.description,
+        quantity: '1',
+        unit_price: (lkr ? d.lkr : d.usd).toString(),
+        po_quantity: 1,
+        po_unit_price: lkr ? d.lkr : d.usd,
+        po_item_currency: lkr ? 'LKR' : (po.currency || 'USD'),
+      }));
+    }
     const lkr = poHasAgreedLkrItems(po);
     return (po.items || []).map((item: any) => {
       const unit = lkr ? Number(item.unit_price_lkr) : item.unit_price;
@@ -5203,6 +5289,8 @@ function PlannerWizardWorkspace() {
 
   const initInvoiceItems = (po: any) => {
     if (po.items && po.items.length > 0) {
+      setInvoiceItems(buildInvoiceItemsFromPo(po));
+    } else if (po.vendor_type === 'transport' || po.vendor_type === 'transport_provider') {
       setInvoiceItems(buildInvoiceItemsFromPo(po));
     } else {
       setInvoiceItems([]);
@@ -7967,10 +8055,27 @@ ${chauffeurHtml}
 
     const invoiceAmtLKR = invoiceCurrency === 'LKR' ? amount : amount * rate;
     // Same rule as the on-screen tally: when the PO has agreed LKR (all items priced), compare in LKR against it
-    const poItemsForLkr: any[] = po.vendor_type !== 'driver' ? (po.items || []) : [];
-    const agreedLkr: number | null = (poItemsForLkr.length > 0 && poItemsForLkr.every((i: any) => i.total_price_lkr != null))
-      ? poItemsForLkr.reduce((s: number, i: any) => s + Number(i.total_price_lkr), 0)
-      : null;
+    const isTransportPo = po.vendor_type === 'transport' || po.vendor_type === 'transport_provider';
+    const poTransportDays = isTransportPo ? getTransportPoDays(po) : [];
+    const agreedLkr: number | null = po.vendor_type === 'driver'
+      ? (() => {
+          const rows = Object.values(dailyDriverAssignments || {}).flat().filter((r: any) => r.driver_id === po.driver_id);
+          return (rows.length > 0 && rows.every((r: any) => r.contracted_total_lkr != null))
+            ? rows.reduce((s: number, r: any) => s + Number(r.contracted_total_lkr), 0)
+            : null;
+        })()
+      : isTransportPo
+        ? ((poTransportDays.length > 0 && poTransportDays.every((d: any) => d.lkr != null))
+          ? poTransportDays.reduce((s: number, d: any) => s + Number(d.lkr), 0)
+          : ((po.items || []).length > 0 && (po.items || []).every((i: any) => i.total_price_lkr != null)
+            ? (po.items || []).reduce((s: number, i: any) => s + Number(i.total_price_lkr), 0)
+            : null))
+        : (() => {
+            const poItemsForLkr: any[] = po.items || [];
+            return (poItemsForLkr.length > 0 && poItemsForLkr.every((i: any) => i.total_price_lkr != null))
+              ? poItemsForLkr.reduce((s: number, i: any) => s + Number(i.total_price_lkr), 0)
+              : null;
+          })();
     const poAmtLKR = po.currency === 'USD' ? po.total_amount * rate : po.total_amount;
     const discrepancy = agreedLkr !== null
       ? (invoiceAmtLKR - agreedLkr)
@@ -13964,6 +14069,8 @@ ${chauffeurHtml}
                                         .reduce((sum: number, v: any) => sum + Number(v.contracted_price || v.contracted_total_price || 0), 0);
 
                                       const totalDayPrice = vehicleContractedRate || legs.reduce((sum: number, t: any) => sum + (Number(t.contracted_total_price ?? t.contracted_price) || 0), 0);
+                                      const dayFxRate = legs.find((l: any) => l.contracted_fx_rate != null && Number(l.contracted_fx_rate) > 0)?.contracted_fx_rate ?? null;
+                                      const savedLegsLkr = legs.reduce((s: number, l: any) => s + (Number(l.contracted_total_price_lkr) || 0), 0);
 
                                       const blockVehicles = block.transport_requirement?.transport_requirement_vehicles || [];
                                       let baseDayRate = 0;
@@ -14080,6 +14187,18 @@ ${chauffeurHtml}
                                               <span className="font-mono text-amber-800 font-bold text-xs">
                                                 {(totalDayPrice > 0 ? totalDayPrice : recommendedDailyRate) > 0 ? `$${(totalDayPrice > 0 ? totalDayPrice : recommendedDailyRate).toFixed(2)}` : '$0.00'}
                                               </span>
+                                              {dayFxRate != null && (() => {
+                                                const effectiveUsd = totalDayPrice > 0 ? totalDayPrice : recommendedDailyRate;
+                                                const dayTotalLkr = savedLegsLkr > 0
+                                                  ? savedLegsLkr
+                                                  : (effectiveUsd > 0 ? Math.round(effectiveUsd * Number(dayFxRate) * 100) / 100 : null);
+                                                if (dayTotalLkr == null) return null;
+                                                return (
+                                                  <span className="block text-[9px] font-mono text-emerald-700">
+                                                    LKR {Number(dayTotalLkr).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })} @ {Number(dayFxRate)}
+                                                  </span>
+                                                );
+                                              })()}
                                             </div>
 
                                             {recommendedDailyRate > 0 && Math.abs(totalDayPrice - recommendedDailyRate) > 0.01 && (
@@ -14160,10 +14279,12 @@ ${chauffeurHtml}
                                                   _allLegIds: legs.map((l: any) => l.id),
                                                   contracted_price: firstLeg.contracted_price,
                                                   contracted_total_price: totalDayPrice || null,
+                                                  contracted_fx_rate: dayFxRate,
                                                 });
                                                 setCustomRateUnit(String(firstLeg.contracted_price ?? ''));
                                                 setCustomRateTotal(String(totalDayPrice || ''));
                                                 setCustomRateNote(firstLeg.description || '');
+                                                setCustomRateFx(dayFxRate != null ? String(dayFxRate) : '');
                                               }}
                                               disabled={isLockedByOther}
                                               className="p-1.5 rounded-lg border border-neutral-200 hover:border-amber-400/40 hover:bg-amber-50/20 text-neutral-400 hover:text-amber-700 transition-all shadow-sm shrink-0 disabled:opacity-40"
@@ -16288,17 +16409,25 @@ ${chauffeurHtml}
                             // Driver POs: the LKR value is the sum of the LKR totals agreed in driver-selection
                             // (tour_itinerary_drivers.contracted_total_lkr). If any of the driver's days has no agreed
                             // rate yet, the whole PO falls back to the P&L rate display (no mixing, no guessing).
+                            const isTransportPo = po.vendor_type === 'transport' || po.vendor_type === 'transport_provider';
                             const poDriverRows: any[] = po.vendor_type === 'driver'
                               ? Object.values(dailyDriverAssignments || {}).flat().filter((r: any) => r.driver_id === po.driver_id)
                               : [];
-                            const poItemRows: any[] = po.vendor_type !== 'driver' ? (po.items || []) : [];
+                            const poItemRows: any[] = (po.vendor_type !== 'driver' && !isTransportPo) ? (po.items || []) : [];
+                            const poTransportDays = isTransportPo ? getTransportPoDays(po) : [];
                             const agreedLkrTotal: number | null = po.vendor_type === 'driver'
                               ? ((poDriverRows.length > 0 && poDriverRows.every((r: any) => r.contracted_total_lkr != null))
                                 ? poDriverRows.reduce((s: number, r: any) => s + Number(r.contracted_total_lkr), 0)
                                 : null)
-                              : ((poItemRows.length > 0 && poItemRows.every((i: any) => i.total_price_lkr != null))
-                                ? poItemRows.reduce((s: number, i: any) => s + Number(i.total_price_lkr), 0)
-                                : null);
+                              : isTransportPo
+                                ? ((poTransportDays.length > 0 && poTransportDays.every((d: any) => d.lkr != null))
+                                  ? poTransportDays.reduce((s: number, d: any) => s + Number(d.lkr), 0)
+                                  : ((po.items || []).length > 0 && (po.items || []).every((i: any) => i.total_price_lkr != null)
+                                    ? (po.items || []).reduce((s: number, i: any) => s + Number(i.total_price_lkr), 0)
+                                    : null))
+                                : ((poItemRows.length > 0 && poItemRows.every((i: any) => i.total_price_lkr != null))
+                                  ? poItemRows.reduce((s: number, i: any) => s + Number(i.total_price_lkr), 0)
+                                  : null);
                             const poValLkr = poCurrency === 'LKR' ? totalPoVal : (agreedLkrTotal !== null ? agreedLkrTotal : totalPoVal * activeRate);
                             const balancePayableLkr = poValLkr - totalPaidLkr;
                             // Invoiced total in LKR (each invoice converted with its own saved rate; LKR invoices are 1:1)
@@ -17040,7 +17169,11 @@ ${chauffeurHtml}
                                           setEnteringInvoicePoId(po.id);
                                           setInvoiceNumber('');
                                           const poLkrItems = poHasAgreedLkrItems(po);
-                                          setInvoiceAmount(poLkrItems ? (po.items || []).reduce((s: number, i: any) => s + Number(i.quantity) * Number(i.unit_price_lkr), 0).toString() : po.total_amount.toString());
+                                          const defaultInvItems = buildInvoiceItemsFromPo(po);
+                                          const defaultAmount = poLkrItems
+                                            ? defaultInvItems.reduce((s: number, i: any) => s + (Number(i.quantity) * Number(i.unit_price)), 0)
+                                            : (agreedLkrTotal !== null ? agreedLkrTotal : po.total_amount);
+                                          setInvoiceAmount(defaultAmount.toString());
                                           setInvoiceCurrency(poLkrItems ? 'LKR' : (po.currency || 'USD'));
                                           setInvoiceExchangeRate(poLkrItems ? '1.0' : plRate.toString());
                                           setInvoiceDate(new Date().toISOString().split('T')[0]);
