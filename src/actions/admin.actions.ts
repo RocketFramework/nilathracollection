@@ -1311,14 +1311,33 @@ export async function finalizeActivityPricesAction(
                     .maybeSingle()).data?.tour_itinerary_id;
 
                 if (itinId) {
-                    const { data: fallbackActs } = await adminSupabase
+                    const { data: dayTravelLegs } = await adminSupabase
                         .from('daily_activities')
-                        .update(dbFields)
+                        .select('id')
                         .eq('itinerary_id', itinId)
                         .eq('activity_type', 'travel')
-                        .select('id');
-                    if (fallbackActs && fallbackActs.length > 0) {
-                        targetActivityId = fallbackActs[0].id;
+                        .order('created_at', { ascending: true });
+                    if (dayTravelLegs && dayTravelLegs.length > 0) {
+                        targetActivityId = dayTravelLegs[0].id;
+                        await adminSupabase
+                            .from('daily_activities')
+                            .update(dbFields)
+                            .eq('id', dayTravelLegs[0].id);
+                        if (dayTravelLegs.length > 1) {
+                            const extraLegIds = dayTravelLegs.slice(1).map((l: any) => l.id);
+                            const extraFields: any = { price_finalized: true };
+                            if (update.contracted_price !== undefined) extraFields.contracted_price = 0;
+                            if (update.contracted_total_price !== undefined) extraFields.contracted_total_price = 0;
+                            if (update.contracted_fx_rate !== undefined) {
+                                extraFields.contracted_fx_rate = update.contracted_fx_rate;
+                                extraFields.contracted_unit_price_lkr = 0;
+                                extraFields.contracted_total_price_lkr = 0;
+                            }
+                            await adminSupabase
+                                .from('daily_activities')
+                                .update(extraFields)
+                                .in('id', extraLegIds);
+                        }
                     }
                 }
             }

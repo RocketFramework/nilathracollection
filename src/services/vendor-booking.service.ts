@@ -156,10 +156,9 @@ export class VendorBookingService {
                         let dayTotalPrice = vRate || legs.reduce((sum: number, a: any) => sum + (Number(a.contracted_total_price) || 0), 0);
 
                         const fxRate = legs.find((a: any) => a.contracted_fx_rate != null && Number(a.contracted_fx_rate) > 0)?.contracted_fx_rate ?? null;
-                        const dayLkrTotal = legs.reduce((sum: number, a: any) => sum + (Number(a.contracted_total_price_lkr) || 0), 0);
-                        const effectiveLkr = dayLkrTotal > 0
-                            ? dayLkrTotal
-                            : (fxRate != null && dayTotalPrice > 0 ? Math.round(dayTotalPrice * Number(fxRate) * 100) / 100 : null);
+                        const effectiveLkr = (fxRate != null && dayTotalPrice > 0)
+                            ? Math.round(dayTotalPrice * Number(fxRate) * 100) / 100
+                            : null;
 
                         calculatedSubtotal += dayTotalPrice;
 

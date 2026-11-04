@@ -66,98 +66,98 @@ export const generateSettlementVoucherPdf = async (
     const secondaryColor = [201, 168, 76];
     const charcoalColor = [51, 51, 51];
 
-    let topY = 20;
-    let logoBottomY = 20;
+    let topY = 12;
+    let logoBottomY = 12;
 
     if (appSettings?.[Settings.Company_Logo]) {
         try {
             const logoBase64 = await getBase64ImageFromUrl(appSettings[Settings.Company_Logo]);
             const dims = await getImageDimensions(logoBase64);
             const aspectRatio = dims.width / dims.height;
-            let logoWidth = 40;
+            let logoWidth = 35;
             let logoHeight = logoWidth / aspectRatio;
-            if (logoHeight > 16) { logoHeight = 16; logoWidth = logoHeight * aspectRatio; }
+            if (logoHeight > 13) { logoHeight = 13; logoWidth = logoHeight * aspectRatio; }
             doc.addImage(logoBase64, 'PNG', 20, topY, logoWidth, logoHeight);
             logoBottomY = topY + logoHeight;
         } catch (e) {
             console.error("Failed to add logo to settlement voucher:", e);
             doc.setFont('helvetica', 'bold');
-            doc.setFontSize(22);
+            doc.setFontSize(18);
             doc.setTextColor(primaryColor[0], primaryColor[1], primaryColor[2]);
-            doc.text("NILATHRA COLLECTION", 20, topY + 10);
-            logoBottomY = topY + 15;
+            doc.text("NILATHRA COLLECTION", 20, topY + 8);
+            logoBottomY = topY + 12;
         }
     } else {
         doc.setFont('helvetica', 'bold');
-        doc.setFontSize(22);
+        doc.setFontSize(18);
         doc.setTextColor(primaryColor[0], primaryColor[1], primaryColor[2]);
-        doc.text("NILATHRA COLLECTION", 20, topY + 10);
-        logoBottomY = topY + 15;
+        doc.text("NILATHRA COLLECTION", 20, topY + 8);
+        logoBottomY = topY + 12;
     }
 
     const voucherNo = `VCH-${po.po_number || String(po.id || '').slice(0, 8)}`;
     doc.setFont('helvetica', 'bold');
-    doc.setFontSize(16);
+    doc.setFontSize(14);
     doc.setTextColor(primaryColor[0], primaryColor[1], primaryColor[2]);
-    doc.text("PAYMENT SETTLEMENT VOUCHER", 108, 28);
+    doc.text("PAYMENT SETTLEMENT VOUCHER", 108, 17);
 
     doc.setFont('helvetica', 'normal');
-    doc.setFontSize(9);
+    doc.setFontSize(8.5);
     doc.setTextColor(charcoalColor[0], charcoalColor[1], charcoalColor[2]);
-    doc.text(`Voucher No: ${voucherNo}`, 108, 34);
-    doc.text(`PO Number: ${po.po_number || '-'}`, 108, 39);
-    doc.text(`Issued: ${formatDate(new Date().toISOString())}`, 108, 44);
+    doc.text(`Voucher No: ${voucherNo}`, 108, 22);
+    doc.text(`PO Number: ${po.po_number || '-'}`, 108, 26);
+    doc.text(`Issued: ${formatDate(new Date().toISOString())}`, 108, 30);
 
-    const lineY = Math.max(logoBottomY + 6, 52);
+    const lineY = Math.max(logoBottomY + 3, 33);
     doc.setDrawColor(secondaryColor[0], secondaryColor[1], secondaryColor[2]);
     doc.setLineWidth(0.5);
     doc.line(20, lineY, 190, lineY);
-    topY = lineY + 8;
+    topY = lineY + 4;
 
     const col1X = 20;
     const col2X = 110;
 
     // Payee
     doc.setFont('helvetica', 'bold');
-    doc.setFontSize(10);
+    doc.setFontSize(9);
     doc.setTextColor(primaryColor[0], primaryColor[1], primaryColor[2]);
     doc.text("PAYEE (SUPPLIER):", col1X, topY);
     doc.setTextColor(charcoalColor[0], charcoalColor[1], charcoalColor[2]);
-    doc.text(po.vendor_name || 'Supplier', col1X, topY + 5);
+    doc.text(po.vendor_name || 'Supplier', col1X, topY + 3.8);
     doc.setFont('helvetica', 'normal');
-    doc.setFontSize(9);
-    let payeeY = topY + 10;
+    doc.setFontSize(8);
+    let payeeY = topY + 7.6;
     const vendorTypeLabel = ({ driver: 'Driver', vendor: 'Activity Provider', transport: 'Transport Provider', guide: 'Tour Guide', hotel: 'Hotel', restaurant: 'Restaurant' } as Record<string, string>)[po.vendor_type] || 'Supplier';
     doc.text(`Type: ${vendorTypeLabel}`, col1X, payeeY);
-    payeeY += 4.5;
-    if (po.settled_by_name) { doc.text(`Received By: ${po.settled_by_name}`, col1X, payeeY); payeeY += 4.5; }
-    if (po.vendor_phone) { doc.text(`Phone: ${po.vendor_phone}`, col1X, payeeY); payeeY += 4.5; }
+    payeeY += 3.6;
+    if (po.settled_by_name) { doc.text(`Received By: ${po.settled_by_name}`, col1X, payeeY); payeeY += 3.6; }
+    if (po.vendor_phone) { doc.text(`Phone: ${po.vendor_phone}`, col1X, payeeY); payeeY += 3.6; }
     if (po.vendor_address) {
         const addr = doc.splitTextToSize(po.vendor_address, 80);
         doc.text(addr, col1X, payeeY);
-        payeeY += addr.length * 4.5;
+        payeeY += addr.length * 3.6;
     }
 
     // Issuer
     doc.setFont('helvetica', 'bold');
-    doc.setFontSize(10);
+    doc.setFontSize(9);
     doc.setTextColor(primaryColor[0], primaryColor[1], primaryColor[2]);
     doc.text("PAID BY:", col2X, topY);
     doc.setTextColor(charcoalColor[0], charcoalColor[1], charcoalColor[2]);
-    doc.text("Nilathra Collection", col2X, topY + 5);
+    doc.text("Nilathra Collection", col2X, topY + 3.8);
     doc.setFont('helvetica', 'normal');
-    doc.setFontSize(9);
-    let issuerY = topY + 10;
+    doc.setFontSize(8);
+    let issuerY = topY + 7.6;
     if (appSettings?.[Settings.Address]) {
         const a = doc.splitTextToSize(appSettings[Settings.Address], 80);
         doc.text(a, col2X, issuerY);
-        issuerY += a.length * 4.5;
+        issuerY += a.length * 3.6;
     }
     doc.text(`Agent: ${agentName}`, col2X, issuerY);
-    doc.text("Email: concierge@nilathra.com", col2X, issuerY + 4.5);
-    issuerY += 9;
+    doc.text("Email: concierge@nilathra.com", col2X, issuerY + 3.6);
+    issuerY += 7.2;
 
-    topY = Math.max(payeeY, issuerY) + 6;
+    topY = Math.max(payeeY, issuerY) + 3;
 
     // Tour details
     const guestName = `${touristData?.profile?.first_name || ''} ${touristData?.profile?.last_name || ''}`.trim();
@@ -169,24 +169,31 @@ export const generateSettlementVoucherPdf = async (
     if (infants > 0) paxStr += `, ${infants} Infants`;
 
     doc.setFillColor(245, 243, 239);
-    doc.rect(20, topY, 170, 21, 'F');
+    doc.rect(20, topY, 170, 11, 'F');
     doc.setFont('helvetica', 'bold');
-    doc.setFontSize(9);
+    doc.setFontSize(8.5);
     doc.setTextColor(primaryColor[0], primaryColor[1], primaryColor[2]);
-    doc.text("TOUR DETAILS:", 24, topY + 6);
+    doc.text("TOUR DETAILS:", 24, topY + 4);
     doc.setFont('helvetica', 'normal');
+    doc.setFontSize(8);
     doc.setTextColor(charcoalColor[0], charcoalColor[1], charcoalColor[2]);
-    doc.text(`Guest: ${guestName || '-'}`, 24, topY + 11);
-    doc.text(`Tour Dates: ${formatDate(touristData?.preferences?.arrival_date)} - ${formatDate(touristData?.preferences?.departure_date)}`, 24, topY + 16);
-    doc.text(`Party: ${paxStr}`, 110, topY + 11);
-    doc.text(`Tour ID: ${tourCode || '-'}`, 110, topY + 16);
-    topY += 27;
+    doc.text(`Guest: ${guestName || '-'}`, 54, topY + 4);
+    doc.text(`Tour ID: ${tourCode || '-'}`, 140, topY + 4);
+    doc.text(`Tour Dates: ${formatDate(touristData?.preferences?.arrival_date)} - ${formatDate(touristData?.preferences?.departure_date)}`, 24, topY + 8.5);
+    doc.text(`Party: ${paxStr}`, 140, topY + 8.5);
+    topY += 14;
 
     // Items
     const items: any[] = [...(po.items || [])].sort((a: any, b: any) => (a.day_number || 0) - (b.day_number || 0));
-    // Driver and activity-provider vouchers are shown in LKR (USD PO values converted at the tour rate)
-    const showInLkr = (po.vendor_type === 'driver' || po.vendor_type === 'vendor') && (po.currency || 'USD') === 'USD' && !!usdLkrRate && usdLkrRate > 0;
-    const fx = showInLkr ? (usdLkrRate as number) : 1;
+    // Driver, activity-provider, and transport-provider vouchers are shown in LKR (converted at the agreed fx rate)
+    const isTransport = po.vendor_type === 'transport' || po.vendor_type === 'transport_provider';
+    const isLkrVendorType = po.vendor_type === 'driver' || po.vendor_type === 'vendor' || isTransport;
+
+    const itemFx = items.find((i: any) => i.fx_rate != null && Number(i.fx_rate) > 0)?.fx_rate;
+    const effectiveFx = itemFx ? Number(itemFx) : (usdLkrRate && usdLkrRate > 0 ? usdLkrRate : 1);
+
+    const showInLkr = isLkrVendorType && (po.currency || 'USD') === 'USD' && effectiveFx > 0;
+    const fx = showInLkr ? effectiveFx : 1;
     const currency = showInLkr ? 'LKR' : (po.currency || 'USD');
     // Saved unit prices are rounded to 2dp, so qty x unit can differ by cents from the saved agreed subtotal.
     // Lines are scaled so they add up exactly to the saved subtotal (the agreed value stays the source of truth).
@@ -196,16 +203,16 @@ export const generateSettlementVoucherPdf = async (
 
     const drawItemsHeader = () => {
         doc.setFillColor(primaryColor[0], primaryColor[1], primaryColor[2]);
-        doc.rect(20, topY, 170, 7, 'F');
+        doc.rect(20, topY, 170, 5.5, 'F');
         doc.setFont('helvetica', 'bold');
-        doc.setFontSize(8.5);
+        doc.setFontSize(8);
         doc.setTextColor(255, 255, 255);
-        doc.text("Date / Day", 24, topY + 5);
-        doc.text("Service Description", 60, topY + 5);
-        doc.text("Qty", 138, topY + 5, { align: 'center' });
-        doc.text("Unit", 160, topY + 5, { align: 'right' });
-        doc.text("Total", 188, topY + 5, { align: 'right' });
-        topY += 7;
+        doc.text("Date / Day", 24, topY + 4);
+        doc.text("Service Description", 60, topY + 4);
+        doc.text("Qty", 138, topY + 4, { align: 'center' });
+        doc.text("Unit", 160, topY + 4, { align: 'right' });
+        doc.text("Total", 188, topY + 4, { align: 'right' });
+        topY += 5.5;
         doc.setFont('helvetica', 'normal');
         doc.setTextColor(charcoalColor[0], charcoalColor[1], charcoalColor[2]);
     };
@@ -213,97 +220,131 @@ export const generateSettlementVoucherPdf = async (
 
     for (const item of items) {
         const dateLabel = item.service_date ? formatDate(item.service_date) : (item.day_number ? `Day ${item.day_number}` : '-');
-        const desc = doc.splitTextToSize(item.description || 'Service', 72);
-        const cellH = Math.max(8, desc.length * 4.5 + 2);
-        if (topY + cellH > 235) {
+        const descriptionText = isTransport
+            ? (item.day_number ? `Day ${item.day_number} Transport` : 'Transport')
+            : (item.description || 'Service');
+        const desc = doc.splitTextToSize(descriptionText, 70);
+        const cellH = Math.max(6, desc.length * 3.6 + 1.8);
+        if (topY + cellH > 245) {
             doc.addPage();
-            topY = 20;
+            topY = 15;
             drawItemsHeader();
         }
-        doc.setFontSize(8.5);
+        doc.setFontSize(8);
         doc.setDrawColor(230, 230, 230);
         doc.setLineWidth(0.2);
         doc.line(20, topY + cellH, 190, topY + cellH);
-        doc.text(dateLabel, 24, topY + 5);
-        doc.text(desc, 60, topY + 5);
-        doc.text(String(item.quantity ?? 1), 138, topY + 5, { align: 'center' });
-        const lineTotal = Number(item.total_price ?? 0) * lineScale * fx;
+        doc.text(dateLabel, 24, topY + 4);
+        doc.text(desc, 60, topY + 4);
+        doc.text(String(item.quantity ?? 1), 138, topY + 4, { align: 'center' });
+
+        const itemFxRate = item.fx_rate != null && Number(item.fx_rate) > 0 ? Number(item.fx_rate) : fx;
+        const lineTotal = showInLkr
+            ? (item.total_price_lkr != null && Number(item.total_price_lkr) > 0
+                ? Number(item.total_price_lkr)
+                : Number(item.total_price ?? 0) * lineScale * itemFxRate)
+            : Number(item.total_price ?? 0) * lineScale;
         const lineQty = Number(item.quantity ?? 1) || 1;
-        doc.text((lineTotal / lineQty).toFixed(2), 160, topY + 5, { align: 'right' });
-        doc.text(lineTotal.toFixed(2), 188, topY + 5, { align: 'right' });
+        const lineUnit = showInLkr
+            ? (item.unit_price_lkr != null && Number(item.unit_price_lkr) > 0
+                ? Number(item.unit_price_lkr)
+                : lineTotal / lineQty)
+            : (Number(item.unit_price ?? (lineTotal / lineQty)));
+
+        doc.text(lineUnit.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }), 160, topY + 4, { align: 'right' });
+        doc.text(lineTotal.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }), 188, topY + 4, { align: 'right' });
         topY += cellH;
     }
 
-    topY += 6;
-    if (topY > 215) { doc.addPage(); topY = 20; }
+    topY += 3;
+    if (topY > 238) { doc.addPage(); topY = 15; }
 
     const discount = Number(po.discount || 0) * fx;
     const tax = Number(po.tax || 0) * fx;
+
+    const agreedSubtotal = showInLkr && items.length > 0 && items.every((i: any) => i.total_price_lkr != null)
+        ? items.reduce((s: number, i: any) => s + Number(i.total_price_lkr), 0)
+        : Number(po.subtotal || 0) * fx;
+
+    const agreedTotalPayable = showInLkr && items.length > 0 && items.every((i: any) => i.total_price_lkr != null)
+        ? items.reduce((s: number, i: any) => s + Number(i.total_price_lkr), 0) + tax - discount
+        : Number(po.total_amount || 0) * fx;
+
     doc.setFont('helvetica', 'normal');
-    doc.setFontSize(9.5);
+    doc.setFontSize(8.5);
     doc.setTextColor(charcoalColor[0], charcoalColor[1], charcoalColor[2]);
     if (discount > 0 || tax > 0) {
         doc.text("Subtotal:", 118, topY);
-        doc.text(`${currency} ${(Number(po.subtotal || 0) * fx).toFixed(2)}`, 188, topY, { align: 'right' });
-        topY += 5.5;
-        if (discount > 0) { doc.text("Discount:", 118, topY); doc.text(`-${currency} ${discount.toFixed(2)}`, 188, topY, { align: 'right' }); topY += 5.5; }
-        if (tax > 0) { doc.text("Tax:", 118, topY); doc.text(`+${currency} ${tax.toFixed(2)}`, 188, topY, { align: 'right' }); topY += 5.5; }
+        doc.text(`${currency} ${agreedSubtotal.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`, 188, topY, { align: 'right' });
+        topY += 4.5;
+        if (discount > 0) { doc.text("Discount:", 118, topY); doc.text(`-${currency} ${discount.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`, 188, topY, { align: 'right' }); topY += 4.5; }
+        if (tax > 0) { doc.text("Tax:", 118, topY); doc.text(`+${currency} ${tax.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`, 188, topY, { align: 'right' }); topY += 4.5; }
     }
     doc.setFont('helvetica', 'bold');
-    doc.setFontSize(10.5);
+    doc.setFontSize(9.5);
     doc.setTextColor(primaryColor[0], primaryColor[1], primaryColor[2]);
     doc.text("Agreed Total Payable:", 118, topY);
-    doc.text(`${currency} ${(Number(po.total_amount || 0) * fx).toFixed(2)}`, 188, topY, { align: 'right' });
-    topY += 10;
+    doc.text(`${currency} ${agreedTotalPayable.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`, 188, topY, { align: 'right' });
+    topY += 4.5;
+
+    if (showInLkr && (po.currency || 'USD') === 'USD') {
+        doc.setFont('helvetica', 'normal');
+        doc.setFontSize(7.5);
+        doc.setTextColor(120, 120, 120);
+        doc.text(`(Converted from USD ${(Number(po.total_amount || 0)).toFixed(2)} @ ${effectiveFx.toFixed(2)})`, 188, topY, { align: 'right' });
+        topY += 3.5;
+    }
+    topY += 3;
 
     // Payment mode tick boxes
-    doc.setFontSize(9.5);
+    if (topY > 238) { doc.addPage(); topY = 15; }
+    doc.setFontSize(8.5);
     doc.text("PAYMENT RECEIVED BY:", 20, topY);
     doc.setFont('helvetica', 'normal');
-    doc.setFontSize(9);
+    doc.setFontSize(8);
     doc.setTextColor(charcoalColor[0], charcoalColor[1], charcoalColor[2]);
     doc.setDrawColor(120, 120, 120);
     doc.setLineWidth(0.3);
-    doc.rect(70, topY - 3.5, 4, 4);
-    doc.text("Cash", 76, topY);
-    doc.rect(95, topY - 3.5, 4, 4);
-    doc.text("Bank Transfer", 101, topY);
-    doc.rect(135, topY - 3.5, 4, 4);
-    doc.text("Other: ____________", 141, topY);
-    topY += 9;
+    doc.rect(70, topY - 3, 3.5, 3.5);
+    doc.text("Cash", 75, topY);
+    doc.rect(95, topY - 3, 3.5, 3.5);
+    doc.text("Bank Transfer", 100, topY);
+    doc.rect(135, topY - 3, 3.5, 3.5);
+    doc.text("Other: ____________", 140, topY);
+    topY += 6;
 
     doc.text("Amount actually received:  ________________________   Date: ____ / ____ / ________", 20, topY);
-    topY += 10;
+    topY += 6;
 
     // Acknowledgement text
-    if (topY > 225) { doc.addPage(); topY = 20; }
+    if (topY > 240) { doc.addPage(); topY = 15; }
     const ack = `I, the undersigned, confirm that the services listed above were agreed with Nilathra Collection at the total stated, that I have received the payment shown, and that no further amount is due for these services.`;
     const ackLines = doc.splitTextToSize(ack, 170);
-    doc.setFontSize(8.5);
+    doc.setFontSize(7.5);
     doc.text(ackLines, 20, topY);
-    topY += ackLines.length * 4.5 + 10;
+    topY += ackLines.length * 3.4 + 5;
 
-    if (topY > 235) { doc.addPage(); topY = 20; }
+    if (topY > 245) { doc.addPage(); topY = 15; }
 
     // Signature blocks
     doc.setDrawColor(150, 150, 150);
     doc.setLineWidth(0.3);
-    doc.line(20, topY + 14, 90, topY + 14);
-    doc.line(120, topY + 14, 190, topY + 14);
+    doc.line(20, topY + 8, 90, topY + 8);
+    doc.line(120, topY + 8, 190, topY + 8);
     doc.setFont('helvetica', 'bold');
-    doc.setFontSize(8.5);
-    doc.setTextColor(primaryColor[0], primaryColor[1], primaryColor[2]);
-    doc.text("RECEIVED BY (SUPPLIER)", 20, topY + 19);
-    doc.text("PAID BY (NILATHRA COLLECTION)", 120, topY + 19);
-    doc.setFont('helvetica', 'normal');
     doc.setFontSize(8);
+    doc.setTextColor(primaryColor[0], primaryColor[1], primaryColor[2]);
+    doc.text("RECEIVED BY (SUPPLIER)", 20, topY + 12);
+    doc.text("PAID BY (NILATHRA COLLECTION)", 120, topY + 12);
+    doc.setFont('helvetica', 'normal');
+    doc.setFontSize(7.5);
     doc.setTextColor(charcoalColor[0], charcoalColor[1], charcoalColor[2]);
-    doc.text(`Name: ${po.settled_by_name || '______________________'}`, 20, topY + 25);
-    doc.text("NIC / ID No: ______________________", 20, topY + 30);
-    doc.text("Date: ____ / ____ / ________", 20, topY + 35);
-    doc.text(`Name: ${agentName || '______________________'}`, 120, topY + 25);
-    doc.text("Designation: ______________________", 120, topY + 30);
-    doc.text("Date: ____ / ____ / ________", 120, topY + 35);
+    doc.text(`Name: ${po.settled_by_name || '______________________'}`, 20, topY + 16.5);
+    doc.text("NIC / ID No: ______________________", 20, topY + 20.5);
+    doc.text("Date: ____ / ____ / ________", 20, topY + 24.5);
+    doc.text(`Name: ${agentName || '______________________'}`, 120, topY + 16.5);
+    doc.text("Designation: ______________________", 120, topY + 20.5);
+    doc.text("Date: ____ / ____ / ________", 120, topY + 24.5);
 
     const totalPages = doc.internal.getNumberOfPages();
     for (let i = 1; i <= totalPages; i++) {
@@ -336,78 +377,80 @@ export const generateExpenseVoucherPdf = async (
     const { jsPDF } = jspdfModule;
     const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
 
+    const expenses: any[] = Array.isArray(expense) ? expense : [expense];
+    const primary = expenses[0] || {};
+
     const primaryColor = [27, 58, 45];
     const secondaryColor = [201, 168, 76];
     const charcoalColor = [51, 51, 51];
 
-    let topY = 20;
-    let logoBottomY = 20;
+    let topY = 12;
+    let logoBottomY = 12;
 
     if (appSettings?.[Settings.Company_Logo]) {
         try {
             const logoBase64 = await getBase64ImageFromUrl(appSettings[Settings.Company_Logo]);
             const dims = await getImageDimensions(logoBase64);
             const aspectRatio = dims.width / dims.height;
-            let logoWidth = 40;
+            let logoWidth = 34;
             let logoHeight = logoWidth / aspectRatio;
-            if (logoHeight > 16) { logoHeight = 16; logoWidth = logoHeight * aspectRatio; }
+            if (logoHeight > 12) { logoHeight = 12; logoWidth = logoHeight * aspectRatio; }
             doc.addImage(logoBase64, 'PNG', 20, topY, logoWidth, logoHeight);
             logoBottomY = topY + logoHeight;
         } catch (e) {
             console.error("Failed to add logo to expense voucher:", e);
             doc.setFont('helvetica', 'bold');
-            doc.setFontSize(22);
+            doc.setFontSize(18);
             doc.setTextColor(primaryColor[0], primaryColor[1], primaryColor[2]);
-            doc.text("NILATHRA COLLECTION", 20, topY + 10);
-            logoBottomY = topY + 15;
+            doc.text("NILATHRA COLLECTION", 20, topY + 8);
+            logoBottomY = topY + 11;
         }
     } else {
         doc.setFont('helvetica', 'bold');
-        doc.setFontSize(22);
+        doc.setFontSize(18);
         doc.setTextColor(primaryColor[0], primaryColor[1], primaryColor[2]);
-        doc.text("NILATHRA COLLECTION", 20, topY + 10);
-        logoBottomY = topY + 15;
+        doc.text("NILATHRA COLLECTION", 20, topY + 8);
+        logoBottomY = topY + 11;
     }
 
-    const voucherNo = `EXP-${String(expense.id || '').slice(0, 8).toUpperCase() || 'DRAFT'}`;
+    const voucherNo = `EXP-${String(primary.id || '').slice(0, 8).toUpperCase() || 'DRAFT'}`;
     doc.setFont('helvetica', 'bold');
-    doc.setFontSize(16);
+    doc.setFontSize(13.5);
     doc.setTextColor(primaryColor[0], primaryColor[1], primaryColor[2]);
-    doc.text("EXPENSE PAYMENT VOUCHER", 108, 28);
+    doc.text("EXPENSE PAYMENT VOUCHER", 108, 17);
 
     doc.setFont('helvetica', 'normal');
-    doc.setFontSize(9);
+    doc.setFontSize(8.5);
     doc.setTextColor(charcoalColor[0], charcoalColor[1], charcoalColor[2]);
-    doc.text(`Voucher No: ${voucherNo}`, 108, 34);
-    doc.text(`Expense Date: ${formatDate(expense.expense_date)}`, 108, 39);
-    doc.text(`Issued: ${formatDate(new Date().toISOString())}`, 108, 44);
+    doc.text(`Voucher No: ${voucherNo}`, 108, 22);
+    doc.text(`Expense Date: ${formatDate(primary.expense_date)}  |  Issued: ${formatDate(new Date().toISOString())}`, 108, 26);
 
-    const lineY = Math.max(logoBottomY + 6, 52);
+    const lineY = Math.max(logoBottomY + 4, 30);
     doc.setDrawColor(secondaryColor[0], secondaryColor[1], secondaryColor[2]);
-    doc.setLineWidth(0.5);
+    doc.setLineWidth(0.4);
     doc.line(20, lineY, 190, lineY);
-    topY = lineY + 8;
+    topY = lineY + 5;
 
     // Payee / Issuer
     doc.setFont('helvetica', 'bold');
-    doc.setFontSize(10);
+    doc.setFontSize(9);
     doc.setTextColor(primaryColor[0], primaryColor[1], primaryColor[2]);
     doc.text("PAID TO:", 20, topY);
     doc.text("PAID BY:", 110, topY);
     doc.setTextColor(charcoalColor[0], charcoalColor[1], charcoalColor[2]);
-    doc.text(expense.paid_to || '______________________', 20, topY + 5);
-    doc.text("Nilathra Collection", 110, topY + 5);
+    doc.text(primary.paid_to || '______________________', 20, topY + 4.2);
+    doc.text("Nilathra Collection", 110, topY + 4.2);
     doc.setFont('helvetica', 'normal');
-    doc.setFontSize(9);
-    let issuerY = topY + 10;
+    doc.setFontSize(8);
+    let issuerY = topY + 8;
     if (appSettings?.[Settings.Address]) {
         const a = doc.splitTextToSize(appSettings[Settings.Address], 80);
         doc.text(a, 110, issuerY);
-        issuerY += a.length * 4.5;
+        issuerY += a.length * 3.5;
     }
     doc.text(`Agent: ${agentName}`, 110, issuerY);
-    issuerY += 4.5;
-    topY = Math.max(topY + 10, issuerY) + 6;
+    issuerY += 3.5;
+    topY = Math.max(topY + 8, issuerY) + 3;
 
     // Tour details
     const guestName = `${touristData?.profile?.first_name || ''} ${touristData?.profile?.last_name || ''}`.trim();
@@ -419,111 +462,145 @@ export const generateExpenseVoucherPdf = async (
     if (infants > 0) paxStr += `, ${infants} Infants`;
 
     doc.setFillColor(245, 243, 239);
-    doc.rect(20, topY, 170, 21, 'F');
+    doc.rect(20, topY, 170, 11, 'F');
     doc.setFont('helvetica', 'bold');
-    doc.setFontSize(9);
+    doc.setFontSize(8);
     doc.setTextColor(primaryColor[0], primaryColor[1], primaryColor[2]);
-    doc.text("TOUR DETAILS:", 24, topY + 6);
+    doc.text("TOUR:", 24, topY + 4.2);
     doc.setFont('helvetica', 'normal');
     doc.setTextColor(charcoalColor[0], charcoalColor[1], charcoalColor[2]);
-    doc.text(`Guest: ${guestName || '-'}`, 24, topY + 11);
-    doc.text(`Tour Dates: ${formatDate(touristData?.preferences?.arrival_date)} - ${formatDate(touristData?.preferences?.departure_date)}`, 24, topY + 16);
-    doc.text(`Party: ${paxStr}`, 110, topY + 11);
-    doc.text(`Tour ID: ${tourCode || '-'}`, 110, topY + 16);
-    topY += 29;
+    doc.text(`Guest: ${guestName || '-'}`, 40, topY + 4.2);
+    doc.text(`Party: ${paxStr}`, 110, topY + 4.2);
+    doc.text(`Dates: ${formatDate(touristData?.preferences?.arrival_date)} - ${formatDate(touristData?.preferences?.departure_date)}`, 24, topY + 8.5);
+    doc.text(`Tour ID: ${tourCode || '-'}`, 110, topY + 8.5);
+    topY += 15;
 
-    // Expense details
+    // Expense items table header
     doc.setFillColor(primaryColor[0], primaryColor[1], primaryColor[2]);
-    doc.rect(20, topY, 170, 7, 'F');
+    doc.rect(20, topY, 170, 6, 'F');
     doc.setFont('helvetica', 'bold');
-    doc.setFontSize(8.5);
+    doc.setFontSize(8);
     doc.setTextColor(255, 255, 255);
-    doc.text("EXPENSE DETAILS", 24, topY + 5);
-    topY += 12;
+    doc.text("Date", 23, topY + 4.2);
+    doc.text("Category", 48, topY + 4.2);
+    doc.text("Description / Reference", 82, topY + 4.2);
+    doc.text("Amount (LKR)", 188, topY + 4.2, { align: 'right' });
+    topY += 9.5;
 
     doc.setTextColor(charcoalColor[0], charcoalColor[1], charcoalColor[2]);
-    doc.setFontSize(9);
-    const detailRow = (label: string, value: string) => {
-        doc.setFont('helvetica', 'bold');
-        doc.text(label, 24, topY);
+    doc.setFontSize(8.5);
+
+    let totalLkr = 0;
+    const currencies = new Set<string>();
+    let totalForeign = 0;
+
+    expenses.forEach((item) => {
+        const cur = item.currency || 'LKR';
+        currencies.add(cur);
+        const rawAmt = Number(item.amount || 0);
+        const rate = cur === 'LKR' ? 1 : Number(item.exchange_rate || 1);
+        const itemLkr = rawAmt * rate;
+        totalLkr += itemLkr;
+        totalForeign += rawAmt;
+
+        let descText = item.description || '-';
+        const extraParts: string[] = [];
+        if (cur !== 'LKR') extraParts.push(`${cur} ${rawAmt.toFixed(2)} @ ${rate}`);
+        if (item.payment_reference) extraParts.push(`Ref: ${item.payment_reference}`);
+        if (item.notes) extraParts.push(`Note: ${item.notes}`);
+        if (extraParts.length > 0) {
+            descText += ` (${extraParts.join(' | ')})`;
+        }
+
+        const descLines = doc.splitTextToSize(descText, 78);
+        const rowHeight = Math.max(1, descLines.length) * 4 + 2;
+
+        if (topY + rowHeight > 245) {
+            doc.addPage();
+            topY = 20;
+        }
+
         doc.setFont('helvetica', 'normal');
-        const lines = doc.splitTextToSize(value || '-', 120);
-        doc.text(lines, 66, topY);
-        topY += Math.max(1, lines.length) * 4.5 + 2;
-    };
-    detailRow("Category:", expense.category);
-    detailRow("Description:", expense.description);
-    detailRow("Payment Method:", expense.payment_method || '-');
-    detailRow("Reference:", expense.payment_reference || '-');
-    if (expense.notes) detailRow("Notes:", expense.notes);
+        doc.text(formatDate(item.expense_date), 23, topY);
+        doc.text(String(item.category || 'Other'), 48, topY);
+        doc.text(descLines, 82, topY);
+        doc.text(itemLkr.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 }), 188, topY, { align: 'right' });
+
+        topY += rowHeight - 0.5;
+        doc.setDrawColor(235, 235, 235);
+        doc.setLineWidth(0.15);
+        doc.line(20, topY - 1.5, 190, topY - 1.5);
+        topY += 2;
+    });
 
     topY += 2;
-    doc.setDrawColor(230, 230, 230);
-    doc.setLineWidth(0.2);
-    doc.line(20, topY, 190, topY);
-    topY += 8;
-
-    const currency = expense.currency || 'LKR';
     doc.setFont('helvetica', 'bold');
-    doc.setFontSize(10.5);
+    doc.setFontSize(10);
     doc.setTextColor(primaryColor[0], primaryColor[1], primaryColor[2]);
-    doc.text("Amount Paid:", 118, topY);
-    doc.text(`${currency} ${Number(expense.amount || 0).toFixed(2)}`, 188, topY, { align: 'right' });
-    if (currency !== 'LKR') {
-        topY += 5.5;
+    doc.text("Total Amount Paid:", 115, topY);
+    doc.text(`LKR ${totalLkr.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`, 188, topY, { align: 'right' });
+
+    if (currencies.size === 1 && !currencies.has('LKR')) {
+        const onlyCur = Array.from(currencies)[0];
+        topY += 4.5;
         doc.setFont('helvetica', 'normal');
-        doc.setFontSize(9);
+        doc.setFontSize(8.5);
         doc.setTextColor(charcoalColor[0], charcoalColor[1], charcoalColor[2]);
-        doc.text(`(approx. LKR ${(Number(expense.amount || 0) * Number(expense.exchange_rate || 1)).toFixed(2)})`, 188, topY, { align: 'right' });
+        doc.text(`(${onlyCur} ${totalForeign.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })})`, 188, topY, { align: 'right' });
     }
-    topY += 12;
+    topY += 9;
 
     // Payment mode tick boxes
     doc.setFont('helvetica', 'bold');
-    doc.setFontSize(9.5);
+    doc.setFontSize(8.5);
     doc.setTextColor(primaryColor[0], primaryColor[1], primaryColor[2]);
     doc.text("PAYMENT RECEIVED BY:", 20, topY);
     doc.setFont('helvetica', 'normal');
-    doc.setFontSize(9);
+    doc.setFontSize(8.5);
     doc.setTextColor(charcoalColor[0], charcoalColor[1], charcoalColor[2]);
     doc.setDrawColor(120, 120, 120);
     doc.setLineWidth(0.3);
-    const method = String(expense.payment_method || '').toLowerCase();
-    doc.rect(70, topY - 3.5, 4, 4);
-    doc.text("Cash", 76, topY);
-    doc.rect(95, topY - 3.5, 4, 4);
-    doc.text("Bank Transfer", 101, topY);
-    doc.rect(135, topY - 3.5, 4, 4);
-    doc.text("Other: ____________", 141, topY);
-    if (method.includes('cash')) doc.text("x", 71, topY - 0.3);
-    else if (method.includes('transfer') || method.includes('bank')) doc.text("x", 96, topY - 0.3);
-    topY += 12;
+    const method = String(primary.payment_method || '').toLowerCase();
+    doc.rect(70, topY - 3.2, 3.5, 3.5);
+    doc.text("Cash", 75.5, topY);
+    doc.rect(95, topY - 3.2, 3.5, 3.5);
+    doc.text("Bank Transfer", 100.5, topY);
+    doc.rect(135, topY - 3.2, 3.5, 3.5);
+    doc.text("Other: ____________", 140.5, topY);
+    if (method.includes('cash')) doc.text("x", 70.8, topY - 0.3);
+    else if (method.includes('transfer') || method.includes('bank')) doc.text("x", 95.8, topY - 0.3);
+    topY += 9;
 
     const ack = `I, the undersigned, confirm that I have received the amount stated above from Nilathra Collection for the purpose described.`;
     const ackLines = doc.splitTextToSize(ack, 170);
-    doc.setFontSize(8.5);
+    doc.setFontSize(8);
     doc.text(ackLines, 20, topY);
-    topY += ackLines.length * 4.5 + 10;
+    topY += ackLines.length * 3.8 + 7;
+
+    if (topY + 32 > 280) {
+        doc.addPage();
+        topY = 20;
+    }
 
     // Signature blocks
     doc.setDrawColor(150, 150, 150);
     doc.setLineWidth(0.3);
-    doc.line(20, topY + 14, 90, topY + 14);
-    doc.line(120, topY + 14, 190, topY + 14);
+    doc.line(20, topY + 11, 90, topY + 11);
+    doc.line(120, topY + 11, 190, topY + 11);
     doc.setFont('helvetica', 'bold');
-    doc.setFontSize(8.5);
-    doc.setTextColor(primaryColor[0], primaryColor[1], primaryColor[2]);
-    doc.text("RECEIVED BY", 20, topY + 19);
-    doc.text("PAID BY (NILATHRA COLLECTION)", 120, topY + 19);
-    doc.setFont('helvetica', 'normal');
     doc.setFontSize(8);
+    doc.setTextColor(primaryColor[0], primaryColor[1], primaryColor[2]);
+    doc.text("RECEIVED BY", 20, topY + 15.5);
+    doc.text("PAID BY (NILATHRA COLLECTION)", 120, topY + 15.5);
+    doc.setFont('helvetica', 'normal');
+    doc.setFontSize(7.5);
     doc.setTextColor(charcoalColor[0], charcoalColor[1], charcoalColor[2]);
-    doc.text(`Name: ${expense.paid_to || '______________________'}`, 20, topY + 25);
-    doc.text("NIC / ID No: ______________________", 20, topY + 30);
-    doc.text("Date: ____ / ____ / ________", 20, topY + 35);
-    doc.text(`Name: ${agentName || '______________________'}`, 120, topY + 25);
-    doc.text("Designation: ______________________", 120, topY + 30);
-    doc.text("Date: ____ / ____ / ________", 120, topY + 35);
+    doc.text(`Name: ${primary.paid_to || '______________________'}`, 20, topY + 20.5);
+    doc.text("NIC / ID No: ______________________", 20, topY + 25);
+    doc.text("Date: ____ / ____ / ________", 20, topY + 29.5);
+    doc.text(`Name: ${agentName || '______________________'}`, 120, topY + 20.5);
+    doc.text("Designation: ______________________", 120, topY + 25);
+    doc.text("Date: ____ / ____ / ________", 120, topY + 29.5);
 
     doc.setFontSize(7.5);
     doc.setTextColor(150, 150, 150);

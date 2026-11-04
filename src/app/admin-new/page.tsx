@@ -4092,10 +4092,14 @@ function PlannerWizardWorkspace() {
   // Miscellaneous tour expense states
   const [tourExpenses, setTourExpenses] = useState<TourExpenseDTO[]>([]);
   const [showExpenseForm, setShowExpenseForm] = useState<boolean>(false);
+  const [editingExpenseIds, setEditingExpenseIds] = useState<string[]>([]);
   const [expenseCategory, setExpenseCategory] = useState<TourExpenseCategory>('Other');
   const [expenseDescription, setExpenseDescription] = useState<string>('');
   const [expensePaidTo, setExpensePaidTo] = useState<string>('');
   const [expenseAmount, setExpenseAmount] = useState<string>('');
+  const [expenseLineItems, setExpenseLineItems] = useState<Array<{ id?: string; category: TourExpenseCategory; description: string; amount: string }>>([
+    { category: 'Other', description: '', amount: '' }
+  ]);
   const [expenseCurrency, setExpenseCurrency] = useState<string>('LKR');
   const [expenseExchangeRate, setExpenseExchangeRate] = useState<string>('1.0');
   const [expenseDate, setExpenseDate] = useState<string>('');
@@ -5224,10 +5228,9 @@ function PlannerWizardWorkspace() {
       const totalDayUsd = vRate || legs.reduce((s: number, t: any) => s + (Number(t.contracted_total_price ?? t.contracted_price) || 0), 0);
 
       const dayFxRate = legs.find((l: any) => l.contracted_fx_rate != null && Number(l.contracted_fx_rate) > 0)?.contracted_fx_rate ?? null;
-      const savedLegsLkr = legs.reduce((s: number, l: any) => s + (Number(l.contracted_total_price_lkr) || 0), 0);
-      const dayTotalLkr = savedLegsLkr > 0
-        ? savedLegsLkr
-        : (totalDayUsd > 0 && dayFxRate != null ? Math.round(totalDayUsd * Number(dayFxRate) * 100) / 100 : null);
+      const dayTotalLkr = (totalDayUsd > 0 && dayFxRate != null)
+        ? Math.round(totalDayUsd * Number(dayFxRate) * 100) / 100
+        : null;
 
       result.push({
         dayNum: dn,
@@ -8333,7 +8336,36 @@ ${chauffeurHtml}
       if (user) {
         agentName = user.user_metadata?.full_name || user.user_metadata?.first_name || user.email?.split('@')[0] || agentName;
       }
-      const doc = await generateSettlementVoucherPdf(po, appSettings, agentName, touristData, plRate, tourCode);
+
+      const isTransportPo = po.vendor_type === 'transport' || po.vendor_type === 'transport_provider';
+      let poForVoucher = po;
+      if (isTransportPo && (!po.items || po.items.length === 0)) {
+        const days = getTransportPoDays(po);
+        if (days.length > 0) {
+          poForVoucher = {
+            ...po,
+            items: days.map((d: any) => ({
+              id: d.id,
+              day_number: d.dayNum,
+              description: d.description,
+              quantity: 1,
+              unit_price: d.usd,
+              total_price: d.usd,
+              fx_rate: d.fxRate,
+              unit_price_lkr: d.lkr,
+              total_price_lkr: d.lkr,
+            }))
+          };
+        }
+      }
+
+      // Determine rate: use agreed rate from transport / items, or fallback to plRate
+      const transportDays = isTransportPo ? getTransportPoDays(po) : [];
+      const agreedFx = (poForVoucher.items || []).find((i: any) => i.fx_rate != null && Number(i.fx_rate) > 0)?.fx_rate
+        || transportDays.find((d: any) => d.fxRate != null && Number(d.fxRate) > 0)?.fxRate
+        || plRate;
+
+      const doc = await generateSettlementVoucherPdf(poForVoucher, appSettings, agentName, touristData, Number(agreedFx), tourCode);
       if (doc) {
         doc.save(`VCH-${po.po_number || po.id}_${(po.vendor_name || 'supplier').replace(/\s+/g, '_')}.pdf`);
       }
@@ -8343,39 +8375,96 @@ ${chauffeurHtml}
     }
   };
 
+  const handleEditExpense = (itemsOrEx: TourExpenseDTO | TourExpenseDTO[]) => {
+    const items = Array.isArray(itemsOrEx) ? itemsOrEx : [itemsOrEx];
+    const primary = items[0];
+    if (!primary) return;
+
+    setEditingExpenseIds(items.map(i => i.id).filter(Boolean) as string[]);
+    setExpensePaidTo(primary.paid_to || '');
+    setExpenseDate((primary.expense_date || '').split('T')[0] || new Date().toISOString().split('T')[0]);
+    setExpenseCurrency(primary.currency || 'LKR');
+    setExpenseExchangeRate(String(primary.exchange_rate ?? 1));
+    setExpenseMethod(primary.payment_method || 'Cash');
+    setExpenseRef(primary.payment_reference || '');
+    setExpenseNotes(primary.notes || '');
+    setExpenseReceiptUrl(primary.receipt_url || '');
+    setExpenseLineItems(
+      items.map(item => ({
+        id: item.id,
+        category: item.category || 'Other',
+        description: item.description || '',
+        amount: String(item.amount ?? '')
+      }))
+    );
+    setShowExpenseForm(true);
+  };
+
   const handleSaveTourExpense = async () => {
-    const amount = parseFloat(expenseAmount);
-    if (!expenseDescription.trim()) {
-      alert("Please enter a description.");
+    const validItems = expenseLineItems
+      .map(item => ({
+        id: item.id,
+        category: item.category,
+        description: item.description.trim(),
+        amount: parseFloat(item.amount)
+      }))
+      .filter(item => item.description.length > 0 || !isNaN(item.amount));
+
+    if (validItems.length === 0) {
+      alert("Please enter at least one expense line item.");
       return;
     }
-    if (isNaN(amount) || amount <= 0) {
-      alert("Please enter a valid amount.");
-      return;
-    }
-    setIsSavingExpense(true);
-    try {
-      const res = await saveTourExpenseAction({
-        tour_id: tourId,
-        category: expenseCategory,
-        description: expenseDescription.trim(),
-        paid_to: expensePaidTo || null,
-        amount,
-        currency: expenseCurrency,
-        exchange_rate: expenseCurrency === 'LKR' ? 1 : (parseFloat(expenseExchangeRate) || 1),
-        expense_date: expenseDate || new Date().toISOString().split('T')[0],
-        payment_method: expenseMethod || null,
-        payment_reference: expenseRef || null,
-        receipt_url: expenseReceiptUrl || null,
-        notes: expenseNotes || null
-      });
-      if (!res.success) {
-        alert("Failed to save expense: " + (res as any).error);
+    for (let i = 0; i < validItems.length; i++) {
+      if (!validItems[i].description) {
+        alert(`Please enter a description for line item #${i + 1}.`);
         return;
       }
+      if (isNaN(validItems[i].amount) || validItems[i].amount === 0) {
+        alert(`Please enter a valid non-zero amount for line item #${i + 1}.`);
+        return;
+      }
+    }
+
+    setIsSavingExpense(true);
+    try {
+      const fxRate = expenseCurrency === 'LKR' ? 1 : (parseFloat(expenseExchangeRate) || 1);
+      const expDate = expenseDate || new Date().toISOString().split('T')[0];
+
+      // Delete any previously existing items that were removed while editing
+      const remainingIds = new Set(validItems.map(i => i.id).filter(Boolean) as string[]);
+      for (const origId of editingExpenseIds) {
+        if (!remainingIds.has(origId)) {
+          await deleteTourExpenseAction(origId);
+        }
+      }
+
+      for (const item of validItems) {
+        const res = await saveTourExpenseAction({
+          ...(item.id ? { id: item.id } : {}),
+          tour_id: tourId,
+          category: item.category,
+          description: item.description,
+          paid_to: expensePaidTo.trim() || null,
+          amount: item.amount,
+          currency: expenseCurrency,
+          exchange_rate: fxRate,
+          expense_date: expDate,
+          payment_method: expenseMethod || null,
+          payment_reference: expenseRef || null,
+          receipt_url: expenseReceiptUrl || null,
+          notes: expenseNotes || null
+        });
+        if (!res.success) {
+          alert("Failed to save expense: " + (res as any).error);
+          return;
+        }
+      }
+
+      setEditingExpenseIds([]);
       setExpenseDescription('');
       setExpensePaidTo('');
       setExpenseAmount('');
+      setExpenseLineItems([{ category: 'Other', description: '', amount: '' }]);
       setExpenseRef('');
       setExpenseNotes('');
       setExpenseReceiptUrl('');
@@ -8398,7 +8487,8 @@ ${chauffeurHtml}
       }
       const doc = await generateExpenseVoucherPdf(expense, appSettings, agentName, touristData, tourCode);
       if (doc) {
-        doc.save(`EXP-${String(expense.id || '').slice(0, 8).toUpperCase()}_${(expense.paid_to || 'expense').replace(/\s+/g, '_')}.pdf`);
+        const primary = Array.isArray(expense) ? (expense[0] || {}) : expense;
+        doc.save(`EXP-${String(primary.id || '').slice(0, 8).toUpperCase()}_${(primary.paid_to || 'expense').replace(/\s+/g, '_')}.pdf`);
       }
     } catch (e: any) {
       console.error("Failed to generate expense voucher:", e);
@@ -14189,9 +14279,9 @@ ${chauffeurHtml}
                                               </span>
                                               {dayFxRate != null && (() => {
                                                 const effectiveUsd = totalDayPrice > 0 ? totalDayPrice : recommendedDailyRate;
-                                                const dayTotalLkr = savedLegsLkr > 0
-                                                  ? savedLegsLkr
-                                                  : (effectiveUsd > 0 ? Math.round(effectiveUsd * Number(dayFxRate) * 100) / 100 : null);
+                                                const dayTotalLkr = effectiveUsd > 0
+                                                  ? Math.round(effectiveUsd * Number(dayFxRate) * 100) / 100
+                                                  : null;
                                                 if (dayTotalLkr == null) return null;
                                                 return (
                                                   <span className="block text-[9px] font-mono text-emerald-700">
@@ -17986,9 +18076,15 @@ ${chauffeurHtml}
                             <button
                               type="button"
                               onClick={() => {
-                                setShowExpenseForm(true);
+                                setEditingExpenseIds([]);
+                                setExpensePaidTo('');
+                                setExpenseRef('');
+                                setExpenseNotes('');
+                                setExpenseReceiptUrl('');
+                                setExpenseLineItems([{ category: 'Other', description: '', amount: '' }]);
                                 setExpenseDate(new Date().toISOString().split('T')[0]);
                                 setExpenseExchangeRate(expenseCurrency === 'LKR' ? '1.0' : plRate.toString());
+                                setShowExpenseForm(true);
                               }}
                               className="flex items-center gap-1 px-3 py-1.5 text-xs font-bold text-emerald-800 border border-neutral-250 bg-white hover:bg-emerald-50 rounded-lg shadow-sm cursor-pointer"
                             >
@@ -18001,24 +18097,20 @@ ${chauffeurHtml}
 
                       {showExpenseForm && (
                         <div className="p-4 bg-white border border-neutral-200 rounded-2xl space-y-4 shadow-sm animate-in slide-in-from-top-2 duration-200">
-                          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4">
-                            <div className="space-y-1">
-                              <label className="text-[10px] uppercase tracking-wider text-neutral-400 font-bold">Category</label>
-                              <select value={expenseCategory} onChange={(e) => setExpenseCategory(e.target.value as TourExpenseCategory)} className="w-full bg-neutral-50 border border-neutral-200 rounded-xl p-2 text-xs outline-none focus:ring-1 focus:ring-emerald-800">
-                                {TOUR_EXPENSE_CATEGORIES.map(c => <option key={c} value={c}>{c}</option>)}
-                              </select>
-                            </div>
-                            <div className="space-y-1 sm:col-span-2">
-                              <label className="text-[10px] uppercase tracking-wider text-neutral-400 font-bold">Description</label>
-                              <input type="text" value={expenseDescription} onChange={(e) => setExpenseDescription(e.target.value)} placeholder="e.g. Welcome gift for guests" className="w-full bg-neutral-50 border border-neutral-200 rounded-xl p-2 text-xs outline-none focus:ring-1 focus:ring-emerald-800" />
-                            </div>
-                            <div className="space-y-1">
-                              <label className="text-[10px] uppercase tracking-wider text-neutral-400 font-bold">Paid To</label>
-                              <input type="text" value={expensePaidTo} onChange={(e) => setExpensePaidTo(e.target.value)} placeholder="Shop / person" className="w-full bg-neutral-50 border border-neutral-200 rounded-xl p-2 text-xs outline-none focus:ring-1 focus:ring-emerald-800" />
-                            </div>
+                          <div className="flex items-center justify-between border-b border-neutral-100 pb-2">
+                            <span className="text-xs font-bold text-emerald-900">
+                              {editingExpenseIds.length > 0 ? `Editing Expense (${editingExpenseIds.length} ${editingExpenseIds.length === 1 ? 'Item' : 'Items'})` : 'New Miscellaneous Expense'}
+                            </span>
                           </div>
-
                           <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4">
+                            <div className="space-y-1 sm:col-span-2">
+                              <label className="text-[10px] uppercase tracking-wider text-neutral-400 font-bold">Paid To (Shop / Person)</label>
+                              <input type="text" value={expensePaidTo} onChange={(e) => setExpensePaidTo(e.target.value)} placeholder="Shop / person name (grouped on one voucher)" className="w-full bg-neutral-50 border border-neutral-200 rounded-xl p-2 text-xs outline-none focus:ring-1 focus:ring-emerald-800" />
+                            </div>
+                            <div className="space-y-1">
+                              <label className="text-[10px] uppercase tracking-wider text-neutral-400 font-bold">Date</label>
+                              <input type="date" value={expenseDate} onChange={(e) => setExpenseDate(e.target.value)} className="w-full bg-neutral-50 border border-neutral-200 rounded-xl p-2 text-xs outline-none focus:ring-1 focus:ring-emerald-800" />
+                            </div>
                             <div className="space-y-1">
                               <label className="text-[10px] uppercase tracking-wider text-neutral-400 font-bold">Currency</label>
                               <select value={expenseCurrency} onChange={(e) => { setExpenseCurrency(e.target.value); setExpenseExchangeRate(e.target.value === 'LKR' ? '1.0' : plRate.toString()); }} className="w-full bg-neutral-50 border border-neutral-200 rounded-xl p-2 text-xs outline-none focus:ring-1 focus:ring-emerald-800">
@@ -18028,23 +18120,96 @@ ${chauffeurHtml}
                                 <option value="GBP">GBP</option>
                               </select>
                             </div>
-                            <div className="space-y-1">
-                              <label className="text-[10px] uppercase tracking-wider text-neutral-400 font-bold">Amount</label>
-                              <input type="number" value={expenseAmount} onChange={(e) => setExpenseAmount(e.target.value)} placeholder="0.00" className="w-full bg-neutral-50 border border-neutral-200 rounded-xl p-2 text-xs outline-none focus:ring-1 focus:ring-emerald-800" />
+                          </div>
+
+                          <div className="space-y-2 pt-2 border-t border-neutral-100">
+                            <div className="flex items-center justify-between">
+                              <label className="text-[10px] uppercase tracking-wider text-neutral-500 font-bold">Expense Line Items</label>
+                              <button
+                                type="button"
+                                onClick={() => setExpenseLineItems(prev => [...prev, { category: 'Other', description: '', amount: '' }])}
+                                className="inline-flex items-center gap-1 px-2.5 py-1 text-[11px] font-bold text-emerald-800 bg-emerald-50 hover:bg-emerald-100 border border-emerald-200 rounded-lg cursor-pointer"
+                              >
+                                <Plus className="w-3 h-3" />
+                                Add Line Item
+                              </button>
                             </div>
+
+                            <div className="space-y-2">
+                              {expenseLineItems.map((item, idx) => (
+                                <div key={idx} className="grid grid-cols-1 sm:grid-cols-12 gap-2 items-center bg-neutral-50/70 p-2 rounded-xl border border-neutral-200/70">
+                                  <div className="sm:col-span-3">
+                                    <select
+                                      value={item.category}
+                                      onChange={(e) => {
+                                        const val = e.target.value as TourExpenseCategory;
+                                        setExpenseLineItems(prev => prev.map((r, i) => i === idx ? { ...r, category: val } : r));
+                                      }}
+                                      className="w-full bg-white border border-neutral-200 rounded-lg p-1.5 text-xs outline-none focus:ring-1 focus:ring-emerald-800"
+                                    >
+                                      {TOUR_EXPENSE_CATEGORIES.map(c => <option key={c} value={c}>{c}</option>)}
+                                    </select>
+                                  </div>
+                                  <div className="sm:col-span-6">
+                                    <input
+                                      type="text"
+                                      value={item.description}
+                                      onChange={(e) => {
+                                        const val = e.target.value;
+                                        setExpenseLineItems(prev => prev.map((r, i) => i === idx ? { ...r, description: val } : r));
+                                      }}
+                                      placeholder={`Line #${idx + 1} description (e.g. Welcome gift, parking fee)`}
+                                      className="w-full bg-white border border-neutral-200 rounded-lg p-1.5 text-xs outline-none focus:ring-1 focus:ring-emerald-800"
+                                    />
+                                  </div>
+                                  <div className="sm:col-span-2">
+                                    <input
+                                      type="number"
+                                      step="any"
+                                      value={item.amount}
+                                      onChange={(e) => {
+                                        const val = e.target.value;
+                                        setExpenseLineItems(prev => prev.map((r, i) => i === idx ? { ...r, amount: val } : r));
+                                      }}
+                                      placeholder={`Amount (${expenseCurrency})`}
+                                      className="w-full bg-white border border-neutral-200 rounded-lg p-1.5 text-xs outline-none focus:ring-1 focus:ring-emerald-800 font-mono"
+                                    />
+                                  </div>
+                                  <div className="sm:col-span-1 flex justify-end">
+                                    {expenseLineItems.length > 1 && (
+                                      <button
+                                        type="button"
+                                        onClick={() => setExpenseLineItems(prev => prev.filter((_, i) => i !== idx))}
+                                        className="p-1.5 text-neutral-400 hover:text-red-600 hover:bg-red-50 rounded-lg cursor-pointer"
+                                        title="Remove Line"
+                                      >
+                                        <Trash2 className="w-3.5 h-3.5" />
+                                      </button>
+                                    )}
+                                  </div>
+                                </div>
+                              ))}
+                            </div>
+
+                            <div className="flex justify-end text-xs font-mono text-neutral-600 pt-1">
+                              <span>
+                                Voucher Total: <strong className="text-neutral-800">{expenseCurrency} {expenseLineItems.reduce((s, r) => s + (parseFloat(r.amount) || 0), 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</strong>
+                                {expenseCurrency !== 'LKR' && (
+                                  <span className="text-neutral-400 ml-1">
+                                    (≈ LKR {(expenseLineItems.reduce((s, r) => s + (parseFloat(r.amount) || 0), 0) * (parseFloat(expenseExchangeRate) || 1)).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })})
+                                  </span>
+                                )}
+                              </span>
+                            </div>
+                          </div>
+
+                          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4 pt-2 border-t border-neutral-100">
                             {expenseCurrency !== 'LKR' && (
                               <div className="space-y-1">
                                 <label className="text-[10px] uppercase tracking-wider text-neutral-400 font-bold">Exchange Rate (to LKR)</label>
                                 <input type="number" value={expenseExchangeRate} onChange={(e) => setExpenseExchangeRate(e.target.value)} className="w-full bg-neutral-50 border border-neutral-200 rounded-xl p-2 text-xs outline-none focus:ring-1 focus:ring-emerald-800" />
                               </div>
                             )}
-                            <div className="space-y-1">
-                              <label className="text-[10px] uppercase tracking-wider text-neutral-400 font-bold">Date</label>
-                              <input type="date" value={expenseDate} onChange={(e) => setExpenseDate(e.target.value)} className="w-full bg-neutral-50 border border-neutral-200 rounded-xl p-2 text-xs outline-none focus:ring-1 focus:ring-emerald-800" />
-                            </div>
-                          </div>
-
-                          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                             <div className="space-y-1">
                               <label className="text-[10px] uppercase tracking-wider text-neutral-400 font-bold">Method</label>
                               <select value={expenseMethod} onChange={(e) => setExpenseMethod(e.target.value)} className="w-full bg-neutral-50 border border-neutral-200 rounded-xl p-2 text-xs outline-none focus:ring-1 focus:ring-emerald-800">
@@ -18090,10 +18255,19 @@ ${chauffeurHtml}
                           </div>
 
                           <div className="flex justify-end gap-2 pt-2 border-t border-neutral-100">
-                            <button type="button" disabled={isSavingExpense} onClick={handleSaveTourExpense} className="px-4 py-2 bg-emerald-800 hover:bg-emerald-950 text-white rounded-xl text-xs font-bold shadow-sm disabled:opacity-50">
-                              {isSavingExpense ? 'Saving...' : 'Save Expense'}
+                            <button type="button" disabled={isSavingExpense} onClick={handleSaveTourExpense} className="px-4 py-2 bg-emerald-800 hover:bg-emerald-950 text-white rounded-xl text-xs font-bold shadow-sm disabled:opacity-50 cursor-pointer">
+                              {isSavingExpense ? 'Saving...' : editingExpenseIds.length > 0 ? `Update Expense${expenseLineItems.length > 1 ? ` (${expenseLineItems.length} Items)` : ''}` : `Save Expense${expenseLineItems.length > 1 ? ` (${expenseLineItems.length} Items)` : ''}`}
                             </button>
-                            <button type="button" onClick={() => setShowExpenseForm(false)} className="px-4 py-2 border border-neutral-200 text-neutral-600 rounded-xl text-xs font-bold">Cancel</button>
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setEditingExpenseIds([]);
+                                setShowExpenseForm(false);
+                              }}
+                              className="px-4 py-2 border border-neutral-200 text-neutral-600 rounded-xl text-xs font-bold cursor-pointer"
+                            >
+                              Cancel
+                            </button>
                           </div>
                         </div>
                       )}
@@ -18101,44 +18275,118 @@ ${chauffeurHtml}
                       {tourExpenses.length === 0 ? (
                         <p className="text-xs text-neutral-400 italic">No miscellaneous expenses recorded.</p>
                       ) : (
-                        <div className="bg-white border border-neutral-200 rounded-xl p-4 shadow-sm text-xs divide-y divide-neutral-100">
-                          {tourExpenses.map((ex) => (
-                            <div key={ex.id} className="py-2 flex flex-wrap items-center justify-between gap-2 first:pt-0 last:pb-0">
-                              <div>
-                                <div className="flex items-center gap-2">
-                                  <span className="px-2 py-0.5 text-[9px] font-bold rounded-full bg-neutral-100 text-neutral-600 uppercase tracking-wider">{ex.category}</span>
-                                  <span className="font-bold text-neutral-700">{ex.description}</span>
+                        <div className="space-y-3">
+                          {Object.values(
+                            tourExpenses.reduce((acc, ex) => {
+                              const rawPaidTo = (ex.paid_to || '').trim();
+                              const key = rawPaidTo ? rawPaidTo.toLowerCase() : '__unspecified__';
+                              if (!acc[key]) {
+                                acc[key] = {
+                                  key,
+                                  paidToLabel: rawPaidTo || 'Unspecified Payee',
+                                  rawPaidTo,
+                                  items: [] as TourExpenseDTO[]
+                                };
+                              }
+                              acc[key].items.push(ex);
+                              return acc;
+                            }, {} as Record<string, { key: string; paidToLabel: string; rawPaidTo: string; items: TourExpenseDTO[] }>)
+                          ).map((group) => {
+                            const groupTotalLkr = group.items.reduce(
+                              (sum, ex) => sum + Number(ex.amount || 0) * (ex.currency === 'LKR' ? 1 : Number(ex.exchange_rate || 1)),
+                              0
+                            );
+                            return (
+                              <div key={group.key} className="bg-white border border-neutral-200 rounded-xl p-4 shadow-sm text-xs space-y-2">
+                                <div className="flex flex-wrap items-center justify-between gap-2 pb-2 border-b border-neutral-100">
+                                  <div className="flex items-center gap-2">
+                                    <span className="font-bold text-neutral-800 text-xs">Paid To: {group.paidToLabel}</span>
+                                    <span className="px-2 py-0.5 text-[10px] font-bold rounded-full bg-emerald-50 text-emerald-800 border border-emerald-200">
+                                      {group.items.length} {group.items.length === 1 ? 'item' : 'items'}
+                                    </span>
+                                  </div>
+                                  <div className="flex items-center gap-2">
+                                    <span className="font-mono font-bold text-neutral-800 mr-1">
+                                      Total: LKR {groupTotalLkr.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                                    </span>
+                                    <button
+                                      type="button"
+                                      onClick={() => handleEditExpense(group.items)}
+                                      className="inline-flex items-center gap-1 px-2 py-1 rounded-lg bg-neutral-100 hover:bg-emerald-50 text-neutral-700 hover:text-emerald-800 border border-neutral-200 text-[10px] font-bold cursor-pointer"
+                                      title="Edit all items for this payee"
+                                    >
+                                      <Pencil className="w-2.5 h-2.5" />
+                                      Edit
+                                    </button>
+                                    <button
+                                      type="button"
+                                      onClick={() => {
+                                        setEditingExpenseIds([]);
+                                        setExpensePaidTo(group.rawPaidTo);
+                                        setExpenseDate(new Date().toISOString().split('T')[0]);
+                                        setExpenseExchangeRate(expenseCurrency === 'LKR' ? '1.0' : plRate.toString());
+                                        setExpenseLineItems([{ category: 'Other', description: '', amount: '' }]);
+                                        setShowExpenseForm(true);
+                                      }}
+                                      className="inline-flex items-center gap-1 px-2 py-1 rounded-lg bg-neutral-100 hover:bg-emerald-50 text-neutral-700 hover:text-emerald-800 border border-neutral-200 text-[10px] font-bold cursor-pointer"
+                                      title="Add another item for this payee"
+                                    >
+                                      <Plus className="w-2.5 h-2.5" />
+                                      Add Item
+                                    </button>
+                                    <button
+                                      type="button"
+                                      onClick={() => handleDownloadExpenseVoucher(group.items)}
+                                      className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-emerald-800 hover:bg-emerald-950 text-white text-[10px] font-bold shadow-sm cursor-pointer"
+                                      title="Download Consolidated Voucher (PDF) for this Payee"
+                                    >
+                                      <FileText className="w-3 h-3" />
+                                      Voucher ({group.items.length})
+                                    </button>
+                                  </div>
                                 </div>
-                                <div className="text-[10px] text-neutral-400 mt-0.5 font-mono">
-                                  {new Date(ex.expense_date).toLocaleDateString()}
-                                  {ex.paid_to ? ` · ${ex.paid_to}` : ''}
-                                  {ex.payment_method ? ` · ${ex.payment_method}` : ''}
-                                  {ex.payment_reference ? ` · Ref: ${ex.payment_reference}` : ''}
+
+                                <div className="divide-y divide-neutral-100">
+                                  {group.items.map((ex) => (
+                                    <div key={ex.id} className="py-2 flex flex-wrap items-center justify-between gap-2 first:pt-1 last:pb-0">
+                                      <div>
+                                        <div className="flex items-center gap-2">
+                                          <span className="px-2 py-0.5 text-[9px] font-bold rounded-full bg-neutral-100 text-neutral-600 uppercase tracking-wider">{ex.category}</span>
+                                          <span className="font-bold text-neutral-700">{ex.description}</span>
+                                        </div>
+                                        <div className="text-[10px] text-neutral-400 mt-0.5 font-mono">
+                                          {new Date(ex.expense_date).toLocaleDateString()}
+                                          {ex.payment_method ? ` · ${ex.payment_method}` : ''}
+                                          {ex.payment_reference ? ` · Ref: ${ex.payment_reference}` : ''}
+                                          {ex.notes ? ` · ${ex.notes}` : ''}
+                                        </div>
+                                      </div>
+                                      <div className="flex items-center gap-3">
+                                        {ex.receipt_url && (
+                                          <button type="button" onClick={() => handleViewStoredDocument(ex.receipt_url as string)} className="inline-flex items-center gap-1 px-2 py-0.5 rounded-lg bg-neutral-100 hover:bg-emerald-50 text-neutral-600 hover:text-emerald-800 border border-neutral-200 text-[9px] font-bold cursor-pointer">
+                                            <Image className="w-2.5 h-2.5" />
+                                            View Receipt
+                                          </button>
+                                        )}
+                                        <div className="text-right font-mono">
+                                          <span className="font-bold text-neutral-800">{ex.currency} {Number(ex.amount).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+                                          {ex.currency !== 'LKR' && (
+                                            <span className="text-[10px] text-neutral-400 block">≈ LKR {(Number(ex.amount) * Number(ex.exchange_rate || 1)).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+                                          )}
+                                        </div>
+                                        <button type="button" onClick={() => handleEditExpense(ex)} className="p-1 text-neutral-400 hover:text-emerald-800 hover:bg-emerald-50 rounded-lg cursor-pointer" title="Edit Expense Item">
+                                          <Pencil className="w-3.5 h-3.5" />
+                                        </button>
+                                        <button type="button" onClick={() => handleDeleteTourExpense(ex.id as string)} className="p-1 text-neutral-400 hover:text-red-600 hover:bg-red-50 rounded-lg cursor-pointer" title="Delete Expense Item">
+                                          <Trash2 className="w-3.5 h-3.5" />
+                                        </button>
+                                      </div>
+                                    </div>
+                                  ))}
                                 </div>
                               </div>
-                              <div className="flex items-center gap-3">
-                                {ex.receipt_url && (
-                                  <button type="button" onClick={() => handleViewStoredDocument(ex.receipt_url as string)} className="inline-flex items-center gap-1 px-2 py-0.5 rounded-lg bg-neutral-100 hover:bg-emerald-50 text-neutral-600 hover:text-emerald-800 border border-neutral-200 text-[9px] font-bold">
-                                    <Image className="w-2.5 h-2.5" />
-                                    View Receipt
-                                  </button>
-                                )}
-                                <div className="text-right font-mono">
-                                  <span className="font-bold text-neutral-800">{ex.currency} {Number(ex.amount).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
-                                  {ex.currency !== 'LKR' && (
-                                    <span className="text-[10px] text-neutral-400 block">≈ LKR {(Number(ex.amount) * Number(ex.exchange_rate || 1)).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
-                                  )}
-                                </div>
-                                <button type="button" onClick={() => handleDownloadExpenseVoucher(ex)} className="inline-flex items-center gap-1 px-2 py-0.5 rounded-lg bg-emerald-800 hover:bg-emerald-950 text-white text-[9px] font-bold shadow-sm cursor-pointer" title="Download Voucher (PDF)">
-                                  <FileText className="w-2.5 h-2.5" />
-                                  Voucher
-                                </button>
-                                <button type="button" onClick={() => handleDeleteTourExpense(ex.id as string)} className="p-1 text-neutral-400 hover:text-red-600 hover:bg-red-50 rounded-lg cursor-pointer" title="Delete Expense">
-                                  <Trash2 className="w-3.5 h-3.5" />
-                                </button>
-                              </div>
-                            </div>
-                          ))}
+                            );
+                          })}
                         </div>
                       )}
                     </div>
