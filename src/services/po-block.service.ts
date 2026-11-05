@@ -171,7 +171,15 @@ export class POBlockService {
                             ...blockActivities.filter((a: any) => Number(a.tour_itineraries?.day_number || a.day_number) === Number(dayNum)),
                             ...tourTravelActs.filter((a: any) => Number(a.tour_itineraries?.day_number || a.day_number) === Number(dayNum))
                         ];
-                        const fxAct = dayTravelActs.find((a: any) => a.contracted_fx_rate != null && Number(a.contracted_fx_rate) > 0);
+                        const uniqueDayTravelActs = Array.from(new Map(dayTravelActs.map((a: any) => [a.id, a])).values());
+                        const dayActDistanceKm = uniqueDayTravelActs.reduce(
+                            (sum: number, a: any) => sum + (parseFloat(String(a.distance || '').replace(/[^\d.]/g, '')) || 0),
+                            0
+                        );
+                        const savedVrKm = Number(vr?.distance_km || 0);
+                        const effectiveDistanceKm = savedVrKm > 0 ? savedVrKm : dayActDistanceKm;
+
+                        const fxAct = uniqueDayTravelActs.find((a: any) => a.contracted_fx_rate != null && Number(a.contracted_fx_rate) > 0);
                         const fxRate = fxAct ? Number(fxAct.contracted_fx_rate) : null;
                         const computedLkr = (fxRate != null && vehicleRate > 0)
                             ? Math.round(vehicleRate * fxRate * 100) / 100
@@ -183,6 +191,7 @@ export class POBlockService {
                             title: `Transport (${pName} / ${vehicleName}) - Day ${dayNum}`,
                             service_date: dateStr,
                             day_number: dayNum,
+                            distance: effectiveDistanceKm > 0 ? String(effectiveDistanceKm) : null,
                             tour_itineraries: itin,
                             contracted_price: vehicleRate,
                             contracted_total_price: vehicleRate,

@@ -3682,6 +3682,24 @@ function PlannerWizardWorkspace() {
             setPoDataNeedsRebuild(false);
           }
 
+          // Derive fallback selected activity IDs from tour record (planner_data.activities or itinerary activity blocks)
+          const tourDataActivityIds = (() => {
+            const td = tourRes?.success && tourRes?.data ? (tourRes.data.tripData as any) : null;
+            if (!td) return [] as number[];
+            if (Array.isArray(td.activities) && td.activities.length > 0) {
+              return Array.from(new Set(td.activities.map((a: any) => Number(a?.id ?? a)).filter(Boolean))) as number[];
+            }
+            if (Array.isArray(td.itinerary) && td.itinerary.length > 0) {
+              return Array.from(new Set(
+                td.itinerary
+                  .filter((b: any) => b.type === 'activity' && b.activityId)
+                  .map((b: any) => Number(b.activityId))
+                  .filter(Boolean)
+              )) as number[];
+            }
+            return [] as number[];
+          })();
+
           // Process appStateData
           if (appStateData && appStateData.state) {
             const state = appStateData.state;
@@ -3689,7 +3707,11 @@ function PlannerWizardWorkspace() {
             if (state.activeBasicStepIndex !== undefined) restoredBasicIdx = state.activeBasicStepIndex;
             if (state.activeFinalStepIndex !== undefined) restoredFinalIdx = state.activeFinalStepIndex;
             if (state.elements) restoredElements = state.elements;
-            if (state.selectedActivityIds) setSelectedActivityIds(state.selectedActivityIds);
+            if (Array.isArray(state.selectedActivityIds) && state.selectedActivityIds.length > 0) {
+              setSelectedActivityIds(state.selectedActivityIds);
+            } else if (tourDataActivityIds.length > 0) {
+              setSelectedActivityIds(tourDataActivityIds);
+            }
             // An empty saved itinerary must never override the itinerary loaded from the tour record
             if (Array.isArray(state.itinerary) && state.itinerary.length > 0) {
               setItinerary(sortItineraryChronologically(state.itinerary));
@@ -3702,6 +3724,8 @@ function PlannerWizardWorkspace() {
               setDbActivities(filtered);
             }
             restoredFromDb = true;
+          } else if (tourDataActivityIds.length > 0) {
+            setSelectedActivityIds(tourDataActivityIds);
           }
         }
 
@@ -3714,7 +3738,9 @@ function PlannerWizardWorkspace() {
             if (parsed.track) restoredTrack = parsed.track;
             if (parsed.activeBasicStepIndex !== undefined) restoredBasicIdx = parsed.activeBasicStepIndex;
             if (parsed.activeFinalStepIndex !== undefined) restoredFinalIdx = parsed.activeFinalStepIndex;
-            if (parsed.selectedActivityIds) setSelectedActivityIds(parsed.selectedActivityIds);
+            if (Array.isArray(parsed.selectedActivityIds) && parsed.selectedActivityIds.length > 0) {
+              setSelectedActivityIds(parsed.selectedActivityIds);
+            }
             if (Array.isArray(parsed.itinerary) && parsed.itinerary.length > 0) {
               setItinerary(sortItineraryChronologically(parsed.itinerary));
             }
@@ -24828,14 +24854,21 @@ function AIItineraryBuilder({
   };
 
   const getDayTotalKmFromActivities = (dayNumber: number) => {
-    if (!dbActivities || dbActivities.length === 0) return 0;
-    return dbActivities
+    const dbKm = (dbActivities || [])
       .filter((a: any) => {
         const actDay = a.tour_itineraries?.day_number || a.day_number || a.dayNumber || 1;
         return Number(actDay) === Number(dayNumber);
       })
       .reduce((sum: number, a: any) => {
         const parsedDist = parseFloat(String(a.distance || '').replace(/[^\d.]/g, '')) || 0;
+        return sum + parsedDist;
+      }, 0);
+    if (dbKm > 0) return dbKm;
+
+    return (itinerary || [])
+      .filter((b: any) => Number(b.dayNumber) === Number(dayNumber))
+      .reduce((sum: number, b: any) => {
+        const parsedDist = parseFloat(String(b.distance || '').replace(/[^\d.]/g, '')) || 0;
         return sum + parsedDist;
       }, 0);
   };
@@ -24981,9 +25014,11 @@ function AIItineraryBuilder({
       const next: Record<number, TourDailyVehicleDTO[]> = {};
       const numDays = Math.max(durationDays || 0, ...itinerary.map(item => item.dayNumber || 0), 5);
       for (let d = 1; d <= numDays; d++) {
+        const dayKm = getDayTotalKmFromActivities(d);
         next[d] = tempVehicles.map(item => ({
           ...item,
           day_number: d,
+          distance_km: dayKm,
           tour_itinerary_id: undefined
         }));
       }
@@ -26906,7 +26941,7 @@ function AIItineraryBuilder({
           {/* AI Generator */}
           <button
             onClick={handleGenerateItinerary}
-            disabled={isGenerating || selectedActivities.length === 0 || isLockedByOther}
+            disabled={isGenerating || isLockedByOther}
             className="flex items-center gap-2 px-5 py-2.5 rounded-xl bg-gradient-to-r from-emerald-800 to-teal-800 hover:from-emerald-700 hover:to-teal-700 text-white transition-all duration-300 text-xs font-bold uppercase tracking-wider disabled:opacity-40 disabled:cursor-not-allowed disabled:from-neutral-300 disabled:to-neutral-400 shadow-md hover:shadow-lg hover:shadow-emerald-800/10 active:scale-[0.98] shrink-0"
           >
             {isGenerating ? (
