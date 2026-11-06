@@ -48,8 +48,8 @@ export function UserListTable({ users, onEdit, onResetPassword, onRefresh }: Use
                         <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Name</th>
                         <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Email</th>
                         <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Phone</th>
-                        {users[0]?.role === 'agent' && (
-                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Supervisor</th>
+                        {['agent', 'senior_agent', 'executive_agent', 'agent_supervisor', 'senior_supervisor', 'executive_supervisor'].includes(users[0]?.role || '') && (
+                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Reports To (Superior)</th>
                         )}
                         <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
                         <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
@@ -67,10 +67,10 @@ export function UserListTable({ users, onEdit, onResetPassword, onRefresh }: Use
                             <td className="px-6 py-4 whitespace-nowrap text-gray-500">
                                 {user.phone || 'N/A'}
                             </td>
-                            {user.role === 'agent' && (
+                            {['agent', 'senior_agent', 'executive_agent', 'agent_supervisor', 'senior_supervisor', 'executive_supervisor'].includes(user.role || '') && (
                                 <td className="px-6 py-4 whitespace-nowrap text-gray-500">
                                     {user.supervisor 
-                                        ? `${user.supervisor.first_name} ${user.supervisor.last_name || ''}`.trim()
+                                        ? `${user.supervisor.first_name} ${user.supervisor.last_name || ''}${user.supervisor.role_label ? ` (${user.supervisor.role_label})` : ''}`.trim()
                                         : 'None'}
                                 </td>
                             )}

@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { UserProfileDTO } from "@/dtos/user-vendor.dto";
+import { UserProfileDTO, UserRoleType } from "@/dtos/user-vendor.dto";
 import { createUserAction, updateUserAction, getAllSupervisorsAction } from "@/actions/user-management.actions";
 
 interface UserFormModalProps {
@@ -10,8 +10,16 @@ interface UserFormModalProps {
     onSuccess: () => void;
     user: UserProfileDTO | null;
     isEdit: boolean;
-    currentTabRole: 'admin' | 'agent' | 'agent_supervisor' | 'tourist' | 'finance';
+    currentTabRole: UserRoleType;
 }
+
+const isAgentLayerRole = (r?: string) =>
+    r === 'agent' ||
+    r === 'senior_agent' ||
+    r === 'executive_agent' ||
+    r === 'agent_supervisor' ||
+    r === 'senior_supervisor' ||
+    r === 'executive_supervisor';
 
 export function UserFormModal({ isOpen, onClose, onSuccess, user, isEdit, currentTabRole }: UserFormModalProps) {
     const [loading, setLoading] = useState(false);
@@ -19,8 +27,8 @@ export function UserFormModal({ isOpen, onClose, onSuccess, user, isEdit, curren
     const [supervisors, setSupervisors] = useState<Array<{ id: string, name: string }>>([]);
 
     useEffect(() => {
-        if (isOpen && currentTabRole === 'agent') {
-            getAllSupervisorsAction().then(res => {
+        if (isOpen && isAgentLayerRole(currentTabRole)) {
+            getAllSupervisorsAction(currentTabRole).then(res => {
                 if (res.success && res.supervisors) {
                     setSupervisors(res.supervisors);
                 }
@@ -42,7 +50,7 @@ export function UserFormModal({ isOpen, onClose, onSuccess, user, isEdit, curren
                     first_name: formData.get('first_name') as string,
                     last_name: formData.get('last_name') as string,
                     phone: formData.get('phone') as string,
-                    ...(currentTabRole === 'agent' && { supervisor_id: formData.get('supervisor_id') as string || '' })
+                    ...(isAgentLayerRole(currentTabRole) && { supervisor_id: formData.get('supervisor_id') as string || '' })
                 };
                 const res = await updateUserAction(user.id, user.role || currentTabRole, data);
                 if (res.error) throw new Error(res.error);
@@ -61,9 +69,17 @@ export function UserFormModal({ isOpen, onClose, onSuccess, user, isEdit, curren
     }
 
     const getRoleLabel = (r: typeof currentTabRole) => {
-        if (r === 'agent_supervisor') return 'Supervisor';
-        if (r === 'finance') return 'Finance Staff';
-        return r.charAt(0).toUpperCase() + r.slice(1);
+        switch (r) {
+            case 'principal_supervisor': return 'Principal Supervisor';
+            case 'executive_supervisor': return 'Executive Supervisor';
+            case 'senior_supervisor': return 'Senior Supervisor';
+            case 'agent_supervisor': return 'Supervisor';
+            case 'executive_agent': return 'Executive Agent';
+            case 'senior_agent': return 'Senior Agent';
+            case 'agent': return 'Agent';
+            case 'finance': return 'Finance Staff';
+            default: return r.charAt(0).toUpperCase() + r.slice(1);
+        }
     };
 
     if (!isOpen) return null;
@@ -126,15 +142,15 @@ export function UserFormModal({ isOpen, onClose, onSuccess, user, isEdit, curren
                         />
                     </div>
 
-                    {currentTabRole === 'agent' && (
+                    {isAgentLayerRole(currentTabRole) && (
                         <div>
-                            <label className="block text-sm font-medium text-gray-700">Supervisor</label>
+                            <label className="block text-sm font-medium text-gray-700">Reports To (Supervisor / Senior)</label>
                             <select
                                 name="supervisor_id"
                                 defaultValue={user?.supervisor_id || ''}
                                 className="mt-1 block w-full rounded-md border-gray-300 shadow-sm p-2 border focus:ring-blue-500 focus:border-blue-500 bg-white"
                             >
-                                <option value="">No Supervisor (Unassigned)</option>
+                                <option value="">No Superior Assigned</option>
                                 {supervisors.map(sup => (
                                     <option key={sup.id} value={sup.id}>{sup.name}</option>
                                 ))}

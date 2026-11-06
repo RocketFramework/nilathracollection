@@ -1,13 +1,13 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { UserProfileDTO } from "@/dtos/user-vendor.dto";
+import { UserProfileDTO, UserRoleType } from "@/dtos/user-vendor.dto";
 import { getUsersByRoleAction } from "@/actions/user-management.actions";
 import { UserListTable } from "./components/UserListTable";
 import { UserFormModal } from "./components/UserFormModal";
 import { PasswordResetModal } from "./components/PasswordResetModal";
 
-type Role = 'admin' | 'agent' | 'agent_supervisor' | 'tourist' | 'finance';
+type Role = UserRoleType;
 
 export default function UserManagementPage() {
     const [activeTab, setActiveTab] = useState<Role>('agent');
@@ -66,16 +66,29 @@ export default function UserManagementPage() {
 
     const tabs: { id: Role, label: string }[] = [
         { id: 'admin', label: 'Admins' },
+        { id: 'principal_supervisor', label: 'Principal Supervisors' },
+        { id: 'executive_supervisor', label: 'Executive Supervisors' },
+        { id: 'senior_supervisor', label: 'Senior Supervisors' },
         { id: 'agent_supervisor', label: 'Supervisors' },
+        { id: 'executive_agent', label: 'Executive Agents' },
+        { id: 'senior_agent', label: 'Senior Agents' },
         { id: 'agent', label: 'Agents' },
         { id: 'finance', label: 'Finance' },
         { id: 'tourist', label: 'Tourists' },
     ];
 
     const getRoleLabel = (r: Role) => {
-        if (r === 'agent_supervisor') return 'Supervisor';
-        if (r === 'finance') return 'Finance Staff';
-        return r.charAt(0).toUpperCase() + r.slice(1);
+        switch (r) {
+            case 'principal_supervisor': return 'Principal Supervisor';
+            case 'executive_supervisor': return 'Executive Supervisor';
+            case 'senior_supervisor': return 'Senior Supervisor';
+            case 'agent_supervisor': return 'Supervisor';
+            case 'executive_agent': return 'Executive Agent';
+            case 'senior_agent': return 'Senior Agent';
+            case 'agent': return 'Agent';
+            case 'finance': return 'Finance Staff';
+            default: return r.charAt(0).toUpperCase() + r.slice(1);
+        }
     };
 
     return (
@@ -91,8 +104,8 @@ export default function UserManagementPage() {
             </div>
 
             {/* Tabs */}
-            <div className="border-b border-gray-200 mb-6">
-                <nav className="-mb-px flex space-x-8">
+            <div className="border-b border-gray-200 mb-6 overflow-x-auto">
+                <nav className="-mb-px flex space-x-6">
                     {tabs.map((tab) => (
                         <button
                             key={tab.id}

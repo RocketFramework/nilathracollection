@@ -7,6 +7,7 @@ import { createClient } from "@/utils/supabase/server";
 import { createAdminClient } from "@/utils/supabase/admin";
 import NotificationBell from "../components/NotificationBell";
 import { checkPermission } from "@/utils/auth-enforcer";
+import { UserService, ROLE_LABELS, AGENT_ROLES, SUPERVISOR_ROLES } from "@/services/user.service";
 
 export default async function AdminLayout({ children }: { children: ReactNode }) {
     const supabase = await createClient();
@@ -25,32 +26,17 @@ export default async function AdminLayout({ children }: { children: ReactNode })
             console.error("Error evaluating email templates permission in layout:", e);
         }
 
-        // Broad check for admin using service role client to bypass any RLS read restrictions
-        const adminSupabase = createAdminClient();
-        const { data: rpcRole } = await adminSupabase.rpc('get_user_role', { user_id: user.id });
-        const metadataRole = user.user_metadata?.role;
-
-        const userRole = typeof rpcRole === 'string'
-            ? rpcRole.trim().toLowerCase()
-            : typeof rpcRole === 'object' && rpcRole !== null && (rpcRole as any).role ? (rpcRole as any).role.trim().toLowerCase() : null;
-
-        let effectiveRole = userRole || metadataRole;
-
-        // Fetch profiles first to act as fallback for legacy users missing roles
-        const { data: adminData } = await adminSupabase.from('admin_profiles').select('*').eq('id', user.id).single();
-        const { data: agentData } = await adminSupabase.from('agent_profiles').select('*').eq('id', user.id).single();
-
-        if (adminData) effectiveRole = 'admin';
-        else if (agentData) effectiveRole = 'agent';
+        const profile = await UserService.getCurrentUserProfile();
+        const effectiveRole = profile?.role || user.user_metadata?.role;
 
         if (effectiveRole === 'admin') {
             isAdmin = true;
             displayRole = "Admin";
-            userInitials = adminData?.first_name ? adminData.first_name.substring(0, 2).toUpperCase() : "AD";
-        } else if (effectiveRole === 'agent') {
-            displayRole = "Agent";
-            if (agentData && agentData.first_name) {
-                userInitials = agentData.first_name.substring(0, 2).toUpperCase();
+            userInitials = profile?.first_name ? profile.first_name.substring(0, 2).toUpperCase() : "AD";
+        } else if (effectiveRole && (AGENT_ROLES.has(effectiveRole) || SUPERVISOR_ROLES.has(effectiveRole) || effectiveRole === 'finance')) {
+            displayRole = ROLE_LABELS[effectiveRole] || "Agent";
+            if (profile?.first_name) {
+                userInitials = profile.first_name.substring(0, 2).toUpperCase();
             }
         } else {
             // Tourist or unrecognized role

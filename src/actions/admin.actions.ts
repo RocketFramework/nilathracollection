@@ -2,7 +2,7 @@
 import sharp from "sharp";
 
 import { revalidatePath, unstable_cache } from "next/cache";
-import { AdminService, UserService } from "@/services/user.service";
+import { AdminService, UserService, HIERARCHY_ROLE_RANK } from "@/services/user.service";
 import { TourService } from "@/services/tour.service";
 import { TouristService } from "@/services/tourist.service";
 import { HotelService, Hotel } from "@/services/hotel.service";
@@ -52,25 +52,25 @@ export async function getDashboardRequestsAction(filters: any, currentPage: numb
         if (!user) return { success: false, error: "Not authenticated" };
 
         const adminSupabase = createAdminClient();
-        const { data: rpcRole } = await adminSupabase.rpc('get_user_role', { user_id: user.id });
-        const { data: adminData } = await adminSupabase.from('admin_profiles').select('*').eq('id', user.id).single();
-        const metadataRole = user.user_metadata?.role;
-
-        const isRpcAdmin = typeof rpcRole === 'string'
-            ? rpcRole.trim().toLowerCase() === 'admin'
-            : typeof rpcRole === 'object' && rpcRole !== null && (rpcRole as any).role === 'admin';
-
-        const isAdmin = isRpcAdmin || adminData || metadataRole === 'admin';
+        const effectiveRole = await UserService.resolveUserEffectiveRole(user.id);
+        const isAdmin = effectiveRole === 'admin';
 
         let apiFilters = { ...filters };
 
         if (!isAdmin) {
-            apiFilters.adminAssignedTo = user.id;
+            apiFilters.adminAssignedToIds = await AdminService.getUserAndSubordinateIds(user.id);
         }
 
         const { data, count } = await RequestService.getRequestsWithFilters(apiFilters, currentPage, pageSize, adminSupabase);
 
-        return { success: true, data, count, role: isAdmin ? 'admin' : 'agent', userId: user.id };
+        return {
+            success: true,
+            data,
+            count,
+            role: isAdmin ? 'admin' : 'agent',
+            actualRole: effectiveRole,
+            userId: user.id
+        };
     } catch (error: any) {
         console.error("Error fetching dashboard requests:", error);
         return { success: false, error: error.message };
@@ -83,20 +83,13 @@ export async function getUserRoleAction() {
         const { data: { user } } = await supabase.auth.getUser();
         if (!user) return { success: true, role: 'guest', id: null };
 
-        const adminSupabase = createAdminClient();
-        const { data: rpcRole } = await adminSupabase.rpc('get_user_role', { user_id: user.id });
-        const { data: adminData } = await adminSupabase.from('admin_profiles').select('*').eq('id', user.id).single();
-        const metadataRole = user.user_metadata?.role;
+        const effectiveRole = await UserService.resolveUserEffectiveRole(user.id);
 
-        const isRpcAdmin = typeof rpcRole === 'string'
-            ? rpcRole.trim().toLowerCase() === 'admin'
-            : typeof rpcRole === 'object' && rpcRole !== null && (rpcRole as any).role === 'admin';
-
-        if (isRpcAdmin || adminData || metadataRole === 'admin') {
-            return { success: true, role: 'admin', id: user.id };
+        if (effectiveRole === 'admin') {
+            return { success: true, role: 'admin', actualRole: effectiveRole, id: user.id };
         }
 
-        return { success: true, role: 'agent', id: user.id };
+        return { success: true, role: 'agent', actualRole: effectiveRole, id: user.id };
     } catch (error: any) {
         console.error("Error fetching user role:", error);
         return { success: false, role: 'agent', id: null };
@@ -131,10 +124,16 @@ export async function createAgentAction(formData: FormData) {
     }
 }
 
-export async function getAgentsAction() {
+export async function getAgentsAction(overrideRole?: string) {
     try {
-        const agents = await AdminService.getAllAgents();
-        return { success: true, agents };
+        const supabase = await createClient();
+        const { data: { user } } = await supabase.auth.getUser();
+        let callerRole = overrideRole;
+        if (!callerRole && user) {
+            callerRole = await UserService.resolveUserEffectiveRole(user.id);
+        }
+        const agents = await AdminService.getAllAgents(callerRole);
+        return { success: true, agents, currentUserRole: callerRole || 'admin' };
     } catch (error: any) {
         console.error("Error fetching agents:", error);
         return { error: error.message || "Failed to fetch agents." };

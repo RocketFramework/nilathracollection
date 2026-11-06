@@ -31,7 +31,7 @@ export class TouristService {
                 agent:users!tours_agent_id_fkey(
                     email,
                     admin_profile:admin_profiles(first_name, last_name),
-                    agent_profile:agent_profiles(first_name, last_name, phone)
+                    agent_profile:agent_profiles!agent_profiles_id_fkey(first_name, last_name, phone)
                 )
             `)
             .eq('tourist_id', user.id)
@@ -89,7 +89,7 @@ export class TouristService {
                 agent:users!tours_agent_id_fkey(
                     email,
                     admin_profile:admin_profiles(first_name, last_name),
-                    agent_profile:agent_profiles(first_name, last_name, phone)
+                    agent_profile:agent_profiles!agent_profiles_id_fkey(first_name, last_name, phone)
                 ),
                 itineraries:tour_itineraries(
                     day_number,

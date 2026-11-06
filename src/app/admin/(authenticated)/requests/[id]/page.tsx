@@ -15,9 +15,9 @@ export default function RequestDetailsPage() {
     const router = useRouter();
     const requestId = params.id as string;
 
-    const [userRole, setUserRole] = useState<'admin' | 'agent'>('admin');
+    const [userRole, setUserRole] = useState<string>('admin');
     const [request, setRequest] = useState<any>(null);
-    const [agents, setAgents] = useState<{ id: string, first_name: string, last_name: string }[]>([]);
+    const [agents, setAgents] = useState<{ id: string, first_name: string, last_name: string, role?: string, role_label?: string }[]>([]);
     const [isAssigning, setIsAssigning] = useState(false);
     const [isUpdatingStatus, setIsUpdatingStatus] = useState(false);
     const [isLoading, setIsLoading] = useState(true);
@@ -31,6 +31,9 @@ export default function RequestDetailsPage() {
                 const agentsRes = await getAgentsAction();
                 if (agentsRes.success && agentsRes.agents) {
                     setAgents(agentsRes.agents);
+                    if (agentsRes.currentUserRole) {
+                        setUserRole(agentsRes.currentUserRole);
+                    }
                 }
 
                 const { data, error } = await supabase
@@ -43,7 +46,8 @@ export default function RequestDetailsPage() {
                         ),
                         agent:users!requests_admin_assigned_to_fkey(
                             email,
-                            agent_profile:agent_profiles(first_name, last_name)
+                            agent_profile:agent_profiles!agent_profiles_id_fkey(first_name, last_name),
+                            supervisor_profile:agent_supervisor_profiles!agent_supervisor_profiles_id_fkey(first_name, last_name)
                         )
                     `)
                     .eq('id', requestId)
@@ -62,6 +66,14 @@ export default function RequestDetailsPage() {
             fetchRequestDetails();
         }
     }, [requestId]);
+
+    const handleRoleToggle = async (role: string) => {
+        setUserRole(role);
+        const agentsRes = await getAgentsAction(role);
+        if (agentsRes.success && agentsRes.agents) {
+            setAgents(agentsRes.agents);
+        }
+    };
 
     const handleAssignAgent = async (agentId: string) => {
         setIsAssigning(true);
@@ -157,21 +169,23 @@ export default function RequestDetailsPage() {
         : request.name || 'Client';
     const touristPhone = touristProfile?.phone || request.phone_number || 'Not provided';
 
-    const agentProfile = request.agent?.agent_profile?.[0];
+    const apRaw = request.agent?.agent_profile;
+    const spRaw = request.agent?.supervisor_profile;
+    const agentProfile = (Array.isArray(apRaw) ? apRaw[0] : apRaw) || (Array.isArray(spRaw) ? spRaw[0] : spRaw);
     const agentName = agentProfile?.first_name
         ? `${agentProfile.first_name} ${agentProfile.last_name}`
         : request.agent?.email || 'Unassigned';
 
-    const canCreateTour = userRole === 'admin'
-        ? !!request.admin_assigned_to
-        : request.admin_assigned_to;
+    const canAssignAgent = userRole !== 'agent';
+    const canCreateTour = !!request.admin_assigned_to;
 
     return (
         <div className="max-w-4xl mx-auto p-6 md:p-10 animate-in fade-in duration-500">
-            <div className="flex gap-2 mb-8 p-4 bg-brand-gold/10 border border-brand-gold/20 rounded-xl">
+            <div className="flex flex-wrap gap-2 mb-8 p-4 bg-brand-gold/10 border border-brand-gold/20 rounded-xl">
                 <span className="text-sm font-bold text-brand-gold flex items-center mr-4">DEV TOGGLE:</span>
-                <button onClick={() => setUserRole('admin')} className={`px-4 py-1 rounded text-sm font-bold ${userRole === 'admin' ? 'bg-brand-gold text-white' : 'bg-white text-brand-charcoal'}`}>Admin View</button>
-                <button onClick={() => setUserRole('agent')} className={`px-4 py-1 rounded text-sm font-bold ${userRole === 'agent' ? 'bg-brand-gold text-white' : 'bg-white text-brand-charcoal'}`}>Agent View</button>
+                <button onClick={() => handleRoleToggle('admin')} className={`px-4 py-1 rounded text-sm font-bold ${userRole === 'admin' ? 'bg-brand-gold text-white' : 'bg-white text-brand-charcoal'}`}>Admin View</button>
+                <button onClick={() => handleRoleToggle('agent_supervisor')} className={`px-4 py-1 rounded text-sm font-bold ${userRole === 'agent_supervisor' ? 'bg-brand-gold text-white' : 'bg-white text-brand-charcoal'}`}>Supervisor View</button>
+                <button onClick={() => handleRoleToggle('agent')} className={`px-4 py-1 rounded text-sm font-bold ${userRole === 'agent' ? 'bg-brand-gold text-white' : 'bg-white text-brand-charcoal'}`}>Agent View</button>
             </div>
 
             <div className="mb-6 flex items-center justify-between">
@@ -317,7 +331,7 @@ export default function RequestDetailsPage() {
                                         <div className="w-6 h-6 rounded-full bg-brand-gold text-white flex items-center justify-center text-xs font-bold">
                                             {agentName !== 'Unassigned' ? agentName.charAt(0) : '?'}
                                         </div>
-                                        {userRole === 'admin' ? (
+                                        {canAssignAgent ? (
                                             <select
                                                 value={request.admin_assigned_to || ""}
                                                 onChange={(e) => handleAssignAgent(e.target.value)}
@@ -325,9 +339,14 @@ export default function RequestDetailsPage() {
                                                 className="bg-neutral-50 border border-neutral-200 text-brand-charcoal text-sm rounded-lg p-2 outline-none font-medium transition-colors cursor-pointer"
                                             >
                                                 <option value="" disabled>Select Agent to Assign</option>
+                                                {request.admin_assigned_to && !agents.some((ag) => ag.id === request.admin_assigned_to) && (
+                                                    <option value={request.admin_assigned_to}>
+                                                        {agentName}
+                                                    </option>
+                                                )}
                                                 {agents.map((ag) => (
                                                     <option key={ag.id} value={ag.id}>
-                                                        {ag.first_name} {ag.last_name}
+                                                        {ag.first_name} {ag.last_name}{ag.role_label ? ` (${ag.role_label})` : ''}
                                                     </option>
                                                 ))}
                                             </select>

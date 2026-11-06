@@ -2,11 +2,11 @@
 
 import { revalidatePath } from "next/cache";
 import { AdminService } from "@/services/user.service";
-import { CreateUserDTO, UpdateUserDTO, ResetPasswordDTO } from "@/dtos/user-vendor.dto";
+import { CreateUserDTO, UpdateUserDTO, ResetPasswordDTO, UserRoleType } from "@/dtos/user-vendor.dto";
 
 export async function createUserAction(formData: FormData) {
     try {
-        const role = formData.get("role") as 'tourist' | 'agent' | 'agent_supervisor' | 'admin' | 'finance';
+        const role = formData.get("role") as UserRoleType;
         const dto: CreateUserDTO = {
             first_name: formData.get("first_name") as string,
             last_name: formData.get("last_name") as string,
@@ -47,7 +47,7 @@ export async function resetPasswordAction(userId: string, newPassword: string) {
     }
 }
 
-export async function getUsersByRoleAction(role: 'tourist' | 'agent' | 'agent_supervisor' | 'admin' | 'finance') {
+export async function getUsersByRoleAction(role: UserRoleType) {
     try {
         const users = await AdminService.getUsersByRole(role);
         return { success: true, users };
@@ -57,7 +57,7 @@ export async function getUsersByRoleAction(role: 'tourist' | 'agent' | 'agent_su
     }
 }
 
-export async function deactivateUserAction(userId: string, role: 'tourist' | 'agent' | 'agent_supervisor' | 'admin' | 'finance') {
+export async function deactivateUserAction(userId: string, role: UserRoleType) {
     try {
         await AdminService.deactivateUser(userId, role);
         revalidatePath("/admin/user-management");
@@ -68,7 +68,7 @@ export async function deactivateUserAction(userId: string, role: 'tourist' | 'ag
     }
 }
 
-export async function activateUserAction(userId: string, role: 'tourist' | 'agent' | 'agent_supervisor' | 'admin' | 'finance') {
+export async function activateUserAction(userId: string, role: UserRoleType) {
     try {
         await AdminService.updateUser(userId, role, { is_active: true });
         revalidatePath("/admin/user-management");
@@ -79,9 +79,9 @@ export async function activateUserAction(userId: string, role: 'tourist' | 'agen
     }
 }
 
-export async function getAllSupervisorsAction() {
+export async function getAllSupervisorsAction(forRole?: UserRoleType) {
     try {
-        const supervisors = await AdminService.getAllSupervisors();
+        const supervisors = await AdminService.getAllSupervisors(forRole);
         return { success: true, supervisors };
     } catch (error: any) {
         console.error("Error fetching supervisors list:", error);

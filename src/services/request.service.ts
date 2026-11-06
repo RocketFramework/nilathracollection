@@ -134,6 +134,7 @@ export class RequestService {
         dateTo?: string;
         email?: string;
         adminAssignedTo?: string;
+        adminAssignedToIds?: string[];
         nightsOperator?: 'Higher than' | 'Lower than';
         nightsValue?: number;
     }, page: number = 1, pageSize: number = 10, customClient?: any) {
@@ -185,7 +186,13 @@ export class RequestService {
             query = query.ilike('email', `%${filters.email}%`);
         }
 
-        if (filters.adminAssignedTo) {
+        if (filters.adminAssignedToIds && filters.adminAssignedToIds.length > 0) {
+            if (filters.adminAssignedTo && filters.adminAssignedTo !== 'unassigned' && filters.adminAssignedToIds.includes(filters.adminAssignedTo)) {
+                query = query.eq('admin_assigned_to', filters.adminAssignedTo);
+            } else {
+                query = query.in('admin_assigned_to', filters.adminAssignedToIds);
+            }
+        } else if (filters.adminAssignedTo) {
             if (filters.adminAssignedTo === 'unassigned') {
                 query = query.is('admin_assigned_to', null);
             } else {

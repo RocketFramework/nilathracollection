@@ -548,7 +548,18 @@ export default function PermissionsPage() {
                                     {editingPolicy.type === 'ROLE' ? 'Allowed Roles' : 'Bypass Roles (Roles that CAN edit restricted fields)'}
                                 </label>
                                 <div className="grid grid-cols-2 gap-2 bg-neutral-50 p-3 rounded-xl border border-neutral-200">
-                                    {['admin', 'agent', 'agent_supervisor', 'tourist', 'finance'].map(role => {
+                                    {[
+                                        'admin',
+                                        'principal_supervisor',
+                                        'executive_supervisor',
+                                        'senior_supervisor',
+                                        'agent_supervisor',
+                                        'executive_agent',
+                                        'senior_agent',
+                                        'agent',
+                                        'finance',
+                                        'tourist'
+                                    ].map(role => {
                                         const isChecked = editingPolicy.configuration?.roles?.includes(role) || false;
                                         return (
                                             <label key={role} className="flex items-center gap-2.5 p-1.5 hover:bg-white rounded-lg cursor-pointer transition-colors text-sm font-medium text-neutral-700">
