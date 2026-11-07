@@ -112,6 +112,11 @@ export default async function AdminLayout({ children }: { children: ReactNode })
                         <span className="font-medium tracking-wide">Tasks</span>
                     </Link>
 
+                    <Link href="/admin/commissions" className="flex items-center gap-4 px-6 py-3 text-[#4B5563] hover:bg-[#F5F3EF] hover:text-[#2B2B2B] transition-colors rounded-r-full mr-4 group">
+                        <BarChart3 size={20} className="text-[#6B7280] group-hover:text-[#D4AF37] transition-colors" />
+                        <span className="font-medium tracking-wide">Commissions &amp; Career</span>
+                    </Link>
+
                     {isAdmin && (
                         <>
                             <Link href="/admin/task-templates" className="flex items-center gap-4 px-6 py-3 text-[#4B5563] hover:bg-[#F5F3EF] hover:text-[#2B2B2B] transition-colors rounded-r-full mr-4 group">
@@ -121,6 +126,10 @@ export default async function AdminLayout({ children }: { children: ReactNode })
                             <Link href="/admin/reports/financial" className="flex items-center gap-4 px-6 py-3 text-[#4B5563] hover:bg-[#F5F3EF] hover:text-[#2B2B2B] transition-colors rounded-r-full mr-4 group">
                                 <BarChart3 size={20} className="text-[#6B7280] group-hover:text-[#D4AF37] transition-colors" />
                                 <span className="font-medium tracking-wide">Financial Reports</span>
+                            </Link>
+                            <Link href="/admin/commission-simulator" className="flex items-center gap-4 px-6 py-3 text-[#4B5563] hover:bg-[#F5F3EF] hover:text-[#2B2B2B] transition-colors rounded-r-full mr-4 group">
+                                <BarChart3 size={20} className="text-[#6B7280] group-hover:text-[#D4AF37] transition-colors" />
+                                <span className="font-medium tracking-wide">Commission Simulator</span>
                             </Link>
                             <Link href="/admin/logs" className="flex items-center gap-4 px-6 py-3 text-[#4B5563] hover:bg-[#F5F3EF] hover:text-[#2B2B2B] transition-colors rounded-r-full mr-4 group">
                                 <Database size={20} className="text-[#6B7280] group-hover:text-[#D4AF37] transition-colors" />

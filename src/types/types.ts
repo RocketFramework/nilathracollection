@@ -247,3 +247,41 @@ export const PLANNER_STEP_TO_TASK_STEP: Record<string, TaskStepKey> = {
     'guide-selection': 'guide', 'driver-selection': 'driver', 'payment-receive': 'payment-receive',
     'finance-controlling': 'finance-controlling', 'profit-loss': 'profit-loss',
 };
+
+// --- Employee Hierarchy & Tour Commission Types ---
+export type CommissionStatus =
+    | 'Not Eligible'
+    | 'Calculated'
+    | 'Pending Approval'
+    | 'Approved'
+    | 'Paid'
+    | 'Disputed'
+    | 'Cancelled';
+
+export type PerformanceRatingTier = 'below' | 'meets' | 'exceeds' | 'exceptional';
+
+export type MultiplierCapMode = 'RESERVE_NORMALIZED' | 'BASE_WITH_CEILING';
+
+export type CommissionAllocationType =
+    | 'DIRECT'
+    | 'LEADERSHIP_TIER_1'
+    | 'LEADERSHIP_TIER_2'
+    | 'LEADERSHIP_TIER_3'
+    | 'TEAM_DEVELOPMENT';
+
+export type SimulationOrgPresetKey =
+    | 'solo_agent'
+    | 'agent_under_senior'
+    | 'senior_with_junior'
+    | 'exec_multi_team'
+    | 'multi_supervisor_chain';
+
+export type CommissionAdjustmentActionType =
+    | 'CALCULATED'
+    | 'STATUS_CHANGE'
+    | 'DECLARED_GP_UPDATE'
+    | 'MANUAL_ADJUSTMENT'
+    | 'CAP_OVERRIDE'
+    | 'PAID';
+
+

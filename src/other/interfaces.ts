@@ -719,6 +719,357 @@ export interface WeatherReportData {
     items: WeatherReportItem[];
 }
 
+export interface ICommissionRuleConfig {
+    poolPercentage: number; // % of Declared Gross Profit (e.g. 10)
+    maxCeilingPoolPercentage: number; // Used in BASE_WITH_CEILING mode (e.g. 15)
+    directSharePercentage: number; // % of Pool (e.g. 70)
+    leadershipSharePercentage: number; // % of Pool (e.g. 30)
+    teamDevSharePercentage: number; // % of Pool (e.g. 0 to 10; Direct + Leadership + TeamDev <= 100)
+    leadershipTierWeights: {
+        tier1: number; // % of Leadership Pool for Direct Mentor / Line Supervisor (e.g. 60)
+        tier2: number; // % of Leadership Pool for Next-Level Operational Leader (e.g. 25)
+        tier3: number; // % of Leadership Pool for Exec / Principal SPOC (e.g. 15)
+    };
+    performanceMultipliers: {
+        below: number; // e.g. 0.5
+        meets: number; // e.g. 1.0
+        exceeds: number; // e.g. 1.2
+        exceptional: number; // e.g. 1.5
+    };
+    multiplierCapMode: 'RESERVE_NORMALIZED' | 'BASE_WITH_CEILING';
+    excellenceReserveRatio: number; // e.g. 0.20 (20% of sub-pool reserved for >1.0x in RESERVE_NORMALIZED mode)
+    enablePerEmployeeCap: boolean; // Enforces a hard USD ceiling per employee per tour
+    roleMaxCapUsd: Record<string, number>; // Default max USD payout per tour by role (e.g. agent: 350, senior_agent: 500)
+}
+
+export interface ICommissionContributorInput {
+    id: string;
+    name: string;
+    role: string;
+    roleLabel: string;
+    sharePercentage: number; // % of Direct Pool (must sum to 100 across contributors)
+    ratingTier: 'below' | 'meets' | 'exceeds' | 'exceptional';
+    customMultiplier?: number;
+    maxCapUsd?: number | null; // Optional per-agent USD cap override on this tour
+}
+
+export interface ICommissionLeaderInput {
+    id: string;
+    name: string;
+    role: string;
+    roleLabel: string;
+    tier: 1 | 2 | 3;
+    hasActiveContribution: boolean; // Anti-MLM gate: must have active tour sign-off / review / mentoring
+    contributionEvidence: string;
+    ratingTier: 'below' | 'meets' | 'exceeds' | 'exceptional';
+    overrideSharePercentage?: number | null; // Optional Admin override of Leadership Pool %
+    overrideJustification?: string;
+    maxCapUsd?: number | null; // Optional per-leader USD cap override on this tour
+}
+
+export interface ITeamDevRecipientInput {
+    id: string;
+    name: string;
+    role: string;
+    roleLabel: string;
+    menteesQualifiedCount: number;
+    isEligible: boolean;
+    evidence: string;
+}
+
+export interface ICommissionSimulationInput {
+    tourLabel: string;
+    tourId?: string | null;
+    customerRevenueUsd: number;
+    systemDirectExpensesUsd: number;
+    declaredGrossProfitUsd: number; // Authoritative entered Gross Profit for commission
+    useDeclaredGrossProfit: boolean;
+    declaredGrossProfitNotes?: string;
+    exchangeRateLkr: number;
+    isTourCompleted: boolean;
+    isCancelled: boolean;
+    rules: ICommissionRuleConfig;
+    directContributors: ICommissionContributorInput[];
+    leadershipChain: ICommissionLeaderInput[];
+    teamDevRecipient?: ITeamDevRecipientInput | null;
+}
+
+export interface ICommissionAllocationBreakdown {
+    recipientId: string;
+    recipientName: string;
+    role: string;
+    roleLabel: string;
+    allocationType: 'DIRECT' | 'LEADERSHIP_TIER_1' | 'LEADERSHIP_TIER_2' | 'LEADERSHIP_TIER_3' | 'TEAM_DEVELOPMENT';
+    sharePercentageOfSubPool: number;
+    ratingTier: string;
+    appliedMultiplier: number;
+    baseAmountUsd: number;
+    uncappedAmountUsd: number;
+    appliedCapUsd: number | null;
+    cappedExcessReturnedUsd: number;
+    finalAmountUsd: number;
+    finalAmountLkr: number;
+    effectiveShareOfTotalPoolPct: number;
+    eligibilityStatus: 'ELIGIBLE' | 'BLOCKED_DOUBLE_COUNT' | 'BLOCKED_PASSIVE_NO_CONTRIBUTION' | 'OVERRIDE_APPLIED';
+    notes: string;
+}
+
+export interface ICommissionSimulationResult {
+    status: 'Not Eligible' | 'Calculated';
+    ineligibilityReason?: string;
+    customerRevenueUsd: number;
+    systemDirectExpensesUsd: number;
+    systemCalculatedGrossProfitUsd: number;
+    declaredGrossProfitUsd: number;
+    effectiveGrossProfitUsd: number;
+    grossMarginPct: number;
+    exchangeRateLkr: number;
+    baseCommissionPoolUsd: number;
+    hardCapCeilingPoolUsd: number;
+    directSubPoolUsd: number;
+    leadershipSubPoolUsd: number;
+    teamDevSubPoolUsd: number;
+    totalDirectDistributedUsd: number;
+    totalLeadershipDistributedUsd: number;
+    totalTeamDevDistributedUsd: number;
+    totalCommissionDistributedUsd: number;
+    totalCommissionDistributedLkr: number;
+    totalCappedExcessReturnedUsd: number;
+    unallocatedPoolReturnedToCompanyUsd: number;
+    companyRetainedGrossProfitUsd: number;
+    companyRetainedGrossProfitLkr: number;
+    companyRetainedShareOfGpPct: number;
+    poolUtilizationPct: number;
+    isWithinPoolCap: boolean;
+    validationWarnings: string[];
+    allocations: ICommissionAllocationBreakdown[];
+}
+
+export interface ITourFinancialReference {
+    tourId: string;
+    tourCode: string | null;
+    title: string;
+    status: string;
+    agentId: string | null;
+    agentName: string;
+    agentRole: string;
+    systemAgreedRevenueUsd: number;
+    systemAgreedCostUsd: number;
+    systemAgreedGrossProfitUsd: number;
+    systemReconciledPaidRevenueUsd: number;
+    systemReconciledPaidCostUsd: number;
+    systemReconciledMiscExpensesUsd: number;
+    systemReconciledGrossProfitUsd: number;
+    exchangeRateLkr: number;
+}
+
+export interface IProgressionCriterion {
+    nextRole: string;
+    nextRoleLabel: string;
+    minTours: number;
+    minGpUsd: number;
+    minMentees: number;
+}
+
+export interface ICommissionRuleVersionRecord {
+    id: string;
+    versionNumber: number;
+    versionName: string;
+    isActive: boolean;
+    rules: ICommissionRuleConfig;
+    progressionCriteria: Record<string, IProgressionCriterion>;
+    notes: string;
+    createdBy?: string | null;
+    createdAt: string;
+}
+
+export interface ITourCommissionAllocationRecord {
+    id: string;
+    tourCommissionId: string;
+    tourId: string;
+    userId: string | null;
+    recipientName: string;
+    roleAtTime: string;
+    roleLabel: string;
+    allocationType: 'DIRECT' | 'LEADERSHIP_TIER_1' | 'LEADERSHIP_TIER_2' | 'LEADERSHIP_TIER_3' | 'TEAM_DEVELOPMENT';
+    leadershipTier?: 1 | 2 | 3 | null;
+    hasActiveContribution: boolean;
+    sharePercentage: number;
+    ratingTier: 'below' | 'meets' | 'exceeds' | 'exceptional';
+    appliedMultiplier: number;
+    customMaxCapUsd?: number | null;
+    appliedCapUsd?: number | null;
+    baseAmountUsd: number;
+    uncappedAmountUsd: number;
+    cappedExcessReturnedUsd: number;
+    finalAmountUsd: number;
+    finalAmountLkr: number;
+    eligibilityStatus: 'ELIGIBLE' | 'BLOCKED_DOUBLE_COUNT' | 'BLOCKED_PASSIVE_NO_CONTRIBUTION' | 'OVERRIDE_APPLIED';
+    eligibilityNotes: string;
+    isOverride: boolean;
+    overrideJustification?: string | null;
+    createdAt: string;
+}
+
+export interface ICommissionAdjustmentRecord {
+    id: string;
+    tourCommissionId: string;
+    tourId: string;
+    userId?: string | null;
+    actionType: 'CALCULATED' | 'STATUS_CHANGE' | 'DECLARED_GP_UPDATE' | 'MANUAL_ADJUSTMENT' | 'CAP_OVERRIDE' | 'PAID';
+    previousStatus?: string | null;
+    newStatus?: string | null;
+    adjustmentAmountUsd: number;
+    justification: string;
+    performedBy?: string | null;
+    performedByName: string;
+    createdAt: string;
+}
+
+export interface ITourCommissionRecord {
+    id: string;
+    tourId: string;
+    tourCode: string | null;
+    tourTitle: string;
+    tourStatus: string;
+    tourStartDate?: string | null;
+    leadAgentId: string | null;
+    leadAgentName: string;
+    leadAgentRole: string;
+    ruleVersionId: string | null;
+    ruleVersionNumber: number;
+    ruleVersionName: string;
+    ruleSnapshot: ICommissionRuleConfig;
+    status: 'Not Eligible' | 'Calculated' | 'Pending Approval' | 'Approved' | 'Paid' | 'Disputed' | 'Cancelled';
+    customerRevenueUsd: number;
+    systemDirectExpensesUsd: number;
+    declaredGrossProfitUsd: number;
+    declaredGrossProfitNotes: string;
+    exchangeRateLkr: number;
+    baseCommissionPoolUsd: number;
+    hardCapCeilingPoolUsd: number;
+    directSubPoolUsd: number;
+    leadershipSubPoolUsd: number;
+    teamDevSubPoolUsd: number;
+    totalDirectDistributedUsd: number;
+    totalLeadershipDistributedUsd: number;
+    totalTeamDevDistributedUsd: number;
+    totalCommissionDistributedUsd: number;
+    totalCommissionDistributedLkr: number;
+    totalCappedExcessReturnedUsd: number;
+    unallocatedPoolReturnedUsd: number;
+    companyRetainedGrossProfitUsd: number;
+    allocations: ITourCommissionAllocationRecord[];
+    adjustments: ICommissionAdjustmentRecord[];
+    calculatedAt: string;
+    approvedBy?: string | null;
+    approvedAt?: string | null;
+    paidBy?: string | null;
+    paidAt?: string | null;
+    paymentReference?: string | null;
+    updatedAt: string;
+}
+
+export interface ISaveTourCommissionPayload {
+    tourId: string;
+    declaredGrossProfitUsd: number;
+    declaredGrossProfitNotes: string;
+    exchangeRateLkr: number;
+    status: 'Not Eligible' | 'Calculated' | 'Pending Approval' | 'Approved' | 'Paid' | 'Disputed' | 'Cancelled';
+    directContributors: ICommissionContributorInput[];
+    leadershipChain: ICommissionLeaderInput[];
+    teamDevRecipient?: ITeamDevRecipientInput | null;
+    justification: string;
+    paymentReference?: string;
+}
+
+export interface IEmployeeHierarchyNode {
+    userId: string;
+    name: string;
+    email: string;
+    role: string;
+    roleLabel: string;
+    supervisorId: string | null;
+    supervisorName: string | null;
+    supervisorRoleLabel: string | null;
+    directSubordinatesCount: number;
+}
+
+export interface IEmployeeCommissionDashboardData {
+    employee: IEmployeeHierarchyNode;
+    teamMembers: IEmployeeHierarchyNode[];
+    reportingChainUpwards: IEmployeeHierarchyNode[];
+    toursManagedCount: number;
+    toursSupportedCount: number;
+    totalTourRevenueContributedUsd: number;
+    totalDeclaredGrossProfitGeneratedUsd: number;
+    totalCommissionEarnedUsd: number;
+    totalCommissionEarnedLkr: number;
+    pendingCommissionUsd: number;
+    approvedCommissionUsd: number;
+    paidCommissionUsd: number;
+    directCommissionEarnedUsd: number;
+    leadershipCommissionEarnedUsd: number;
+    teamDevCommissionEarnedUsd: number;
+    averageMultiplier: number;
+    currentRatingLabel: string;
+    progression: {
+        currentRoleLabel: string;
+        nextRoleLabel: string;
+        overallProgressPct: number;
+        toursCompleted: number;
+        targetTours: number;
+        grossProfitUsd: number;
+        targetGrossProfitUsd: number;
+        qualifiedMenteesCount: number;
+        targetMenteesCount: number;
+    };
+    allocationsHistory: Array<{
+        allocation: ITourCommissionAllocationRecord;
+        tourCode: string | null;
+        tourTitle: string;
+        tourCommissionStatus: string;
+        declaredGrossProfitUsd: number;
+        calculatedAt: string;
+    }>;
+}
+
+export interface IManagementCommissionDashboardData {
+    totalCompletedTours: number;
+    totalCommissionedTours: number;
+    totalTourRevenueUsd: number;
+    totalDeclaredGrossProfitUsd: number;
+    totalCommissionLiabilityUsd: number;
+    totalCommissionLiabilityLkr: number;
+    totalCommissionPaidUsd: number;
+    totalCommissionPendingUsd: number;
+    totalCommissionApprovedUsd: number;
+    totalCompanyRetainedGrossProfitUsd: number;
+    totalUnallocatedAndCappedReturnedUsd: number;
+    directPoolTotalUsd: number;
+    leadershipPoolTotalUsd: number;
+    teamDevPoolTotalUsd: number;
+    employeeRankings: Array<{
+        userId: string;
+        name: string;
+        role: string;
+        roleLabel: string;
+        supervisorName: string | null;
+        toursManaged: number;
+        toursSupported: number;
+        declaredGpGeneratedUsd: number;
+        directCommissionUsd: number;
+        leadershipCommissionUsd: number;
+        teamDevCommissionUsd: number;
+        totalCommissionUsd: number;
+        totalCommissionLkr: number;
+        paidCommissionUsd: number;
+        pendingCommissionUsd: number;
+    }>;
+}
+
+
+
 
 
 
