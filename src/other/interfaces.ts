@@ -1028,6 +1028,8 @@ export interface IEmployeeCommissionDashboardData {
         allocation: ITourCommissionAllocationRecord;
         tourCode: string | null;
         tourTitle: string;
+        leadAgentName: string;
+        leadAgentRoleLabel: string;
         tourCommissionStatus: string;
         declaredGrossProfitUsd: number;
         calculatedAt: string;

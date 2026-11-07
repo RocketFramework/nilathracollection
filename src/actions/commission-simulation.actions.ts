@@ -1,5 +1,7 @@
 "use server";
 
+import { createClient } from "@/utils/supabase/server";
+import { createAdminClient } from "@/utils/supabase/admin";
 import { CommissionSimulationService } from "@/services/commission-simulation.service";
 import {
     CommissionRuleConfigDTO,
@@ -10,14 +12,50 @@ import {
     TourFinancialReferenceDTO
 } from "@/dtos/commission-simulation.dto";
 
+async function verifyIsAdminUser(): Promise<boolean> {
+    const supabase = await createClient();
+    const {
+        data: { user }
+    } = await supabase.auth.getUser();
+    if (!user) return false;
+
+    if (user.user_metadata?.role === "admin") return true;
+
+    const adminClient = createAdminClient();
+    const { data: adminProfile } = await adminClient
+        .from("admin_profiles")
+        .select("id")
+        .eq("id", user.id)
+        .maybeSingle();
+
+    if (adminProfile) return true;
+
+    const { data: userRoleRows } = await adminClient
+        .from("user_roles")
+        .select("roles(name)")
+        .eq("user_id", user.id);
+
+    return (userRoleRows || []).some((r: any) => r?.roles?.name === "admin");
+}
+
 export async function getSimulationInitialDataAction(): Promise<{
     success: boolean;
+    unauthorized?: boolean;
     tours?: TourFinancialReferenceDTO[];
     employees?: SimulationEmployeeDTO[];
     defaultRules?: CommissionRuleConfigDTO;
     error?: string;
 }> {
     try {
+        const isAdmin = await verifyIsAdminUser();
+        if (!isAdmin) {
+            return {
+                success: false,
+                unauthorized: true,
+                error: "Access denied. The Commission Simulator is restricted to Administrators only."
+            };
+        }
+
         const [tours, employees] = await Promise.all([
             CommissionSimulationService.getRealToursForSimulation(),
             CommissionSimulationService.getEmployeesForSimulation()

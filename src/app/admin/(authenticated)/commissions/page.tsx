@@ -79,7 +79,7 @@ export default function CommissionManagementPage() {
     const [saving, setSaving] = useState(false);
     const [feedbackMsg, setFeedbackMsg] = useState<{ type: "success" | "error"; text: string } | null>(null);
 
-    const [activeTab, setActiveTab] = useState<"workspace" | "employee" | "management" | "rules">("workspace");
+    const [activeTab, setActiveTab] = useState<"workspace" | "employee" | "management" | "rules">("employee");
 
     // Workspace State
     const [currentUser, setCurrentUser] = useState<{
@@ -140,12 +140,18 @@ export default function CommissionManagementPage() {
                 `v${res.data.activeRuleVersion.versionNumber + 1}.0 — Updated Commission & Cap Policy`
             );
 
-            if (!selectedEmployeeId) {
-                const defaultEmp =
-                    res.data.employees.find((e) => e.userId === res.data!.currentUser.id)?.userId ||
-                    res.data.employees[0]?.userId ||
-                    "";
-                setSelectedEmployeeId(defaultEmp);
+            if (res.data.currentUser.role === "admin") {
+                setActiveTab((prev) => prev || "workspace");
+                if (!selectedEmployeeId) {
+                    const defaultEmp =
+                        res.data.employees.find((e) => e.userId === res.data!.currentUser.id)?.userId ||
+                        res.data.employees[0]?.userId ||
+                        "";
+                    setSelectedEmployeeId(defaultEmp);
+                }
+            } else {
+                setActiveTab("employee");
+                setSelectedEmployeeId(res.data.currentUser.id);
             }
 
             if (!selectedTourId && res.data.toursFinancialReferences.length > 0) {
@@ -418,9 +424,11 @@ export default function CommissionManagementPage() {
         }
     };
 
+    const isAdmin = currentUser?.role === "admin";
+
     if (loading) {
         return (
-            <div className="p-10 flex items-center justify-center text-neutral-500 gap-2 text-sm">
+            <div className="max-w-7xl mx-auto p-10 flex items-center justify-center text-neutral-500 gap-2 text-sm">
                 <RefreshCw size={16} className="animate-spin text-brand-gold" />
                 Loading Employee Hierarchy &amp; Tour Commission Management System...
             </div>
@@ -428,50 +436,47 @@ export default function CommissionManagementPage() {
     }
 
     return (
-        <div className="space-y-6 pb-16">
+        <div className="max-w-7xl mx-auto p-6 md:p-10 space-y-6 animate-in fade-in duration-300">
             {/* Page Header */}
             <div className="bg-brand-charcoal text-white rounded-2xl p-6 shadow-md border border-neutral-800 flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
                 <div className="space-y-1.5">
                     <div className="flex items-center gap-2">
                         <span className="px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-widest bg-brand-gold/20 text-brand-gold border border-brand-gold/40">
-                            Active Policy: v{activeRuleVersion.versionNumber}.0 ({activeRuleVersion.rules.poolPercentage}% GP Pool)
+                            {isAdmin
+                                ? `Active Policy: v${activeRuleVersion.versionNumber}.0 (${activeRuleVersion.rules.poolPercentage}% GP Pool)`
+                                : `Active Commission Policy: v${activeRuleVersion.versionNumber}.0`}
                         </span>
                         <span className="px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-widest bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">
-                            Anti-MLM &amp; Per-Agent Cap Enforced
+                            Performance &amp; Career Incentive Program
                         </span>
                     </div>
                     <h1 className="text-2xl font-bold font-playfair tracking-tight">
-                        Employee Hierarchy &amp; Tour Commission Management
+                        {isAdmin
+                            ? "Employee Hierarchy & Tour Commission Management"
+                            : "Employee Personal Commission & Career Progression Dashboard"}
                     </h1>
                     <p className="text-xs text-neutral-300 max-w-3xl">
-                        Calculate, approve, and audit profit-based tour commissions from Admin-Entered Declared Gross Profit, track 7-level career progression, and manage versioned commission policies.
+                        {isAdmin
+                            ? "Calculate, approve, and audit profit-based tour commissions from Admin-Entered Declared Gross Profit, track 7-level career progression, and manage versioned commission policies."
+                            : "Track your current designation, reporting line, team members, tour commission earnings, and progress towards your next career level."}
                     </p>
                 </div>
 
-                <div className="flex flex-wrap items-center gap-2">
-                    <Link
-                        href="/admin/commission-simulator"
-                        className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-bold bg-white/10 text-white hover:bg-white/20 transition-all"
-                    >
-                        <Calculator size={14} className="text-brand-gold" />
-                        Open Sandbox Simulator
-                    </Link>
-                </div>
+                {isAdmin && (
+                    <div className="flex flex-wrap items-center gap-2">
+                        <Link
+                            href="/admin/commission-simulator"
+                            className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-bold bg-white/10 text-white hover:bg-white/20 transition-all"
+                        >
+                            <Calculator size={14} className="text-brand-gold" />
+                            Open Sandbox Simulator
+                        </Link>
+                    </div>
+                )}
             </div>
 
             {/* Navigation Tabs */}
             <div className="flex flex-wrap items-center gap-2 bg-white p-2 rounded-2xl border border-neutral-200 shadow-xs">
-                <button
-                    onClick={() => setActiveTab("workspace")}
-                    className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-bold transition-all ${
-                        activeTab === "workspace"
-                            ? "bg-brand-charcoal text-white shadow-xs"
-                            : "text-neutral-600 hover:bg-neutral-100"
-                    }`}
-                >
-                    <DollarSign size={15} className={activeTab === "workspace" ? "text-brand-gold" : ""} />
-                    1. Tour Commission Calculation &amp; Approval
-                </button>
                 <button
                     onClick={() => setActiveTab("employee")}
                     className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-bold transition-all ${
@@ -481,30 +486,46 @@ export default function CommissionManagementPage() {
                     }`}
                 >
                     <Award size={15} className={activeTab === "employee" ? "text-brand-gold" : ""} />
-                    2. Employee Personal &amp; Career Dashboard
+                    Employee Personal Commission &amp; Career Progression Dashboard
                 </button>
-                <button
-                    onClick={() => setActiveTab("management")}
-                    className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-bold transition-all ${
-                        activeTab === "management"
-                            ? "bg-brand-charcoal text-white shadow-xs"
-                            : "text-neutral-600 hover:bg-neutral-100"
-                    }`}
-                >
-                    <TrendingUp size={15} className={activeTab === "management" ? "text-brand-gold" : ""} />
-                    3. Management &amp; Liability Dashboard
-                </button>
-                <button
-                    onClick={() => setActiveTab("rules")}
-                    className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-bold transition-all ${
-                        activeTab === "rules"
-                            ? "bg-brand-charcoal text-white shadow-xs"
-                            : "text-neutral-600 hover:bg-neutral-100"
-                    }`}
-                >
-                    <Settings size={15} className={activeTab === "rules" ? "text-brand-gold" : ""} />
-                    4. Versioned Rules &amp; Role Caps Admin
-                </button>
+
+                {isAdmin && (
+                    <>
+                        <button
+                            onClick={() => setActiveTab("workspace")}
+                            className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-bold transition-all ${
+                                activeTab === "workspace"
+                                    ? "bg-brand-charcoal text-white shadow-xs"
+                                    : "text-neutral-600 hover:bg-neutral-100"
+                            }`}
+                        >
+                            <DollarSign size={15} className={activeTab === "workspace" ? "text-brand-gold" : ""} />
+                            Tour Commission Calculation &amp; Approval
+                        </button>
+                        <button
+                            onClick={() => setActiveTab("management")}
+                            className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-bold transition-all ${
+                                activeTab === "management"
+                                    ? "bg-brand-charcoal text-white shadow-xs"
+                                    : "text-neutral-600 hover:bg-neutral-100"
+                            }`}
+                        >
+                            <TrendingUp size={15} className={activeTab === "management" ? "text-brand-gold" : ""} />
+                            Management &amp; Liability Dashboard
+                        </button>
+                        <button
+                            onClick={() => setActiveTab("rules")}
+                            className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-bold transition-all ${
+                                activeTab === "rules"
+                                    ? "bg-brand-charcoal text-white shadow-xs"
+                                    : "text-neutral-600 hover:bg-neutral-100"
+                            }`}
+                        >
+                            <Settings size={15} className={activeTab === "rules" ? "text-brand-gold" : ""} />
+                            Versioned Rules &amp; Role Caps Admin
+                        </button>
+                    </>
+                )}
             </div>
 
             {feedbackMsg && (
@@ -526,9 +547,9 @@ export default function CommissionManagementPage() {
             )}
 
             {/* ===================================================================
-                TAB 1: TOUR COMMISSION CALCULATION & APPROVAL WORKSPACE
+                TAB 1: TOUR COMMISSION CALCULATION & APPROVAL WORKSPACE (Admin Only)
                =================================================================== */}
-            {activeTab === "workspace" && (
+            {isAdmin && activeTab === "workspace" && (
                 <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
                     {/* Left Column: Tour Selection, Declared Gross Profit & Contributors (5 cols) */}
                     <div className="lg:col-span-5 space-y-6">
@@ -1273,20 +1294,22 @@ export default function CommissionManagementPage() {
                             </div>
                         </div>
 
-                        <div className="flex items-center gap-2">
-                            <span className="text-xs font-bold text-neutral-500">Inspect Employee:</span>
-                            <select
-                                value={selectedEmployeeId}
-                                onChange={(e) => setSelectedEmployeeId(e.target.value)}
-                                className="bg-neutral-50 border border-neutral-200 rounded-xl px-3 py-2 text-xs font-bold text-brand-charcoal"
-                            >
-                                {employees.map((emp) => (
-                                    <option key={emp.userId} value={emp.userId}>
-                                        {emp.name} — {emp.roleLabel}
-                                    </option>
-                                ))}
-                            </select>
-                        </div>
+                        {isAdmin && (
+                            <div className="flex items-center gap-2">
+                                <span className="text-xs font-bold text-neutral-500">Inspect Employee:</span>
+                                <select
+                                    value={selectedEmployeeId}
+                                    onChange={(e) => setSelectedEmployeeId(e.target.value)}
+                                    className="bg-neutral-50 border border-neutral-200 rounded-xl px-3 py-2 text-xs font-bold text-brand-charcoal"
+                                >
+                                    {employees.map((emp) => (
+                                        <option key={emp.userId} value={emp.userId}>
+                                            {emp.name} — {emp.roleLabel}
+                                        </option>
+                                    ))}
+                                </select>
+                            </div>
+                        )}
                     </div>
 
                     {/* Top Profile + Career Progress Banner */}
@@ -1379,7 +1402,7 @@ export default function CommissionManagementPage() {
                                 />
                             </div>
 
-                            <div className="grid grid-cols-3 gap-3 text-xs pt-1">
+                            <div className={`grid ${isAdmin ? "grid-cols-3" : "grid-cols-2"} gap-3 text-xs pt-1`}>
                                 <div className="p-3 rounded-xl bg-neutral-50 border border-neutral-200">
                                     <span className="text-[10px] text-neutral-400 uppercase font-bold block">
                                         Tours Managed
@@ -1389,15 +1412,17 @@ export default function CommissionManagementPage() {
                                         {selectedEmployeeDashboard.progression.targetTours}
                                     </span>
                                 </div>
-                                <div className="p-3 rounded-xl bg-neutral-50 border border-neutral-200">
-                                    <span className="text-[10px] text-neutral-400 uppercase font-bold block">
-                                        Declared GP Generated
-                                    </span>
-                                    <span className="font-mono font-bold text-sm text-brand-charcoal">
-                                        ${selectedEmployeeDashboard.progression.grossProfitUsd.toLocaleString()} / $
-                                        {selectedEmployeeDashboard.progression.targetGrossProfitUsd.toLocaleString()}
-                                    </span>
-                                </div>
+                                {isAdmin && (
+                                    <div className="p-3 rounded-xl bg-neutral-50 border border-neutral-200">
+                                        <span className="text-[10px] text-neutral-400 uppercase font-bold block">
+                                            Declared GP Generated
+                                        </span>
+                                        <span className="font-mono font-bold text-sm text-brand-charcoal">
+                                            ${selectedEmployeeDashboard.progression.grossProfitUsd.toLocaleString()} / $
+                                            {selectedEmployeeDashboard.progression.targetGrossProfitUsd.toLocaleString()}
+                                        </span>
+                                    </div>
+                                )}
                                 <div className="p-3 rounded-xl bg-neutral-50 border border-neutral-200">
                                     <span className="text-[10px] text-neutral-400 uppercase font-bold block">
                                         Mentored Active Agents
@@ -1412,7 +1437,11 @@ export default function CommissionManagementPage() {
                     </div>
 
                     {/* Financial KPIs for Employee */}
-                    <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-4">
+                    <div
+                        className={`grid grid-cols-2 sm:grid-cols-3 ${
+                            isAdmin ? "lg:grid-cols-7" : "lg:grid-cols-6"
+                        } gap-4`}
+                    >
                         <div className="bg-white rounded-2xl border border-neutral-200 p-4 shadow-xs">
                             <span className="text-[10px] font-bold uppercase text-neutral-400 block">
                                 Tours Managed / Supported
@@ -1422,36 +1451,78 @@ export default function CommissionManagementPage() {
                                 {selectedEmployeeDashboard.toursSupportedCount}
                             </span>
                         </div>
-                        <div className="bg-white rounded-2xl border border-neutral-200 p-4 shadow-xs">
-                            <span className="text-[10px] font-bold uppercase text-neutral-400 block">
-                                Revenue Contributed
-                            </span>
-                            <span className="text-xl font-extrabold font-mono text-brand-charcoal mt-1 block">
-                                ${selectedEmployeeDashboard.totalTourRevenueContributedUsd.toLocaleString()}
-                            </span>
-                        </div>
-                        <div className="bg-white rounded-2xl border border-neutral-200 p-4 shadow-xs">
-                            <span className="text-[10px] font-bold uppercase text-neutral-400 block">
-                                Gross Profit Generated
+                        {isAdmin && (
+                            <>
+                                <div className="bg-white rounded-2xl border border-neutral-200 p-4 shadow-xs">
+                                    <span className="text-[10px] font-bold uppercase text-neutral-400 block">
+                                        Revenue Contributed
+                                    </span>
+                                    <span className="text-xl font-extrabold font-mono text-brand-charcoal mt-1 block">
+                                        ${selectedEmployeeDashboard.totalTourRevenueContributedUsd.toLocaleString()}
+                                    </span>
+                                </div>
+                                <div className="bg-white rounded-2xl border border-neutral-200 p-4 shadow-xs">
+                                    <span className="text-[10px] font-bold uppercase text-neutral-400 block">
+                                        Gross Profit Generated
+                                    </span>
+                                    <span className="text-xl font-extrabold font-mono text-emerald-800 mt-1 block">
+                                        ${selectedEmployeeDashboard.totalDeclaredGrossProfitGeneratedUsd.toLocaleString()}
+                                    </span>
+                                </div>
+                            </>
+                        )}
+                        <div className="bg-white rounded-2xl border border-emerald-200 p-4 shadow-xs">
+                            <span className="text-[10px] font-bold uppercase text-emerald-700 block">
+                                Personal Direct Commission
                             </span>
                             <span className="text-xl font-extrabold font-mono text-emerald-800 mt-1 block">
-                                ${selectedEmployeeDashboard.totalDeclaredGrossProfitGeneratedUsd.toLocaleString()}
+                                ${selectedEmployeeDashboard.directCommissionEarnedUsd.toLocaleString()}
+                            </span>
+                            <span className="text-[10px] text-neutral-400 block">
+                                From own managed tours
                             </span>
                         </div>
+                        <div className="bg-white rounded-2xl border border-blue-200 p-4 shadow-xs">
+                            <span className="text-[10px] font-bold uppercase text-blue-700 block">
+                                Subordinate Commission
+                            </span>
+                            <span className="text-xl font-extrabold font-mono text-blue-800 mt-1 block">
+                                $
+                                {(
+                                    selectedEmployeeDashboard.leadershipCommissionEarnedUsd +
+                                    selectedEmployeeDashboard.teamDevCommissionEarnedUsd
+                                ).toLocaleString()}
+                            </span>
+                            <span className="text-[10px] text-neutral-400 block">
+                                Via mentoring &amp; supervision
+                            </span>
+                        </div>
+                        {!isAdmin && (
+                            <div className="bg-white rounded-2xl border border-neutral-200 p-4 shadow-xs">
+                                <span className="text-[10px] font-bold uppercase text-brand-charcoal block">
+                                    Total Commission Earned
+                                </span>
+                                <span className="text-xl font-extrabold font-mono text-brand-charcoal mt-1 block">
+                                    ${selectedEmployeeDashboard.totalCommissionEarnedUsd.toLocaleString()}
+                                </span>
+                                <span className="text-[10px] font-mono text-neutral-500 block">
+                                    LKR {selectedEmployeeDashboard.totalCommissionEarnedLkr.toLocaleString()}
+                                </span>
+                            </div>
+                        )}
                         <div className="bg-white rounded-2xl border border-neutral-200 p-4 shadow-xs">
                             <span className="text-[10px] font-bold uppercase text-amber-700 block">
-                                Pending Commission
+                                Pending / Approved
                             </span>
                             <span className="text-xl font-extrabold font-mono text-amber-700 mt-1 block">
-                                ${selectedEmployeeDashboard.pendingCommissionUsd.toLocaleString()}
+                                $
+                                {(
+                                    selectedEmployeeDashboard.pendingCommissionUsd +
+                                    selectedEmployeeDashboard.approvedCommissionUsd
+                                ).toLocaleString()}
                             </span>
-                        </div>
-                        <div className="bg-white rounded-2xl border border-neutral-200 p-4 shadow-xs">
-                            <span className="text-[10px] font-bold uppercase text-blue-700 block">
-                                Approved Commission
-                            </span>
-                            <span className="text-xl font-extrabold font-mono text-blue-700 mt-1 block">
-                                ${selectedEmployeeDashboard.approvedCommissionUsd.toLocaleString()}
+                            <span className="text-[10px] font-mono text-neutral-400 block">
+                                Approved: ${selectedEmployeeDashboard.approvedCommissionUsd.toLocaleString()}
                             </span>
                         </div>
                         <div className="bg-brand-charcoal text-white rounded-2xl p-4 shadow-xs">
@@ -1468,16 +1539,16 @@ export default function CommissionManagementPage() {
                     <div className="bg-white rounded-2xl border border-neutral-200 shadow-xs overflow-hidden">
                         <div className="px-6 py-4 border-b border-neutral-100">
                             <h3 className="text-sm font-bold text-brand-charcoal">
-                                Transparent Commission Calculation History
+                                Commission Calculation History (Personal &amp; Subordinate Tours)
                             </h3>
                             <p className="text-xs text-neutral-400">
-                                Every commission allocation for {selectedEmployeeDashboard.employee.name} with exact formula breakdown.
+                                Shows both personal direct tour commissions and leadership commissions earned through subordinates for {selectedEmployeeDashboard.employee.name}.
                             </p>
                         </div>
 
                         {selectedEmployeeDashboard.allocationsHistory.length === 0 ? (
                             <div className="p-8 text-center text-xs text-neutral-400">
-                                No commission allocations recorded for this employee yet. Calculate &amp; save a tour commission in Tab 1 to populate this history.
+                                No commission allocations recorded for this employee yet.
                             </div>
                         ) : (
                             <div className="overflow-x-auto">
@@ -1485,54 +1556,80 @@ export default function CommissionManagementPage() {
                                     <thead className="bg-neutral-50 text-neutral-500 uppercase text-[10px] font-bold border-b border-neutral-200">
                                         <tr>
                                             <th className="px-5 py-3">Tour</th>
+                                            <th className="px-4 py-3">Source / Subordinate</th>
                                             <th className="px-4 py-3">Status</th>
                                             <th className="px-4 py-3">Reward Type</th>
-                                            <th className="px-4 py-3 text-right">Declared GP</th>
+                                            {isAdmin && <th className="px-4 py-3 text-right">Declared GP</th>}
                                             <th className="px-4 py-3 text-right">Share %</th>
                                             <th className="px-4 py-3 text-center">Multiplier</th>
                                             <th className="px-4 py-3 text-right">Cap Applied</th>
                                             <th className="px-4 py-3 text-right">Final Earned (USD)</th>
+                                            <th className="px-4 py-3 text-right">Final Earned (LKR)</th>
                                             <th className="px-5 py-3">Calculation Notes</th>
                                         </tr>
                                     </thead>
                                     <tbody className="divide-y divide-neutral-100">
-                                        {selectedEmployeeDashboard.allocationsHistory.map((item, idx) => (
-                                            <tr key={item.allocation.id + idx} className="hover:bg-neutral-50/70">
-                                                <td className="px-5 py-3 font-bold text-brand-charcoal">
-                                                    {item.tourCode ? `[${item.tourCode}] ` : ""}
-                                                    {item.tourTitle}
-                                                </td>
-                                                <td className="px-4 py-3">
-                                                    <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-neutral-100 text-neutral-800">
-                                                        {item.tourCommissionStatus}
-                                                    </span>
-                                                </td>
-                                                <td className="px-4 py-3 font-mono text-[11px]">
-                                                    {item.allocation.allocationType.replace(/_/g, " ")}
-                                                </td>
-                                                <td className="px-4 py-3 text-right font-mono">
-                                                    ${item.declaredGrossProfitUsd.toLocaleString()}
-                                                </td>
-                                                <td className="px-4 py-3 text-right font-mono font-bold">
-                                                    {item.allocation.sharePercentage}%
-                                                </td>
-                                                <td className="px-4 py-3 text-center font-mono">
-                                                    {item.allocation.appliedMultiplier.toFixed(2)}x
-                                                </td>
-                                                <td className="px-4 py-3 text-right font-mono">
-                                                    {item.allocation.appliedCapUsd !== null &&
-                                                    item.allocation.appliedCapUsd !== undefined
-                                                        ? `$${item.allocation.appliedCapUsd}`
-                                                        : "Uncapped"}
-                                                </td>
-                                                <td className="px-4 py-3 text-right font-mono font-extrabold text-emerald-800">
-                                                    ${item.allocation.finalAmountUsd.toFixed(2)}
-                                                </td>
-                                                <td className="px-5 py-3 text-[11px] text-neutral-500">
-                                                    {item.allocation.eligibilityNotes}
-                                                </td>
-                                            </tr>
-                                        ))}
+                                        {selectedEmployeeDashboard.allocationsHistory.map((item, idx) => {
+                                            const isDirect = item.allocation.allocationType === "DIRECT";
+                                            return (
+                                                <tr key={item.allocation.id + idx} className="hover:bg-neutral-50/70">
+                                                    <td className="px-5 py-3 font-bold text-brand-charcoal">
+                                                        {item.tourCode ? `[${item.tourCode}] ` : ""}
+                                                        {item.tourTitle}
+                                                    </td>
+                                                    <td className="px-4 py-3">
+                                                        {isDirect ? (
+                                                            <span className="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold bg-emerald-50 text-emerald-800 border border-emerald-200">
+                                                                Personal Tour
+                                                            </span>
+                                                        ) : (
+                                                            <div>
+                                                                <span className="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold bg-blue-50 text-blue-800 border border-blue-200">
+                                                                    Subordinate: {item.leadAgentName}
+                                                                </span>
+                                                                <span className="block text-[10px] text-neutral-400 mt-0.5">
+                                                                    {item.leadAgentRoleLabel}
+                                                                </span>
+                                                            </div>
+                                                        )}
+                                                    </td>
+                                                    <td className="px-4 py-3">
+                                                        <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-neutral-100 text-neutral-800">
+                                                            {item.tourCommissionStatus}
+                                                        </span>
+                                                    </td>
+                                                    <td className="px-4 py-3 font-mono text-[11px]">
+                                                        {item.allocation.allocationType.replace(/_/g, " ")}
+                                                    </td>
+                                                    {isAdmin && (
+                                                        <td className="px-4 py-3 text-right font-mono">
+                                                            ${item.declaredGrossProfitUsd.toLocaleString()}
+                                                        </td>
+                                                    )}
+                                                    <td className="px-4 py-3 text-right font-mono font-bold">
+                                                        {item.allocation.sharePercentage}%
+                                                    </td>
+                                                    <td className="px-4 py-3 text-center font-mono">
+                                                        {item.allocation.appliedMultiplier.toFixed(2)}x
+                                                    </td>
+                                                    <td className="px-4 py-3 text-right font-mono">
+                                                        {item.allocation.appliedCapUsd !== null &&
+                                                        item.allocation.appliedCapUsd !== undefined
+                                                            ? `$${item.allocation.appliedCapUsd}`
+                                                            : "Uncapped"}
+                                                    </td>
+                                                    <td className="px-4 py-3 text-right font-mono font-extrabold text-emerald-800">
+                                                        ${item.allocation.finalAmountUsd.toFixed(2)}
+                                                    </td>
+                                                    <td className="px-4 py-3 text-right font-mono text-neutral-600">
+                                                        LKR {item.allocation.finalAmountLkr.toLocaleString()}
+                                                    </td>
+                                                    <td className="px-5 py-3 text-[11px] text-neutral-500">
+                                                        {item.allocation.eligibilityNotes}
+                                                    </td>
+                                                </tr>
+                                            );
+                                        })}
                                     </tbody>
                                 </table>
                             </div>
@@ -1542,9 +1639,9 @@ export default function CommissionManagementPage() {
             )}
 
             {/* ===================================================================
-                TAB 3: MANAGEMENT & LIABILITY DASHBOARD (Section 9)
+                TAB 3: MANAGEMENT & LIABILITY DASHBOARD (Section 9 — Admin Only)
                =================================================================== */}
-            {activeTab === "management" && (
+            {isAdmin && activeTab === "management" && (
                 <div className="space-y-6">
                     {/* Filter Bar */}
                     <div className="bg-white rounded-2xl border border-neutral-200 p-5 shadow-xs flex flex-wrap items-center justify-between gap-4">
@@ -1709,9 +1806,9 @@ export default function CommissionManagementPage() {
             )}
 
             {/* ===================================================================
-                TAB 4: VERSIONED COMMISSION RULES & ROLE CAPS ADMIN (Section 10)
+                TAB 4: VERSIONED COMMISSION RULES & ROLE CAPS ADMIN (Section 10 — Admin Only)
                =================================================================== */}
-            {activeTab === "rules" && (
+            {isAdmin && activeTab === "rules" && (
                 <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
                     <div className="lg:col-span-7 bg-white rounded-2xl border border-neutral-200 p-6 shadow-xs space-y-6">
                         <div className="border-b border-neutral-100 pb-4">

@@ -2,12 +2,34 @@
 
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/utils/supabase/server";
+import { createAdminClient } from "@/utils/supabase/admin";
 import { CommissionService } from "@/services/commission.service";
 import {
     ICommissionRuleConfig,
     IProgressionCriterion,
     ISaveTourCommissionPayload
 } from "@/other/interfaces";
+
+async function checkIsAdmin(user: { id: string; user_metadata?: any } | null): Promise<boolean> {
+    if (!user) return false;
+    if (user.user_metadata?.role === "admin") return true;
+
+    const adminClient = createAdminClient();
+    const { data: adminProfile } = await adminClient
+        .from("admin_profiles")
+        .select("id")
+        .eq("id", user.id)
+        .maybeSingle();
+
+    if (adminProfile) return true;
+
+    const { data: userRoleRows } = await adminClient
+        .from("user_roles")
+        .select("roles(name)")
+        .eq("user_id", user.id);
+
+    return (userRoleRows || []).some((r: any) => r?.roles?.name === "admin");
+}
 
 export async function getCommissionWorkspaceInitialDataAction() {
     try {
@@ -16,7 +38,8 @@ export async function getCommissionWorkspaceInitialDataAction() {
             data: { user }
         } = await supabase.auth.getUser();
 
-        const dto = await CommissionService.getWorkspaceInitialData(user);
+        const isAdmin = await checkIsAdmin(user);
+        const dto = await CommissionService.getWorkspaceInitialData(user, isAdmin);
         return { success: true, data: dto.toPlainObject() };
     } catch (error: any) {
         return {
@@ -32,6 +55,14 @@ export async function saveTourCommissionAction(payload: ISaveTourCommissionPaylo
         const {
             data: { user }
         } = await supabase.auth.getUser();
+
+        const isAdmin = await checkIsAdmin(user);
+        if (!isAdmin) {
+            return {
+                success: false,
+                error: "Only Administrators can calculate, approve, or modify tour commissions."
+            };
+        }
 
         const fullName = user?.user_metadata?.first_name
             ? `${user.user_metadata.first_name} ${user.user_metadata.last_name || ""}`.trim()
@@ -64,6 +95,14 @@ export async function publishNewCommissionRuleVersionAction(params: {
         const {
             data: { user }
         } = await supabase.auth.getUser();
+
+        const isAdmin = await checkIsAdmin(user);
+        if (!isAdmin) {
+            return {
+                success: false,
+                error: "Only Administrators can publish or modify commission rule versions."
+            };
+        }
 
         const created = await CommissionService.createNewRuleVersion({
             ...params,

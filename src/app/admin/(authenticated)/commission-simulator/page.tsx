@@ -53,6 +53,8 @@ const ROLE_SHORT_LABELS: Record<string, string> = {
 };
 
 export default function CommissionSimulatorPage() {
+    const [authChecking, setAuthChecking] = useState<boolean>(true);
+    const [isAdminAuthorized, setIsAdminAuthorized] = useState<boolean>(false);
     const [activeTab, setActiveTab] = useState<"sandbox" | "matrix" | "career">("sandbox");
     const [realTours, setRealTours] = useState<TourFinancialReferenceDTO[]>([]);
     const [employees, setEmployees] = useState<SimulationEmployeeDTO[]>([]);
@@ -108,6 +110,13 @@ export default function CommissionSimulatorPage() {
 
     useEffect(() => {
         getSimulationInitialDataAction().then((res) => {
+            if (res.unauthorized) {
+                setIsAdminAuthorized(false);
+                setAuthChecking(false);
+                return;
+            }
+            setIsAdminAuthorized(true);
+            setAuthChecking(false);
             if (res.success) {
                 if (res.tours) setRealTours(res.tours);
                 if (res.employees) setEmployees(res.employees);
@@ -261,6 +270,28 @@ export default function CommissionSimulatorPage() {
         () => realTours.find((t) => t.tourId === selectedTourId) || null,
         [realTours, selectedTourId]
     );
+
+    if (authChecking) {
+        return (
+            <div className="max-w-4xl mx-auto p-12 text-center text-sm text-neutral-500">
+                Verifying Administrator permissions...
+            </div>
+        );
+    }
+
+    if (!isAdminAuthorized) {
+        return (
+            <div className="max-w-xl mx-auto mt-16 p-8 bg-white rounded-2xl border border-red-200 shadow-xs text-center space-y-3">
+                <AlertTriangle size={32} className="text-red-600 mx-auto" />
+                <h2 className="text-lg font-bold font-playfair text-brand-charcoal">
+                    Administrator Access Only
+                </h2>
+                <p className="text-xs text-neutral-500">
+                    The Commission &amp; Hierarchy Economic Simulator (<code>/admin/commission-simulator</code>) is restricted to Administrators only.
+                </p>
+            </div>
+        );
+    }
 
     return (
         <div className="max-w-7xl mx-auto p-6 md:p-10 space-y-8 animate-in fade-in duration-300">

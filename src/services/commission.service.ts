@@ -902,11 +902,23 @@ export class CommissionService {
                 toursSupportedCount++;
             }
 
+            const primaryDirectAlloc = tc.allocations.find(
+                (a) => a.allocationType === "DIRECT"
+            );
+            const resolvedLeadName =
+                primaryDirectAlloc?.recipientName || tc.leadAgentName || "Assigned Agent";
+            const resolvedLeadRoleLabel =
+                primaryDirectAlloc?.roleLabel ||
+                ROLE_LABELS_MAP[tc.leadAgentRole] ||
+                "Agent";
+
             for (const alloc of myAllocs) {
                 allocationsHistory.push({
                     allocation: alloc,
                     tourCode: tc.tourCode,
                     tourTitle: tc.tourTitle,
+                    leadAgentName: resolvedLeadName,
+                    leadAgentRoleLabel: resolvedLeadRoleLabel,
                     tourCommissionStatus: tc.status,
                     declaredGrossProfitUsd: tc.declaredGrossProfitUsd,
                     calculatedAt: tc.calculatedAt
@@ -1157,11 +1169,14 @@ export class CommissionService {
     /**
      * Loads the complete initial workspace state for `/admin/commissions`.
      */
-    static async getWorkspaceInitialData(user?: {
-        id: string;
-        email?: string;
-        user_metadata?: any;
-    } | null): Promise<CommissionWorkspaceInitialDataDTO> {
+    static async getWorkspaceInitialData(
+        user?: {
+            id: string;
+            email?: string;
+            user_metadata?: any;
+        } | null,
+        isAdmin: boolean = false
+    ): Promise<CommissionWorkspaceInitialDataDTO> {
         const [allRuleVersions, employees, toursFinancialReferences] = await Promise.all([
             this.getRuleVersions(),
             this.getEmployeeHierarchyNodes(),
@@ -1169,12 +1184,9 @@ export class CommissionService {
         ]);
 
         const matchedEmployee = user ? employees.find((e) => e.userId === user.id) : null;
-        const role = matchedEmployee?.role || user?.user_metadata?.role || "admin";
-        const isAdminOrFinance =
-            role === "admin" ||
-            role === "finance" ||
-            role === "principal_supervisor" ||
-            role === "executive_supervisor";
+        const role = isAdmin
+            ? "admin"
+            : matchedEmployee?.role || user?.user_metadata?.role || "agent";
 
         const currentUser = {
             id: user?.id || "admin",
@@ -1186,7 +1198,7 @@ export class CommissionService {
             email: user?.email || "",
             role,
             roleLabel: ROLE_LABELS_MAP[role] || role,
-            isAdminOrFinance
+            isAdminOrFinance: isAdmin
         };
 
         const activeRuleVersion =
