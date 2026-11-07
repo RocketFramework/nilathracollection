@@ -196,7 +196,8 @@ import {
   saveTourExpenseAction,
   getNextPoNumberAction,
   getTourCodeAction,
-  deleteTourExpenseAction
+  deleteTourExpenseAction,
+  getUserRoleAction
 } from '@/actions/admin.actions';
 import { SaveTourConciergeItemDTO } from '@/dtos/tour-concierge.dto';
 import { MasterDataService, SeamlessConciergeCostItem } from '@/services/master-data.service';
@@ -1812,7 +1813,10 @@ function PlannerWizardWorkspace() {
               double_room_count = totalRooms;
             }
 
+            const hasExplicitBuilderRate = Array.isArray(acc.selectedRooms) && acc.selectedRooms.length > 0 && acc.selectedRooms.some((r: any) => r.pricePerNight !== undefined && r.pricePerNight !== null);
             const unitPrice = totalRooms > 0 ? totalAgreedPrice / totalRooms : 0;
+            const nextChargedUnitPrice = hasExplicitBuilderRate ? unitPrice : act.charged_unit_price;
+            const nextChargedTotalPrice = hasExplicitBuilderRate ? totalAgreedPrice : act.charged_total_price;
             const newRoomId = acc.roomId || (acc.selectedRooms?.[0]?.roomId) || null;
 
             let finalContractedUnitPrice = totalRooms > 0 ? totalContractedPrice / totalRooms : 0;
@@ -1834,6 +1838,8 @@ function PlannerWizardWorkspace() {
               act.meal_plan !== mealPlan ||
               act.location_name !== newLocationName ||
               act.description !== expectedDescription ||
+              act.charged_unit_price !== nextChargedUnitPrice ||
+              act.charged_total_price !== nextChargedTotalPrice ||
               act.single_room_id !== single_room_id ||
               act.single_room_count !== single_room_count ||
               act.double_room_id !== double_room_id ||
@@ -1854,6 +1860,8 @@ function PlannerWizardWorkspace() {
                 meal_plan: mealPlan,
                 location_name: newLocationName,
                 description: expectedDescription,
+                charged_unit_price: nextChargedUnitPrice,
+                charged_total_price: nextChargedTotalPrice,
                 single_room_id,
                 single_room_count,
                 double_room_id,
@@ -3008,6 +3016,9 @@ function PlannerWizardWorkspace() {
     },
   ], []);
 
+  // Role-based access for Finance Controlling and Profit & Loss steps (Admin & Finance only)
+  const [canAccessFinanceSteps, setCanAccessFinanceSteps] = useState<boolean>(false);
+
   // Dynamically compute the active steps for Final Track based on element selections
   const finalSteps: StepItem[] = useMemo(() => {
     const list: StepItem[] = [
@@ -3085,29 +3096,33 @@ function PlannerWizardWorkspace() {
 
     // Core operational flow steps
     list.push(
-
       {
         id: 'payment-receive',
         label: 'Collect Tourist Payment',
         description: 'Record client deposit receipts and configure installment schedules.',
         icon: CircleDollarSign
-      },
-      {
-        id: 'finance-controlling',
-        label: 'Finance Controlling',
-        description: 'Perform hotel invoice reconciliation, match line-items, and handle supplier disbursements.',
-        icon: Receipt
-      },
-      {
-        id: 'profit-loss',
-        label: 'Profit & Loss Analysis',
-        description: 'Perform real-time yield audits, analyze actual margins, and close tour accounting.',
-        icon: TrendingUp
       }
     );
 
+    if (canAccessFinanceSteps) {
+      list.push(
+        {
+          id: 'finance-controlling',
+          label: 'Finance Controlling',
+          description: 'Perform hotel invoice reconciliation, match line-items, and handle supplier disbursements.',
+          icon: Receipt
+        },
+        {
+          id: 'profit-loss',
+          label: 'Profit & Loss Analysis',
+          description: 'Perform real-time yield audits, analyze actual margins, and close tour accounting.',
+          icon: TrendingUp
+        }
+      );
+    }
+
     return list;
-  }, [elements]);
+  }, [elements, canAccessFinanceSteps]);
 
   // Determine current active steps array & index
   const activeSteps = track === 'basic' ? basicSteps : finalSteps;
@@ -3755,6 +3770,10 @@ function PlannerWizardWorkspace() {
         }
 
         // 3. Apply restored values or default fallback
+        const roleRes = await getUserRoleAction().catch(() => null);
+        const canAccessFinance = roleRes?.actualRole === 'admin' || roleRes?.actualRole === 'finance' || roleRes?.role === 'admin';
+        setCanAccessFinanceSteps(canAccessFinance);
+
         let finalTrack = urlTrack || restoredTrack || 'basic';
         let finalBasicIdx = restoredBasicIdx;
         let finalFinalIdx = restoredFinalIdx;
@@ -3774,31 +3793,31 @@ function PlannerWizardWorkspace() {
 
         setElements(activeElements);
 
+        const localBasicSteps = [
+          'tourist-data',
+          'activity-selection',
+          'ai-builder',
+          'concierge-config',
+          'share-tourist'
+        ];
+        const localFinalSteps = [
+          'element-selection',
+          'po-creation',
+          activeElements.hotel && 'hotel-selection',
+          activeElements.activity && 'activity-provider',
+          activeElements.restaurant && 'restaurant-selection',
+          activeElements.transport && 'transport-provider',
+          activeElements.security && 'security-service',
+          activeElements.guide && 'guide-selection',
+          activeElements.driver && 'driver-selection',
+          'payment-receive',
+          canAccessFinance && 'finance-controlling',
+          canAccessFinance && 'profit-loss'
+        ].filter(Boolean) as string[];
+
         // 4. If URL specifies a step, decode its index with precedence
         if (urlTrack && (urlTrack === 'basic' || urlTrack === 'final') && urlStep) {
           finalTrack = urlTrack;
-
-          const localBasicSteps = [
-            'tourist-data',
-            'activity-selection',
-            'ai-builder',
-            'concierge-config',
-            'share-tourist'
-          ];
-          const localFinalSteps = [
-            'element-selection',
-            'po-creation',
-            activeElements.hotel && 'hotel-selection',
-            activeElements.activity && 'activity-provider',
-            activeElements.restaurant && 'restaurant-selection',
-            activeElements.transport && 'transport-provider',
-            activeElements.security && 'security-service',
-            activeElements.guide && 'guide-selection',
-            activeElements.driver && 'driver-selection',
-            'payment-receive',
-            'finance-controlling',
-            'profit-loss'
-          ].filter(Boolean) as string[];
 
           if (urlTrack === 'basic') {
             const idx = localBasicSteps.indexOf(urlStep);
@@ -3807,6 +3826,11 @@ function PlannerWizardWorkspace() {
             const idx = localFinalSteps.indexOf(urlStep);
             if (idx !== -1) finalFinalIdx = idx;
           }
+        }
+
+        // Clamp final step index so restricted roles cannot land on hidden finance steps from saved state
+        if (localFinalSteps.length > 0 && finalFinalIdx >= localFinalSteps.length) {
+          finalFinalIdx = localFinalSteps.length - 1;
         }
 
         setTrack(finalTrack);
@@ -9211,7 +9235,7 @@ ${chauffeurHtml}
     setElements(nextElements);
 
     // 2. Compute the new final steps length
-    let newStepsCount = 5; // Unconditional steps: element-selection, po-creation, payment-receive, finance-controlling, profit-loss
+    let newStepsCount = canAccessFinanceSteps ? 5 : 3; // Unconditional steps: element-selection, po-creation, payment-receive (+ finance-controlling, profit-loss for admin/finance)
     if (nextElements.hotel) newStepsCount++;
     if (nextElements.activity) newStepsCount++;
     if (nextElements.restaurant) newStepsCount++;
@@ -11682,6 +11706,52 @@ ${chauffeurHtml}
                           return firstA - firstB;
                         });
 
+                        // Pre-index AI Builder sleep blocks and accommodations by day number for O(1) lookup (zero extra DB/network calls)
+                        const sleepBlockByDay = new Map<number, any>();
+                        (itinerary || []).forEach((b: any) => {
+                          if (b.type === 'sleep' && b.dayNumber != null) {
+                            sleepBlockByDay.set(Number(b.dayNumber), b);
+                          }
+                        });
+                        const accByNight = new Map<number, any>();
+                        (tripData?.accommodations || []).forEach((a: any) => {
+                          if (a.nightIndex != null) {
+                            accByNight.set(Number(a.nightIndex), a);
+                          }
+                        });
+
+                        // Resolve the exact AI Builder charged unit & total for a stay (matches AI Builder's selectedRooms[].pricePerNight table)
+                        const resolveAiBuilderStayCharged = (stay: any): { unit: number | null; total: number | null } => {
+                          if (stay?.activity_type !== 'sleep') {
+                            const u = stay?.charged_unit_price != null ? Number(stay.charged_unit_price) : null;
+                            const t = stay?.charged_total_price != null ? Number(stay.charged_total_price) : (u != null ? u * (Number(stay?.quantity) || 1) : null);
+                            return { unit: u, total: t };
+                          }
+                          const dayNum = Number(stay.tour_itineraries?.day_number || stay.day_number || stay.dayNumber || 0);
+                          const acc = accByNight.get(dayNum);
+                          const itinBlock = sleepBlockByDay.get(dayNum);
+                          const selRooms: any[] = acc?.selectedRooms || itinBlock?.selectedRooms || (stay as any).selectedRooms || (stay as any).selected_rooms || [];
+                          if (Array.isArray(selRooms) && selRooms.length > 0 && selRooms.some((r: any) => r.pricePerNight !== undefined && r.pricePerNight !== null)) {
+                            const totalQty = selRooms.reduce((s: number, r: any) => s + (Number(r.quantity) || 1), 0);
+                            const totalVal = selRooms.reduce((s: number, r: any) => {
+                              const rate = r.pricePerNight !== undefined && r.pricePerNight !== null ? Number(r.pricePerNight) : 0;
+                              return s + rate * (Number(r.quantity) || 1);
+                            }, 0);
+                            return {
+                              unit: totalQty > 0 ? totalVal / totalQty : totalVal,
+                              total: totalVal
+                            };
+                          }
+                          if (itinBlock?.baseRoomRate !== undefined && itinBlock?.baseRoomRate !== null) {
+                            const qty = Number(stay.quantity) || 1;
+                            const u = Number(itinBlock.baseRoomRate);
+                            return { unit: u, total: u * qty };
+                          }
+                          const u = stay.charged_unit_price != null ? Number(stay.charged_unit_price) : null;
+                          const t = stay.charged_total_price != null ? Number(stay.charged_total_price) : (u != null ? u * (Number(stay.quantity) || 1) : null);
+                          return { unit: u, total: t };
+                        };
+
                         const formatDate = (dateStr: string) => {
                           if (!dateStr) return '';
                           try {
@@ -11741,12 +11811,28 @@ ${chauffeurHtml}
                                       </span>
                                     )}
                                     {(() => {
-                                      const blockTotalValue = blockActivities.reduce((sum: number, act: any) => sum + (Number(act.contracted_total_price ?? act.charged_total_price) || 0), 0);
+                                      const blockChargedTotal = blockActivities.reduce(
+                                        (sum: number, act: any) => sum + (resolveAiBuilderStayCharged(act).total || 0),
+                                        0
+                                      );
+                                      const hasContractedAny = blockActivities.some(
+                                        (act: any) => act.contracted_total_price != null && Number(act.contracted_total_price) > 0
+                                      );
+                                      const blockContractedTotal = blockActivities.reduce(
+                                        (sum: number, act: any) => sum + (Number(act.contracted_total_price) || 0),
+                                        0
+                                      );
                                       return (
-                                        <span className="px-2.5 py-0.5 bg-emerald-50 text-emerald-855 border border-emerald-200 text-[10px] font-extrabold rounded-full flex items-center gap-1">
-                                          <span className="text-[9px] font-bold text-neutral-400 uppercase tracking-wider">Total:</span>
-                                          <span className="font-mono font-bold">${blockTotalValue.toFixed(2)}</span>
-                                        </span>
+                                        <>
+                                          <span className="px-2.5 py-0.5 bg-amber-50 text-amber-800 border border-amber-200 text-[10px] font-extrabold rounded-full flex items-center gap-1" title="Total Charged Price set in AI Builder">
+                                            <span className="text-[9px] font-bold text-amber-600 uppercase tracking-wider">AI Builder (Charged):</span>
+                                            <span className="font-mono font-bold">${blockChargedTotal.toFixed(2)}</span>
+                                          </span>
+                                          <span className="px-2.5 py-0.5 bg-emerald-50 text-emerald-855 border border-emerald-200 text-[10px] font-extrabold rounded-full flex items-center gap-1" title="Total Contracted Cost negotiated in Final Track">
+                                            <span className="text-[9px] font-bold text-neutral-400 uppercase tracking-wider">Contracted (Cost):</span>
+                                            <span className="font-mono font-bold">{hasContractedAny ? `$${blockContractedTotal.toFixed(2)}` : 'Not negotiated'}</span>
+                                          </span>
+                                        </>
                                       );
                                     })()}
                                     <div className="flex items-center gap-2 ml-2">
@@ -11892,14 +11978,144 @@ ${chauffeurHtml}
                                 </div>
                               </div>
 
+                              {/* AI Builder Hotel Booking Specifications (Read-Only Summary from Basic Track) */}
+                              {standardStays.length > 0 && (() => {
+                                const firstStay = standardStays[0];
+                                const firstDayNum = Number(firstStay?.tour_itineraries?.day_number || firstStay?.day_number || firstStay?.dayNumber || 0);
+                                const firstItinBlock = sleepBlockByDay.get(firstDayNum);
+                                const firstAcc = accByNight.get(firstDayNum);
+
+                                const plannedHotelName = firstItinBlock?.hotelName || firstAcc?.hotelName || hotel?.name || firstStay?.title || 'Not specified';
+                                const plannedLocation = firstItinBlock?.locationName || firstStay?.location_name || firstAcc?.address || hotel?.closest_city || 'Not specified';
+                                const plannedNotes = firstItinBlock?.internalNotes || firstStay?.description || '';
+
+                                return (
+                                  <div className="bg-amber-50/40 border border-amber-200/70 rounded-2xl p-4 space-y-3 shadow-2xs">
+                                    <div className="flex items-center justify-between border-b border-amber-200/60 pb-2 flex-wrap gap-2">
+                                      <h5 className="text-[10px] font-black text-amber-900 uppercase tracking-wider flex items-center gap-1.5">
+                                        <BrainCircuit className="w-3.5 h-3.5 text-amber-700" />
+                                        AI Builder Booking Specifications
+                                      </h5>
+                                      <span className="text-[9px] font-bold text-amber-800 bg-amber-100/80 px-2 py-0.5 rounded-md border border-amber-200 uppercase tracking-wider">
+                                        AI Builder Defined
+                                      </span>
+                                    </div>
+
+                                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 text-xs">
+                                      <div className="space-y-0.5">
+                                        <span className="text-[9px] font-bold text-neutral-450 uppercase tracking-tight block">Planned Hotel Name</span>
+                                        <span className="font-bold text-neutral-800">{plannedHotelName}</span>
+                                      </div>
+                                      <div className="space-y-0.5">
+                                        <span className="text-[9px] font-bold text-neutral-450 uppercase tracking-tight block">Location / City</span>
+                                        <span className="font-bold text-neutral-800">{plannedLocation}</span>
+                                      </div>
+                                      <div className="space-y-0.5">
+                                        <span className="text-[9px] font-bold text-neutral-450 uppercase tracking-tight block">Stay Duration</span>
+                                        <span className="font-bold text-neutral-800">{standardStays.length} Night{standardStays.length > 1 ? 's' : ''}</span>
+                                      </div>
+                                    </div>
+
+                                    {plannedNotes && (
+                                      <div className="text-[10px] text-neutral-600 bg-white/80 px-3 py-2 rounded-xl border border-amber-200/50">
+                                        <span className="font-bold text-amber-800 uppercase text-[9px] mr-1.5">AI Builder Notes:</span>
+                                        <span>{plannedNotes}</span>
+                                      </div>
+                                    )}
+
+                                    {/* Per-Night Room Options Breakdown from AI Builder */}
+                                    <div className="space-y-2 pt-1">
+                                      {standardStays.map((stay: any) => {
+                                        const dayNum = Number(stay.tour_itineraries?.day_number || stay.day_number || stay.dayNumber || 0);
+                                        const dateVal = stay.tour_itineraries?.date;
+                                        const itinBlock = sleepBlockByDay.get(dayNum);
+                                        const acc = accByNight.get(dayNum);
+                                        const selRooms: any[] = (stay as any).selectedRooms || (stay as any).selected_rooms || acc?.selectedRooms || itinBlock?.selectedRooms || [];
+
+                                        const fallbackRooms: Array<{ category: string; mealPlan: string; qty: number; rate: number | null }> = [];
+                                        if (!Array.isArray(selRooms) || selRooms.length === 0) {
+                                          const mp = stay.meal_plan || itinBlock?.mealPlan || acc?.mealPlan || 'BB';
+                                          const unitCharged = stay.charged_unit_price != null ? Number(stay.charged_unit_price) : null;
+                                          const sizeDefs = [
+                                            { key: 'single_room_count', label: 'Single Room' },
+                                            { key: 'double_room_count', label: 'Double Room' },
+                                            { key: 'twin_room_count', label: 'Twin Room' },
+                                            { key: 'triple_room_count', label: 'Triple Room' },
+                                            { key: 'family_room_count', label: 'Family Room' },
+                                          ];
+                                          sizeDefs.forEach(sd => {
+                                            const c = Number((stay as any)[sd.key] || 0);
+                                            if (c > 0) {
+                                              fallbackRooms.push({ category: sd.label, mealPlan: mp, qty: c, rate: unitCharged });
+                                            }
+                                          });
+                                          if (fallbackRooms.length === 0) {
+                                            fallbackRooms.push({
+                                              category: itinBlock?.roomName || acc?.roomName || stay.room_name || 'Standard Room',
+                                              mealPlan: mp,
+                                              qty: Number(stay.quantity) || 1,
+                                              rate: unitCharged
+                                            });
+                                          }
+                                        }
+
+                                        const aiCharged = resolveAiBuilderStayCharged(stay);
+                                        const displayRooms = (Array.isArray(selRooms) && selRooms.length > 0)
+                                          ? selRooms.map((sr: any) => ({
+                                              category: sr.roomName || sr.room_name || sr.reqId || sr.roomStandard || 'Room',
+                                              mealPlan: sr.mealPlan || stay.meal_plan || itinBlock?.mealPlan || 'BB',
+                                              qty: Number(sr.quantity) || 1,
+                                              rate: sr.pricePerNight != null ? Number(sr.pricePerNight) : aiCharged.unit
+                                            }))
+                                          : fallbackRooms;
+
+                                        return (
+                                          <div key={`ai-spec-${stay.id}`} className="bg-white rounded-xl border border-amber-200/60 px-3 py-2 flex flex-col sm:flex-row sm:items-center justify-between gap-2 text-[11px]">
+                                            <div className="flex items-center gap-2 flex-wrap">
+                                              <span className="px-2 py-0.5 bg-amber-100 text-amber-900 font-mono text-[10px] font-bold rounded-md">
+                                                {dateVal ? formatDate(dateVal) : `Day ${dayNum}`}
+                                              </span>
+                                              {displayRooms.map((dr, idx) => (
+                                                <span key={idx} className="inline-flex items-center gap-1.5 bg-neutral-50 border border-neutral-200 px-2 py-0.5 rounded-lg text-[10px] font-bold text-neutral-700">
+                                                  <span>{dr.qty}x {dr.category}</span>
+                                                  <span className="px-1.5 py-0.2 bg-indigo-50 text-indigo-700 rounded text-[9px] font-mono">{dr.mealPlan}</span>
+                                                  {dr.rate != null && (
+                                                    <span className="font-mono text-amber-800">${dr.rate.toFixed(2)}/night</span>
+                                                  )}
+                                                </span>
+                                              ))}
+                                            </div>
+                                            <div className="flex items-center gap-4 text-right font-mono text-[10px] shrink-0">
+                                              <div>
+                                                <span className="text-neutral-400 uppercase mr-1">Charged Unit:</span>
+                                                <span className="font-bold text-neutral-700">
+                                                  {aiCharged.unit != null ? `$${aiCharged.unit.toFixed(2)}` : '—'}
+                                                </span>
+                                              </div>
+                                              <div>
+                                                <span className="text-amber-700 uppercase mr-1 font-bold">Charged Total:</span>
+                                                <span className="font-extrabold text-amber-900">
+                                                  {aiCharged.total != null ? `$${aiCharged.total.toFixed(2)}` : '—'}
+                                                </span>
+                                              </div>
+                                            </div>
+                                          </div>
+                                        );
+                                      })}
+                                    </div>
+                                  </div>
+                                );
+                              })()}
+
                               {/* Nights Detail Rows */}
-                              {hotel && standardStays.length > 0 && (
+                              {standardStays.length > 0 && (
                                 <div className="divide-y divide-neutral-150">
                                   {standardStays.map((stay: any) => {
-                                    const room = hotel.hotel_rooms?.find((r: any) => r.id === stay.hotel_room_id);
-                                    const dayNum = stay.tour_itineraries?.day_number || stay.day_number || stay.dayNumber || 0;
+                                    const room = hotel?.hotel_rooms?.find((r: any) => r.id === stay.hotel_room_id);
+                                    const dayNum = Number(stay.tour_itineraries?.day_number || stay.day_number || stay.dayNumber || 0);
                                     const dateVal = stay.tour_itineraries?.date;
-                                    const acc = tripData?.accommodations?.find(a => Number(a.nightIndex) === Number(dayNum));
+                                    const acc = accByNight.get(dayNum);
+                                    const itinBlock = sleepBlockByDay.get(dayNum);
                                     const hasCustomRate = acc && (acc.customContractedUnitPrice !== undefined || acc.customContractedTotalPrice !== undefined);
                                     return (
                                       <div key={stay.id} className="flex flex-col sm:flex-row sm:items-center justify-between py-3 gap-3">
@@ -11910,7 +12126,6 @@ ${chauffeurHtml}
                                           <div>
                                             <span className="text-xs font-bold text-neutral-800 block">
                                               {(() => {
-                                                const itinBlock = itinerary.find((b: any) => b.type === 'sleep' && Number(b.dayNumber) === Number(dayNum));
                                                 const selRooms = (stay as any).selectedRooms || (stay as any).selected_rooms || (acc as any)?.selectedRooms || (itinBlock as any)?.selectedRooms;
                                                 const selNames = Array.isArray(selRooms)
                                                   ? selRooms.map((r: any) => r.roomName || r.room_name || r.name || r.roomStandard || r.room_standard).filter(Boolean).join(', ')
@@ -11928,9 +12143,9 @@ ${chauffeurHtml}
                                                 {stay.title}
                                               </span>
                                             )}
-                                            {(acc?.customRateNote || stay.description) && (
+                                            {(acc?.customRateNote || stay.description || itinBlock?.internalNotes) && (
                                               <span className="text-[10px] text-amber-600 italic block mt-0.5 font-medium">
-                                                Note: {acc?.customRateNote || stay.description}
+                                                Note: {acc?.customRateNote || stay.description || itinBlock?.internalNotes}
                                               </span>
                                             )}
                                             <div className="flex flex-wrap items-center gap-2 mt-1">
@@ -11957,9 +12172,9 @@ ${chauffeurHtml}
                                                   </span>
                                                 ));
                                               })()}
-                                              {stay.meal_plan && (
+                                              {(stay.meal_plan || itinBlock?.mealPlan || acc?.mealPlan) && (
                                                 <span className="px-2 py-0.5 bg-indigo-50 border border-indigo-150 text-indigo-700 font-bold rounded text-[9px] uppercase tracking-wider">
-                                                  {stay.meal_plan}
+                                                  {stay.meal_plan || itinBlock?.mealPlan || acc?.mealPlan}
                                                 </span>
                                               )}
                                               {room?.breakfast_included && (
@@ -11977,29 +12192,48 @@ ${chauffeurHtml}
                                           </div>
                                         </div>
 
-                                        <div className="flex items-center justify-between sm:justify-end gap-6 text-xs text-neutral-600 font-semibold self-stretch sm:self-auto">
+                                        <div className="flex items-center justify-between sm:justify-end gap-5 text-xs text-neutral-600 font-semibold self-stretch sm:self-auto flex-wrap">
                                           <div className="flex items-center gap-1.5 bg-white border border-neutral-200 px-2 py-1 rounded-lg text-[10px] shadow-sm">
                                             <span className="text-neutral-400">Qty:</span>
                                             <span className="text-neutral-700 font-bold">{stay.quantity || 1}</span>
                                           </div>
-                                          {(stay.contracted_price ?? stay.charged_unit_price) !== undefined && (stay.contracted_price ?? stay.charged_unit_price) !== null && (
-                                            <div className="text-right">
-                                              <span className="text-[9px] text-neutral-400 uppercase block font-mono">Unit Rate (Cost)</span>
-                                              <span className="font-mono text-neutral-600 font-bold">${Number(stay.contracted_price ?? stay.charged_unit_price).toFixed(2)}</span>
-                                              {stay.contracted_fx_rate != null && stay.contracted_unit_price_lkr != null && (
-                                                <span className="font-mono text-[9px] text-amber-700 font-bold block">LKR {Number(stay.contracted_unit_price_lkr).toLocaleString('en-LK', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} @ {Number(stay.contracted_fx_rate)}</span>
-                                              )}
-                                            </div>
-                                          )}
-                                          {(stay.contracted_total_price ?? stay.charged_total_price) !== undefined && (stay.contracted_total_price ?? stay.charged_total_price) !== null && (
-                                            <div className="text-right">
-                                              <span className="text-[9px] text-emerald-605 uppercase block font-mono">Total Rate (Cost)</span>
-                                              <span className="font-mono text-emerald-850 font-bold">${Number(stay.contracted_total_price ?? stay.charged_total_price).toFixed(2)}</span>
-                                              {stay.contracted_fx_rate != null && stay.contracted_total_price_lkr != null && (
-                                                <span className="font-mono text-[9px] text-amber-700 font-bold block">LKR {Number(stay.contracted_total_price_lkr).toLocaleString('en-LK', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} @ {Number(stay.contracted_fx_rate)}</span>
-                                              )}
-                                            </div>
-                                          )}
+                                          {(() => {
+                                            const aiCharged = resolveAiBuilderStayCharged(stay);
+                                            if (aiCharged.unit === null) return null;
+                                            return (
+                                              <div className="text-right">
+                                                <span className="text-[9px] text-amber-600 uppercase block font-mono">AI Builder (Charged)</span>
+                                                <span className="font-mono text-amber-800 font-bold">
+                                                  ${aiCharged.unit.toFixed(2)}
+                                                  {aiCharged.total != null && (
+                                                    <span className="text-[10px] text-amber-700 font-normal"> (Tot: ${aiCharged.total.toFixed(2)})</span>
+                                                  )}
+                                                </span>
+                                              </div>
+                                            );
+                                          })()}
+                                          <div className="text-right">
+                                            <span className="text-[9px] text-neutral-400 uppercase block font-mono">Unit Rate (Cost)</span>
+                                            <span className="font-mono text-neutral-600 font-bold">
+                                              {stay.contracted_price !== undefined && stay.contracted_price !== null
+                                                ? `$${Number(stay.contracted_price).toFixed(2)}`
+                                                : 'Not negotiated'}
+                                            </span>
+                                            {stay.contracted_fx_rate != null && stay.contracted_unit_price_lkr != null && (
+                                              <span className="font-mono text-[9px] text-amber-700 font-bold block">LKR {Number(stay.contracted_unit_price_lkr).toLocaleString('en-LK', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} @ {Number(stay.contracted_fx_rate)}</span>
+                                            )}
+                                          </div>
+                                          <div className="text-right">
+                                            <span className="text-[9px] text-emerald-605 uppercase block font-mono">Total Rate (Cost)</span>
+                                            <span className="font-mono text-emerald-850 font-bold">
+                                              {stay.contracted_total_price !== undefined && stay.contracted_total_price !== null
+                                                ? `$${Number(stay.contracted_total_price).toFixed(2)}`
+                                                : 'Not negotiated'}
+                                            </span>
+                                            {stay.contracted_fx_rate != null && stay.contracted_total_price_lkr != null && (
+                                              <span className="font-mono text-[9px] text-amber-700 font-bold block">LKR {Number(stay.contracted_total_price_lkr).toLocaleString('en-LK', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} @ {Number(stay.contracted_fx_rate)}</span>
+                                            )}
+                                          </div>
                                           <button
                                             type="button"
                                             onClick={() => handleOpenCustomRateModal(stay)}
@@ -16481,7 +16715,7 @@ ${chauffeurHtml}
                         })}
                     </div>
                   </div>
-                ) : track === 'final' && currentStep.id === 'finance-controlling' ? (
+                ) : track === 'final' && canAccessFinanceSteps && currentStep.id === 'finance-controlling' ? (
                   <div className="bg-white rounded-2xl sm:rounded-3xl p-4 sm:p-6 lg:p-8 border border-neutral-200 shadow-md animate-in fade-in slide-in-from-bottom-3 duration-300 space-y-6">
                     <div className="border-b border-neutral-100 pb-4 mb-6">
                       <h3 className="text-xl font-serif font-bold text-neutral-800 flex items-center gap-2">
@@ -19619,7 +19853,7 @@ ${chauffeurHtml}
                       </div>
                     )}
                   </div>
-                ) : track === 'final' && currentStep.id === 'profit-loss' ? (
+                ) : track === 'final' && canAccessFinanceSteps && currentStep.id === 'profit-loss' ? (
                   <div className="bg-white rounded-2xl sm:rounded-3xl p-4 sm:p-6 lg:p-8 border border-neutral-200 shadow-md animate-in fade-in slide-in-from-bottom-3 duration-300 space-y-8">
                     {/* Step Header */}
                       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-neutral-100 pb-6">
@@ -25750,6 +25984,7 @@ function AIItineraryBuilder({
           const acc = tripData?.accommodations?.find((a: any) => Number(a.nightIndex) === dayB);
           const da = (dbActivities || []).find((a: any) => a.id === b.id || a.itinerary_id === b.id || (Number(a.tour_itineraries?.day_number || a.day_number || a.dayNumber) === dayB && a.activity_type === 'sleep'));
 
+          const hasExplicitSelectedRoomsRate = (acc?.selectedRooms || []).some((r: any) => r.pricePerNight !== undefined && r.pricePerNight !== null);
           const selectedRoomsTotal = (acc?.selectedRooms || []).reduce((rSum: number, r: any) => {
             const rRate = r.pricePerNight !== undefined && r.pricePerNight !== null ? Number(r.pricePerNight) : Number(r.contractedPrice || 0);
             const rQty = Number(r.quantity || 1);
@@ -25757,11 +25992,13 @@ function AIItineraryBuilder({
           }, 0);
 
           let rate = 0;
-          if (selectedRoomsTotal > 0 && acc?.hotelId && b.hotelId && acc.hotelId === b.hotelId) {
+          if (hasExplicitSelectedRoomsRate && (!acc?.hotelId || !b.hotelId || acc.hotelId === b.hotelId)) {
+            rate = selectedRoomsTotal;
+          } else if (selectedRoomsTotal > 0 && acc?.hotelId && b.hotelId && acc.hotelId === b.hotelId) {
             rate = selectedRoomsTotal;
           } else if (b.agreedPrice !== undefined && b.agreedPrice !== null && Number(b.agreedPrice) > 0) {
             rate = Number(b.agreedPrice);
-          } else if (selectedRoomsTotal > 0) {
+          } else if (hasExplicitSelectedRoomsRate || selectedRoomsTotal > 0) {
             rate = selectedRoomsTotal;
           } else if (acc?.customContractedTotalPrice !== undefined && acc?.customContractedTotalPrice !== null && Number(acc.customContractedTotalPrice) > 0) {
             rate = Number(acc.customContractedTotalPrice);
@@ -26538,19 +26775,26 @@ function AIItineraryBuilder({
         targetRoom.mealPlan = value;
       } else if (field === 'quantity') {
         targetRoom.quantity = Number(value) || 1;
+        if (targetRoom.pricePerNight !== undefined && targetRoom.pricePerNight !== null) {
+          targetRoom.agreedTotal = Number(targetRoom.pricePerNight) * targetRoom.quantity;
+        }
       } else if (field === 'pricePerNight' || field === 'rate') {
         targetRoom.pricePerNight = value !== '' ? Number(value) : 0;
+        targetRoom.agreedTotal = targetRoom.pricePerNight * (Number(targetRoom.quantity) || 1);
       }
       selectedRooms[roomIdx] = targetRoom;
     }
 
+    const totalRoomsQty = selectedRooms.reduce((sum: number, r: any) => sum + Number(r.quantity || 1), 0);
     const totalSelectedRoomsCost = selectedRooms.reduce((sum: number, r: any) => {
-      const rRate = r.pricePerNight !== undefined && r.pricePerNight !== null ? Number(r.pricePerNight) : Number(r.contractedPrice || 0);
+      const rRate = r.pricePerNight !== undefined && r.pricePerNight !== null ? Number(r.pricePerNight) : 0;
       const rQty = Number(r.quantity || 1);
       return sum + (rRate * rQty);
     }, 0);
+    const avgRoomRate = totalRoomsQty > 0 ? totalSelectedRoomsCost / totalRoomsQty : 0;
 
     currentAcc.selectedRooms = selectedRooms;
+    currentAcc.pricePerNight = avgRoomRate;
 
     const updatedAccs = [...accs];
     if (accIndex === -1) {
@@ -26561,15 +26805,15 @@ function AIItineraryBuilder({
 
     setTripData((prev: any) => prev ? { ...prev, accommodations: updatedAccs } : prev);
 
-    if (totalSelectedRoomsCost > 0 || selectedRooms.length > 0) {
+    if (selectedRooms.length > 0) {
       setItinerary(prev => prev.map(b => {
         if (b.type === ItineraryBlockTypes.SLEEP && Number(b.dayNumber) === Number(dayNum)) {
           return {
             ...b,
             selectedRooms: selectedRooms,
-            agreedPrice: totalSelectedRoomsCost > 0 ? totalSelectedRoomsCost : b.agreedPrice,
-            baseRoomRate: selectedRooms[0]?.pricePerNight !== undefined ? Number(selectedRooms[0].pricePerNight) : b.baseRoomRate,
-            priceFinalized: totalSelectedRoomsCost > 0 ? true : b.priceFinalized
+            agreedPrice: totalSelectedRoomsCost,
+            baseRoomRate: avgRoomRate,
+            priceFinalized: true
           };
         }
         return b;

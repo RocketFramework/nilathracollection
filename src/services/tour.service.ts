@@ -1088,9 +1088,12 @@ export class TourService {
                                 totalContractedPrice += (room as any).contractedPrice * room.quantity;
                             }
 
-                            // Calculate agreed price dynamically using fetched markup
+                            // Calculate agreed price: explicit AI-builder room rate (pricePerNight, including 0) is authoritative
+                            const explicitRoomRate = (room.pricePerNight !== undefined && room.pricePerNight !== null) ? Number(room.pricePerNight) : null;
                             const dynamicAgreedUnit = baseContractedUnit * (1 + (roomMarkup / 100));
-                            const roomAgreedTotal = (room as any).agreedTotal !== undefined ? (room as any).agreedTotal : (dynamicAgreedUnit * room.quantity);
+                            const roomAgreedTotal = explicitRoomRate !== null
+                                ? (explicitRoomRate * Number(room.quantity || 1))
+                                : ((room as any).agreedTotal !== undefined ? Number((room as any).agreedTotal) : (dynamicAgreedUnit * room.quantity));
                             totalAgreedPrice += roomAgreedTotal;
                             
                             // Mutate the original room object so it persists to JSON for the Negotiation UI
@@ -1111,16 +1114,17 @@ export class TourService {
                         }
 
                         basePayload.quantity = totalRooms > 0 ? totalRooms : 1;
-                        // SINGLE SOURCE OF TRUTH (charged): the AI-builder room rate (selectedRooms[].pricePerNight).
+                        // SINGLE SOURCE OF TRUTH (charged): the AI-builder room rate (selectedRooms[].pricePerNight), including when explicitly 0.
                         // block.agreedPrice is only a derived mirror and must never override it.
+                        const hasExplicitBuilderRate = acc.selectedRooms.some((r: any) => r.pricePerNight !== undefined && r.pricePerNight !== null);
                         const builderChargedTotal = acc.selectedRooms.reduce((sum: number, r: any) => {
-                            const rate = r.pricePerNight !== undefined && r.pricePerNight !== null ? Number(r.pricePerNight) : Number(r.contractedPrice || 0);
+                            const rate = r.pricePerNight !== undefined && r.pricePerNight !== null ? Number(r.pricePerNight) : 0;
                             return sum + rate * Number(r.quantity || 1);
                         }, 0);
-                        if (builderChargedTotal > 0) {
+                        if (hasExplicitBuilderRate) {
                             basePayload.charged_total_price = builderChargedTotal;
                             basePayload.charged_unit_price = basePayload.quantity > 0 ? builderChargedTotal / basePayload.quantity : builderChargedTotal;
-                        } else if (b.agreedPrice !== undefined && b.agreedPrice !== null && Number(b.agreedPrice) > 0) {
+                        } else if (b.agreedPrice !== undefined && b.agreedPrice !== null) {
                             basePayload.charged_total_price = Number(b.agreedPrice);
                             basePayload.charged_unit_price = basePayload.quantity > 0 ? Number(b.agreedPrice) / basePayload.quantity : Number(b.agreedPrice);
                         } else {
@@ -1152,6 +1156,10 @@ export class TourService {
                         }
                         
                         b.agreedPrice = basePayload.charged_total_price ?? undefined;
+                        if (hasExplicitBuilderRate && basePayload.charged_unit_price !== null) {
+                            b.baseRoomRate = basePayload.charged_unit_price;
+                            acc.pricePerNight = basePayload.charged_unit_price;
+                        }
                         activitiesToInsert.push(basePayload);
                     } else if (acc) {
                         // Legacy single-room fallback mapping targeting standard double default
@@ -1167,12 +1175,15 @@ export class TourService {
                         basePayload.double_room_count = assumedQty;
                         basePayload.quantity = assumedQty;
                         
-                        if (b.agreedPrice !== undefined && b.agreedPrice !== null && Number(b.agreedPrice) > 0) {
+                        if (acc.pricePerNight !== undefined && acc.pricePerNight !== null) {
+                            basePayload.charged_unit_price = Number(acc.pricePerNight);
+                            basePayload.charged_total_price = Number(acc.pricePerNight) * assumedQty;
+                        } else if (b.agreedPrice !== undefined && b.agreedPrice !== null) {
                             basePayload.charged_total_price = Number(b.agreedPrice);
                             basePayload.charged_unit_price = assumedQty > 0 ? Number(b.agreedPrice) / assumedQty : Number(b.agreedPrice);
                         } else {
-                            basePayload.charged_unit_price = acc.pricePerNight || null;
-                            basePayload.charged_total_price = (acc.pricePerNight && assumedQty) ? acc.pricePerNight * assumedQty : null;
+                            basePayload.charged_unit_price = null;
+                            basePayload.charged_total_price = null;
                         }
                         
                         // Apply custom contracted overrides if present (e.g. special buying rates)
