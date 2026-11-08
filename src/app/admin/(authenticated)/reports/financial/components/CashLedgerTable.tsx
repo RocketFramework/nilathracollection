@@ -3,6 +3,7 @@
 import React, { useMemo, useState } from "react";
 import { FinanceLedgerDTO } from "@/dtos/finance-report.dto";
 import AccountingDocumentModal, { AccountingDocModalData } from "./AccountingDocumentModal";
+import { viewStoredAttachment, downloadStoredAttachment } from "@/utils/accounting-documents-client";
 
 const fmt = (n: number) => n.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 const dash = <span className="text-[#9CA3AF]">&mdash;</span>;
@@ -61,7 +62,6 @@ export default function CashLedgerTable({ ledger }: { ledger: FinanceLedgerDTO }
 
     const totals = useMemo(() => {
         const side = (kind: "customer" | "supplier") => {
-            // "supplier" side = money paid out: supplier payments plus miscellaneous tour expenses
             const r = rows.filter(x => (kind === "customer" ? x.kind === "customer" : x.kind !== "customer"));
             return {
                 count: r.length,
@@ -98,7 +98,6 @@ export default function CashLedgerTable({ ledger }: { ledger: FinanceLedgerDTO }
                 "USD Equivalent",
                 "LKR Equivalent",
                 "Notes / Refund Reason",
-                "Slip / Receipt URL",
                 "Underlying Line Items",
             ],
         ];
@@ -128,7 +127,6 @@ export default function CashLedgerTable({ ledger }: { ledger: FinanceLedgerDTO }
                 r.amount_usd != null ? String(r.amount_usd) : "",
                 r.amount_lkr != null ? String(r.amount_lkr) : "",
                 r.notes || r.refund_reason || "",
-                r.attachment_url || "",
                 lineSummary,
             ]);
         }
@@ -162,7 +160,7 @@ export default function CashLedgerTable({ ledger }: { ledger: FinanceLedgerDTO }
                     </select>
                 </div>
                 <div className="space-y-1">
-                    <label htmlFor="cash-ledger-attachment" className="text-[10px] uppercase tracking-wider text-[#6B7280] font-bold block">Slip / Receipt</label>
+                    <label htmlFor="cash-ledger-attachment" className="text-[10px] uppercase tracking-wider text-[#6B7280] font-bold block">Bank Slip / Receipt</label>
                     <select id="cash-ledger-attachment" value={attachmentFilter} onChange={e => setAttachmentFilter(e.target.value)} className="border border-[#E5E7EB] rounded-xl p-2 text-sm outline-none">
                         <option value="All">All</option>
                         <option value="with">With Slip / Receipt</option>
@@ -239,7 +237,7 @@ export default function CashLedgerTable({ ledger }: { ledger: FinanceLedgerDTO }
                             <th className="p-3 text-right">Rate</th>
                             <th className="p-3 text-right">USD</th>
                             <th className="p-3 text-right">LKR</th>
-                            <th className="p-3 text-right print:hidden">Slip &amp; Voucher</th>
+                            <th className="p-3 text-right print:hidden">Bank Slip &amp; Voucher</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -273,23 +271,31 @@ export default function CashLedgerTable({ ledger }: { ledger: FinanceLedgerDTO }
                                         <td className="p-3 text-right font-mono">{r.exchange_rate !== null && r.currency !== "LKR" || (cust && r.currency === "LKR" && r.exchange_rate !== null) ? r.exchange_rate : dash}</td>
                                         <td className="p-3 text-right font-mono">{r.amount_usd === null ? dash : fmt(r.amount_usd)}</td>
                                         <td className="p-3 text-right font-mono">{r.amount_lkr === null ? dash : fmt(r.amount_lkr)}</td>
-                                        <td className="p-3 text-right whitespace-nowrap space-x-1.5 print:hidden" onClick={e => e.stopPropagation()}>
+                                        <td className="p-3 text-right whitespace-nowrap space-x-1 print:hidden" onClick={e => e.stopPropagation()}>
                                             {r.attachment_url ? (
-                                                <a
-                                                    href={r.attachment_url}
-                                                    target="_blank"
-                                                    rel="noreferrer"
-                                                    className="px-2 py-1 rounded bg-white/80 border border-current text-[10px] font-semibold underline inline-block"
-                                                >
-                                                    Slip / Receipt ↗
-                                                </a>
+                                                <>
+                                                    <button
+                                                        type="button"
+                                                        onClick={() => viewStoredAttachment(r.attachment_url)}
+                                                        className="px-2 py-1 rounded bg-white/90 border border-current text-[10px] font-semibold hover:bg-white"
+                                                    >
+                                                        View Slip ↗
+                                                    </button>
+                                                    <button
+                                                        type="button"
+                                                        onClick={() => downloadStoredAttachment(r.attachment_url, `Bank_Slip_${r.tour_code || "Tour"}_${r.reference || r.id.slice(0, 6)}`)}
+                                                        className="px-2 py-1 rounded bg-emerald-800 text-white text-[10px] font-semibold hover:bg-emerald-950"
+                                                    >
+                                                        Download Slip ↓
+                                                    </button>
+                                                </>
                                             ) : (
                                                 <span className="text-[10px] opacity-60">No Slip</span>
                                             )}
                                             <button
                                                 type="button"
                                                 onClick={() => setModalDoc({ type: "ledger_voucher", row: r })}
-                                                className="px-2.5 py-1 rounded-lg bg-[#2B2B2B] text-white text-[10px] font-semibold hover:bg-black"
+                                                className="px-2 py-1 rounded bg-[#2B2B2B] text-white text-[10px] font-semibold hover:bg-black"
                                             >
                                                 Voucher
                                             </button>

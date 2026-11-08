@@ -3,6 +3,12 @@
 import React, { useMemo, useState } from "react";
 import { FinancePoReportRowDTO } from "@/dtos/finance-report.dto";
 import AccountingDocumentModal, { AccountingDocModalData } from "./AccountingDocumentModal";
+import {
+    viewStoredAttachment,
+    downloadStoredAttachment,
+    downloadPoPdfFile,
+    downloadSettlementVoucherPdfFile,
+} from "@/utils/accounting-documents-client";
 
 const lkr = (v: number | null | undefined) =>
     v === null || v === undefined ? (
@@ -153,7 +159,6 @@ export default function FinancialReportTable({
                 "Paid Net (LKR)",
                 "Refunded (LKR)",
                 "Balance (LKR)",
-                "Signed PO URL",
             ],
         ];
 
@@ -202,7 +207,6 @@ export default function FinancialReportTable({
                     idx === 0 ? String(r.paid_lkr_net ?? "") : "",
                     idx === 0 ? String(r.refunded_lkr ?? "") : "",
                     idx === 0 ? String(r.invoice_balance_lkr ?? "") : "",
-                    idx === 0 ? (r.signed_document_url || "") : "",
                 ]);
             });
         }
@@ -222,10 +226,10 @@ export default function FinancialReportTable({
             <div className="flex flex-wrap items-start justify-between gap-4">
                 <div>
                     <h2 className="text-2xl font-bold font-playfair text-[#2B2B2B]">
-                        Purchase Register &mdash; Purchase Orders, Supplier Bills &amp; Payment Vouchers
+                        Purchase Orders, PO PDFs, Supplier Invoices &amp; Payment Bank Slips
                     </h2>
                     <p className="text-sm text-[#6B7280] mt-1">
-                        One row per PO from <span className="font-mono">v_finance_po_report</span>. Click any PO row (<span className="font-mono">▶</span>) to inspect every PO line item, uploaded supplier bill copy, and payment voucher.
+                        Every PO with one-click <strong>PO PDF</strong> download, uploaded <strong>Supplier Invoice</strong> download, and uploaded <strong>Payment Bank Slip</strong> download. Click any row (<span className="font-mono">▶</span>) to view every line item.
                     </p>
                 </div>
                 <div className="flex items-center gap-2 print:hidden">
@@ -318,7 +322,7 @@ export default function FinancialReportTable({
                             <th className="p-3 text-right">Refunded (LKR)</th>
                             <th className="p-3 text-right">Balance (LKR)</th>
                             <th className="p-3 text-left">Last Payment</th>
-                            <th className="p-3 text-right print:hidden">Docs / Copy</th>
+                            <th className="p-3 text-right print:hidden">PO PDF / Supplier Bill / Bank Slip</th>
                         </tr>
                     </thead>
                     <tbody className="divide-y divide-[#F3F4F6]">
@@ -329,8 +333,8 @@ export default function FinancialReportTable({
                             const gap = r.invoice_vs_po_gap_lkr;
                             const gapBad = gap !== null && Math.abs(gap) > 0.01;
                             const isOpen = !!expandedIds[r.purchase_order_id];
-                            const billCopiesCount = (r.supplier_invoices || []).filter(i => !!i.attachment_url).length;
-                            const slipCount = (r.supplier_payments || []).filter(p => !!p.attachment_url).length;
+                            const attachedBills = (r.supplier_invoices || []).filter(i => !!i.attachment_url);
+                            const attachedSlips = (r.supplier_payments || []).filter(p => !!p.attachment_url);
 
                             return (
                                 <React.Fragment key={r.purchase_order_id}>
@@ -365,7 +369,6 @@ export default function FinancialReportTable({
                                                     <span className="font-mono">{r.invoice_numbers}</span>
                                                     <span className="block text-[10px] text-[#9CA3AF]">
                                                         {r.invoice_currencies}{r.invoice_rates_used ? ` @ ${r.invoice_rates_used}` : ""}
-                                                        {billCopiesCount > 0 ? ` · ${billCopiesCount} bill scan(s)` : ""}
                                                     </span>
                                                 </>
                                             ) : <span className="text-[#9CA3AF]">No invoice</span>}
@@ -376,27 +379,57 @@ export default function FinancialReportTable({
                                         <td className="p-3 text-right font-mono text-amber-700">{lkr(r.refunded_lkr)}</td>
                                         <td className="p-3 text-right font-mono font-bold">{lkr(r.invoice_balance_lkr)}</td>
                                         <td className="p-3 whitespace-nowrap">{r.last_payment_date ? new Date(r.last_payment_date).toLocaleDateString() : <span className="text-[#9CA3AF]">&mdash;</span>}</td>
-                                        <td className="p-3 text-right whitespace-nowrap space-x-1.5 print:hidden" onClick={e => e.stopPropagation()}>
-                                            {r.signed_document_url && (
-                                                <a
-                                                    href={r.signed_document_url}
-                                                    target="_blank"
-                                                    rel="noreferrer"
-                                                    className="px-2 py-1 rounded bg-blue-50 text-blue-700 border border-blue-200 text-[10px] font-semibold inline-block"
+                                        <td className="p-3 text-right whitespace-nowrap print:hidden" onClick={e => e.stopPropagation()}>
+                                            <div className="flex flex-wrap justify-end gap-1">
+                                                <button
+                                                    type="button"
+                                                    onClick={() => downloadPoPdfFile(r)}
+                                                    className="px-2 py-1 rounded bg-emerald-800 text-white text-[10px] font-semibold hover:bg-emerald-950"
+                                                    title="Download official PO PDF"
                                                 >
-                                                    Signed PO ↗
-                                                </a>
-                                            )}
-                                            <button
-                                                type="button"
-                                                onClick={() => setModalDoc({ type: "purchase_order", po: r })}
-                                                className="px-2.5 py-1 rounded-lg bg-[#2B2B2B] text-white text-[11px] font-semibold hover:bg-black"
-                                            >
-                                                PO Copy
-                                            </button>
-                                            {slipCount > 0 && (
-                                                <span className="block text-[10px] text-emerald-700 mt-0.5">{slipCount} slip(s)</span>
-                                            )}
+                                                    PO PDF ↓
+                                                </button>
+                                                {r.signed_document_url && (
+                                                    <button
+                                                        type="button"
+                                                        onClick={() => downloadStoredAttachment(r.signed_document_url, `Signed_PO_${r.po_number}`)}
+                                                        className="px-2 py-1 rounded bg-indigo-50 text-indigo-800 border border-indigo-200 text-[10px] font-semibold hover:bg-indigo-100"
+                                                        title="Download uploaded Signed PO"
+                                                    >
+                                                        Signed PO ↓
+                                                    </button>
+                                                )}
+                                                {attachedBills.map((b, idx) => (
+                                                    <button
+                                                        key={b.id}
+                                                        type="button"
+                                                        onClick={() => downloadStoredAttachment(b.attachment_url, `Supplier_Invoice_${b.invoice_number || r.po_number}`)}
+                                                        className="px-2 py-1 rounded bg-blue-600 text-white text-[10px] font-semibold hover:bg-blue-700"
+                                                        title={`Download Supplier Invoice ${b.invoice_number}`}
+                                                    >
+                                                        Supplier Bill{attachedBills.length > 1 ? ` #${idx + 1}` : ""} ↓
+                                                    </button>
+                                                ))}
+                                                {attachedSlips.map((s, idx) => (
+                                                    <button
+                                                        key={s.id}
+                                                        type="button"
+                                                        onClick={() => downloadStoredAttachment(s.attachment_url, `Bank_Slip_${r.po_number}_${idx + 1}`)}
+                                                        className="px-2 py-1 rounded bg-amber-700 text-white text-[10px] font-semibold hover:bg-amber-800"
+                                                        title="Download Payment Bank Slip"
+                                                    >
+                                                        Bank Slip{attachedSlips.length > 1 ? ` #${idx + 1}` : ""} ↓
+                                                    </button>
+                                                ))}
+                                                <button
+                                                    type="button"
+                                                    onClick={() => downloadSettlementVoucherPdfFile(r)}
+                                                    className="px-2 py-1 rounded border border-[#2B2B2B] text-[#2B2B2B] bg-white text-[10px] font-semibold hover:bg-gray-100"
+                                                    title="Download Payment Settlement Voucher PDF"
+                                                >
+                                                    Voucher PDF ↓
+                                                </button>
+                                            </div>
                                         </td>
                                     </tr>
 
@@ -478,7 +511,7 @@ export default function FinancialReportTable({
                                                                         <th className="p-1.5 text-left">Status</th>
                                                                         <th className="p-1.5 text-right">Amount</th>
                                                                         <th className="p-1.5 text-right">LKR</th>
-                                                                        <th className="p-1.5 text-right print:hidden">Bill Copy</th>
+                                                                        <th className="p-1.5 text-right print:hidden">Supplier Bill File</th>
                                                                     </tr>
                                                                 </thead>
                                                                 <tbody className="divide-y divide-blue-100">
@@ -499,24 +532,27 @@ export default function FinancialReportTable({
                                                                                     )}
                                                                                 </td>
                                                                                 <td className="p-1.5 text-right font-mono">{fmt(sinv.amount_lkr)}</td>
-                                                                                <td className="p-1.5 text-right space-x-1.5 print:hidden">
-                                                                                    {sinv.attachment_url && (
-                                                                                        <a
-                                                                                            href={sinv.attachment_url}
-                                                                                            target="_blank"
-                                                                                            rel="noreferrer"
-                                                                                            className="text-blue-700 underline font-semibold"
-                                                                                        >
-                                                                                            Bill Scan ↗
-                                                                                        </a>
+                                                                                <td className="p-1.5 text-right space-x-1 print:hidden">
+                                                                                    {sinv.attachment_url ? (
+                                                                                        <>
+                                                                                            <button
+                                                                                                type="button"
+                                                                                                onClick={() => viewStoredAttachment(sinv.attachment_url)}
+                                                                                                className="px-2 py-0.5 rounded border border-blue-400 text-blue-900 text-[10px] font-semibold"
+                                                                                            >
+                                                                                                View ↗
+                                                                                            </button>
+                                                                                            <button
+                                                                                                type="button"
+                                                                                                onClick={() => downloadStoredAttachment(sinv.attachment_url, `Supplier_Invoice_${sinv.invoice_number}`)}
+                                                                                                className="px-2 py-0.5 rounded bg-blue-600 text-white text-[10px] font-semibold"
+                                                                                            >
+                                                                                                Download ↓
+                                                                                            </button>
+                                                                                        </>
+                                                                                    ) : (
+                                                                                        <span className="text-[10px] text-red-600 font-semibold">No Bill Scan</span>
                                                                                     )}
-                                                                                    <button
-                                                                                        type="button"
-                                                                                        onClick={() => setModalDoc({ type: "supplier_invoice", invoice: sinv, po: r })}
-                                                                                        className="px-2 py-0.5 rounded border border-blue-300 text-blue-900 text-[10px] font-semibold"
-                                                                                    >
-                                                                                        View Bill
-                                                                                    </button>
                                                                                 </td>
                                                                             </tr>
                                                                             {sinv.items && sinv.items.length > 0 && (
@@ -546,7 +582,7 @@ export default function FinancialReportTable({
                                                         {/* Supplier Payments */}
                                                         <div className="bg-white border border-amber-200 rounded-xl p-3">
                                                             <h5 className="text-[10px] uppercase tracking-wider font-bold text-amber-900 mb-2">
-                                                                3. Supplier Payment &amp; Refund Vouchers ({(r.supplier_payments || []).length})
+                                                                3. Supplier Payments &amp; Bank Slips ({(r.supplier_payments || []).length})
                                                             </h5>
                                                             <table className="w-full text-xs">
                                                                 <thead className="bg-amber-50 text-amber-900 uppercase text-[9px]">
@@ -555,7 +591,7 @@ export default function FinancialReportTable({
                                                                         <th className="p-1.5 text-left">Method / Ref</th>
                                                                         <th className="p-1.5 text-right">Amount</th>
                                                                         <th className="p-1.5 text-right">LKR</th>
-                                                                        <th className="p-1.5 text-right print:hidden">Slip / Voucher</th>
+                                                                        <th className="p-1.5 text-right print:hidden">Bank Slip</th>
                                                                     </tr>
                                                                 </thead>
                                                                 <tbody className="divide-y divide-amber-100">
@@ -573,24 +609,27 @@ export default function FinancialReportTable({
                                                                             </td>
                                                                             <td className="p-1.5 text-right font-mono">{spay.currency} {fmt(spay.amount)}</td>
                                                                             <td className="p-1.5 text-right font-mono">{fmt(spay.amount_lkr)}</td>
-                                                                            <td className="p-1.5 text-right space-x-1.5 print:hidden">
-                                                                                {spay.attachment_url && (
-                                                                                    <a
-                                                                                        href={spay.attachment_url}
-                                                                                        target="_blank"
-                                                                                        rel="noreferrer"
-                                                                                        className="text-amber-800 underline font-semibold"
-                                                                                    >
-                                                                                        Slip ↗
-                                                                                    </a>
+                                                                            <td className="p-1.5 text-right space-x-1 print:hidden">
+                                                                                {spay.attachment_url ? (
+                                                                                    <>
+                                                                                        <button
+                                                                                            type="button"
+                                                                                            onClick={() => viewStoredAttachment(spay.attachment_url)}
+                                                                                            className="px-2 py-0.5 rounded border border-amber-400 text-amber-950 text-[10px] font-semibold"
+                                                                                        >
+                                                                                            View ↗
+                                                                                        </button>
+                                                                                        <button
+                                                                                            type="button"
+                                                                                            onClick={() => downloadStoredAttachment(spay.attachment_url, `Supplier_Slip_${r.po_number}_${spay.payment_reference || spay.id.slice(0, 6)}`)}
+                                                                                            className="px-2 py-0.5 rounded bg-amber-700 text-white text-[10px] font-semibold"
+                                                                                        >
+                                                                                            Download ↓
+                                                                                        </button>
+                                                                                    </>
+                                                                                ) : (
+                                                                                    <span className="text-[10px] text-red-600 font-semibold">No Slip</span>
                                                                                 )}
-                                                                                <button
-                                                                                    type="button"
-                                                                                    onClick={() => setModalDoc({ type: "supplier_payment", payment: spay, po: r })}
-                                                                                    className="px-2 py-0.5 rounded border border-amber-300 text-amber-950 text-[10px] font-semibold"
-                                                                                >
-                                                                                    Voucher
-                                                                                </button>
                                                                             </td>
                                                                         </tr>
                                                                     ))}

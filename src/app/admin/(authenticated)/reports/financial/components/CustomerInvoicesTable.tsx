@@ -3,6 +3,12 @@
 import React, { useMemo, useState } from "react";
 import { FinanceLedgerInvoiceDTO } from "@/dtos/finance-report.dto";
 import AccountingDocumentModal, { AccountingDocModalData } from "./AccountingDocumentModal";
+import {
+    viewStoredAttachment,
+    downloadStoredAttachment,
+    downloadCustomerInvoicePdfFile,
+    downloadCustomerReceiptPdfFile,
+} from "@/utils/accounting-documents-client";
 
 const fmt = (n: number | null | undefined) =>
     n === null || n === undefined
@@ -164,10 +170,10 @@ export default function CustomerInvoicesTable({ invoices }: { invoices: FinanceL
             <div className="flex flex-wrap items-start justify-between gap-4">
                 <div>
                     <h2 className="text-2xl font-bold font-playfair text-[#2B2B2B]">
-                        Sales Register &mdash; Customer Tax Invoices &amp; Line Items
+                        Sales Register &mdash; Customer Tax Invoices, Line Items &amp; Bank Slips
                     </h2>
                     <p className="text-sm text-[#6B7280] mt-1">
-                        Every customer invoice with expandable line items (<span className="font-mono">customer_invoice_items</span>), tax, discount, service fee, printable invoice copies, and linked receipt vouchers.
+                        Every customer invoice with expandable line items, one-click <strong>Invoice PDF</strong> download, <strong>Receipt PDF</strong> download, and <strong>Customer Bank Slip</strong> download.
                     </p>
                 </div>
                 <div className="flex items-center gap-2 print:hidden">
@@ -188,7 +194,6 @@ export default function CustomerInvoicesTable({ invoices }: { invoices: FinanceL
                 </div>
             </div>
 
-            {/* Summary Cards */}
             <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-5 gap-4">
                 <div className="bg-white border border-[#E5E7EB] rounded-2xl p-4 shadow-sm">
                     <span className="text-[10px] uppercase tracking-wider text-[#6B7280] font-bold block">Gross Billed Subtotal</span>
@@ -217,7 +222,6 @@ export default function CustomerInvoicesTable({ invoices }: { invoices: FinanceL
                 </div>
             </div>
 
-            {/* Filter Bar */}
             <div className="flex flex-wrap items-end gap-4 bg-white border border-[#E5E7EB] rounded-2xl p-4 shadow-sm">
                 <div className="space-y-1">
                     <label htmlFor="sales-reg-search" className="text-[10px] uppercase tracking-wider text-[#6B7280] font-bold block">
@@ -275,7 +279,6 @@ export default function CustomerInvoicesTable({ invoices }: { invoices: FinanceL
                 </span>
             </div>
 
-            {/* Invoices Table with Expandable Line Items */}
             <div className="bg-white border border-[#E5E7EB] rounded-2xl shadow-sm overflow-x-auto">
                 <table className="w-full text-xs">
                     <thead className="bg-[#F5F3EF] text-[#6B7280] uppercase tracking-wider text-[10px]">
@@ -291,7 +294,7 @@ export default function CustomerInvoicesTable({ invoices }: { invoices: FinanceL
                             <th className="p-3 text-right">LKR (at Tour Rate)</th>
                             <th className="p-3 text-right">Paid (USD)</th>
                             <th className="p-3 text-right">Balance (USD)</th>
-                            <th className="p-3 text-right print:hidden">Invoice Copy</th>
+                            <th className="p-3 text-right print:hidden">Invoice PDF &amp; Slips</th>
                         </tr>
                     </thead>
                     <tbody className="divide-y divide-[#F3F4F6]">
@@ -304,6 +307,7 @@ export default function CustomerInvoicesTable({ invoices }: { invoices: FinanceL
                         )}
                         {filtered.map(inv => {
                             const isOpen = !!expandedIds[inv.id];
+                            const attachedSlips = (inv.payments || []).filter(p => !!p.attachment_url);
                             return (
                                 <React.Fragment key={inv.id}>
                                     <tr
@@ -342,14 +346,26 @@ export default function CustomerInvoicesTable({ invoices }: { invoices: FinanceL
                                         </td>
                                         <td className="p-3 text-right font-mono text-emerald-800">{fmt(inv.paid_usd)}</td>
                                         <td className="p-3 text-right font-mono font-bold text-amber-800">{fmt(inv.balance_usd)}</td>
-                                        <td className="p-3 text-right print:hidden" onClick={e => e.stopPropagation()}>
-                                            <button
-                                                type="button"
-                                                onClick={() => setModalDoc({ type: "customer_invoice", invoice: inv })}
-                                                className="px-2.5 py-1 rounded-lg bg-[#2B2B2B] text-white text-[11px] font-semibold hover:bg-black"
-                                            >
-                                                Invoice Copy
-                                            </button>
+                                        <td className="p-3 text-right whitespace-nowrap print:hidden" onClick={e => e.stopPropagation()}>
+                                            <div className="flex flex-wrap justify-end gap-1">
+                                                <button
+                                                    type="button"
+                                                    onClick={() => downloadCustomerInvoicePdfFile(inv)}
+                                                    className="px-2 py-1 rounded bg-emerald-800 text-white text-[10px] font-semibold hover:bg-emerald-950"
+                                                >
+                                                    Invoice PDF ↓
+                                                </button>
+                                                {attachedSlips.map((p, idx) => (
+                                                    <button
+                                                        key={p.id}
+                                                        type="button"
+                                                        onClick={() => downloadStoredAttachment(p.attachment_url, `Customer_Slip_${inv.invoice_number || "INV"}_${idx + 1}`)}
+                                                        className="px-2 py-1 rounded bg-emerald-100 text-emerald-900 border border-emerald-300 text-[10px] font-semibold hover:bg-emerald-200"
+                                                    >
+                                                        Bank Slip{attachedSlips.length > 1 ? ` #${idx + 1}` : ""} ↓
+                                                    </button>
+                                                ))}
+                                            </div>
                                         </td>
                                     </tr>
 
@@ -386,7 +402,7 @@ export default function CustomerInvoicesTable({ invoices }: { invoices: FinanceL
                                                     {/* Linked Receipts */}
                                                     <div className="bg-white border border-emerald-200 rounded-xl p-3">
                                                         <h5 className="text-[10px] uppercase tracking-wider font-bold text-emerald-800 mb-2">
-                                                            Linked Customer Receipt Vouchers ({inv.payments?.length || 0})
+                                                            Linked Customer Payments, Bank Slips &amp; Receipt PDFs ({inv.payments?.length || 0})
                                                         </h5>
                                                         <table className="w-full text-xs">
                                                             <thead className="bg-emerald-50 text-emerald-900 uppercase text-[9px]">
@@ -395,7 +411,7 @@ export default function CustomerInvoicesTable({ invoices }: { invoices: FinanceL
                                                                     <th className="p-1.5 text-left">Method / Ref</th>
                                                                     <th className="p-1.5 text-right">Amount</th>
                                                                     <th className="p-1.5 text-right">LKR</th>
-                                                                    <th className="p-1.5 text-right print:hidden">Slip / Voucher</th>
+                                                                    <th className="p-1.5 text-right print:hidden">Bank Slip &amp; Receipt PDF</th>
                                                                 </tr>
                                                             </thead>
                                                             <tbody className="divide-y divide-emerald-100">
@@ -408,18 +424,31 @@ export default function CustomerInvoicesTable({ invoices }: { invoices: FinanceL
                                                                         </td>
                                                                         <td className="p-1.5 text-right font-mono">{p.currency} {fmt(p.amount)}</td>
                                                                         <td className="p-1.5 text-right font-mono">{fmt(p.amount_lkr)}</td>
-                                                                        <td className="p-1.5 text-right space-x-1.5 print:hidden">
+                                                                        <td className="p-1.5 text-right space-x-1 print:hidden">
                                                                             {p.attachment_url && (
-                                                                                <a href={p.attachment_url} target="_blank" rel="noreferrer" className="text-emerald-700 underline font-semibold">
-                                                                                    Slip ↗
-                                                                                </a>
+                                                                                <>
+                                                                                    <button
+                                                                                        type="button"
+                                                                                        onClick={() => viewStoredAttachment(p.attachment_url)}
+                                                                                        className="px-2 py-0.5 rounded border border-emerald-400 text-emerald-900 text-[10px] font-semibold"
+                                                                                    >
+                                                                                        View ↗
+                                                                                    </button>
+                                                                                    <button
+                                                                                        type="button"
+                                                                                        onClick={() => downloadStoredAttachment(p.attachment_url, `Customer_Slip_${p.transaction_id || p.id.slice(0, 8)}`)}
+                                                                                        className="px-2 py-0.5 rounded bg-emerald-700 text-white text-[10px] font-semibold"
+                                                                                    >
+                                                                                        Slip ↓
+                                                                                    </button>
+                                                                                </>
                                                                             )}
                                                                             <button
                                                                                 type="button"
-                                                                                onClick={() => setModalDoc({ type: "customer_payment", payment: p, invoice: inv })}
-                                                                                className="px-2 py-0.5 rounded border border-emerald-300 text-emerald-900 text-[10px] font-semibold"
+                                                                                onClick={() => downloadCustomerReceiptPdfFile(p, inv)}
+                                                                                className="px-2 py-0.5 rounded bg-[#2B2B2B] text-white text-[10px] font-semibold"
                                                                             >
-                                                                                Voucher
+                                                                                Receipt PDF ↓
                                                                             </button>
                                                                         </td>
                                                                     </tr>
@@ -447,4 +476,3 @@ export default function CustomerInvoicesTable({ invoices }: { invoices: FinanceL
         </div>
     );
 }
-
