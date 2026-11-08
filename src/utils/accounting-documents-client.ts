@@ -189,7 +189,7 @@ export async function downloadCustomerReceiptPdfFile(
                 invoice_number: payment.invoice_number || "Advance",
                 amount: payment.amount_usd || payment.amount,
                 currency: "USD",
-                billing_details: inv?.billing_details || null,
+                billing_details: null,
             },
             undefined,
             inv?.client_name ? { profile: { first_name: inv.client_name, last_name: "" } } : undefined,
