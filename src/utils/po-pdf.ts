@@ -1731,3 +1731,333 @@ export const generateDriverPoPdf = async (
     return doc;
 };
 
+/**
+ * Generates the official Nilathra Collection Purchase Order PDF directly from a saved
+ * `purchase_orders` / `FinancePoReportRowDTO` record and its `purchase_order_items` lines.
+ * Uses only the saved PO and line-item values without recomputing prices.
+ */
+export const generatePoPdfFromReportRow = async (
+    po: {
+        purchase_order_id: string;
+        po_number: string;
+        po_date?: string | null;
+        tour_code?: string | null;
+        vendor_name?: string | null;
+        vendor_type?: string | null;
+        vendor_address?: string | null;
+        vendor_phone?: string | null;
+        vendor_email?: string | null;
+        po_status?: string | null;
+        po_currency?: string | null;
+        po_value_own_ccy?: number | null;
+        po_value_lkr?: number | null;
+        po_rate_used?: number | null;
+        subtotal?: number | null;
+        discount?: number | null;
+        tax?: number | null;
+        vendor_notes?: string | null;
+        payment_terms?: string | null;
+        items?: Array<{
+            id: string;
+            day_number?: number | null;
+            service_date?: string | null;
+            description: string;
+            quantity: number;
+            unit_price?: number | null;
+            total_price?: number | null;
+            fx_rate?: number | null;
+            unit_price_lkr?: number | null;
+            total_price_lkr?: number | null;
+            service_details?: Record<string, any> | null;
+            special_notes?: string | null;
+        }>;
+    },
+    appSettings?: any,
+    clientName?: string | null
+): Promise<any> => {
+    const jspdfModule = await loadJsPDF();
+    if (!jspdfModule) return null;
+    const { jsPDF } = jspdfModule;
+
+    const doc = new jsPDF({
+        orientation: 'portrait',
+        unit: 'mm',
+        format: 'a4',
+    });
+
+    const primaryColor = [27, 58, 45]; // #1B3A2D
+    const secondaryColor = [201, 168, 76]; // #C9A84C
+    const charcoalColor = [51, 51, 51]; // #333333
+
+    let topY = 20;
+    let logoBottomY = 20;
+
+    if (appSettings?.[Settings.Company_Logo]) {
+        try {
+            const logoBase64 = await getBase64ImageFromUrl(appSettings[Settings.Company_Logo]);
+            const dims = await getImageDimensions(logoBase64);
+            const aspectRatio = dims.width / dims.height;
+            let logoWidth = 40;
+            let logoHeight = logoWidth / aspectRatio;
+            if (logoHeight > 16) {
+                logoHeight = 16;
+                logoWidth = logoHeight * aspectRatio;
+            }
+            doc.addImage(logoBase64, 'PNG', 20, topY, logoWidth, logoHeight);
+            logoBottomY = topY + logoHeight;
+        } catch {
+            doc.setFont('helvetica', 'bold');
+            doc.setFontSize(22);
+            doc.setTextColor(primaryColor[0], primaryColor[1], primaryColor[2]);
+            doc.text('NILATHRA COLLECTION', 20, topY + 10);
+            logoBottomY = topY + 15;
+        }
+    } else {
+        doc.setFont('helvetica', 'bold');
+        doc.setFontSize(22);
+        doc.setTextColor(primaryColor[0], primaryColor[1], primaryColor[2]);
+        doc.text('NILATHRA COLLECTION', 20, topY + 10);
+        logoBottomY = topY + 15;
+    }
+
+    const formatDate = (dateStr?: string | null) => {
+        if (!dateStr) return '-';
+        try {
+            const d = new Date(dateStr);
+            if (isNaN(d.getTime())) return dateStr;
+            return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+        } catch {
+            return dateStr;
+        }
+    };
+
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(18);
+    doc.setTextColor(primaryColor[0], primaryColor[1], primaryColor[2]);
+    doc.text('PURCHASE ORDER', 108, 28);
+
+    doc.setFont('helvetica', 'normal');
+    doc.setFontSize(9);
+    doc.setTextColor(charcoalColor[0], charcoalColor[1], charcoalColor[2]);
+    doc.text(`Date: ${formatDate(po.po_date || new Date().toISOString())}`, 108, 34);
+    doc.text(`PO Number: ${po.po_number}`, 108, 39);
+    doc.text(`Tour ID: ${po.tour_code || '-'}`, 108, 44);
+    doc.text(`Status: ${po.po_status || 'Issued'}`, 108, 49);
+
+    const lineY = Math.max(logoBottomY + 6, 55);
+    doc.setDrawColor(secondaryColor[0], secondaryColor[1], secondaryColor[2]);
+    doc.setLineWidth(0.5);
+    doc.line(20, lineY, 190, lineY);
+    topY = lineY + 8;
+
+    const col1X = 20;
+    const col2X = 110;
+
+    // Supplier / Vendor block
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(10);
+    doc.setTextColor(primaryColor[0], primaryColor[1], primaryColor[2]);
+    doc.text('TO SUPPLIER / PARTNER:', col1X, topY);
+
+    doc.setTextColor(charcoalColor[0], charcoalColor[1], charcoalColor[2]);
+    doc.text(po.vendor_name || 'Supplier Partner', col1X, topY + 5);
+
+    doc.setFont('helvetica', 'normal');
+    doc.setFontSize(9);
+    let supplierY = topY + 10;
+    if (po.vendor_type) {
+        doc.text(`Category: ${po.vendor_type.toUpperCase()}`, col1X, supplierY);
+        supplierY += 4.5;
+    }
+    if (po.vendor_address) {
+        const splitAddr = doc.splitTextToSize(po.vendor_address, 80);
+        doc.text(splitAddr, col1X, supplierY);
+        supplierY += splitAddr.length * 4.5;
+    }
+    if (po.vendor_phone) {
+        doc.text(`Phone: ${po.vendor_phone}`, col1X, supplierY);
+        supplierY += 4.5;
+    }
+    if (po.vendor_email) {
+        doc.text(`Email: ${po.vendor_email}`, col1X, supplierY);
+        supplierY += 4.5;
+    }
+
+    // Issuer block
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(10);
+    doc.setTextColor(primaryColor[0], primaryColor[1], primaryColor[2]);
+    doc.text('FROM:', col2X, topY);
+
+    doc.setTextColor(charcoalColor[0], charcoalColor[1], charcoalColor[2]);
+    doc.text('Nilathra Collection (Pvt) Ltd', col2X, topY + 5);
+
+    doc.setFont('helvetica', 'normal');
+    doc.setFontSize(9);
+    let issuerY = topY + 10;
+    doc.text('145/1 Vajira Rd, Colombo 00500, Sri Lanka', col2X, issuerY);
+    doc.text('Email: concierge@nilathra.com', col2X, issuerY + 4.5);
+    issuerY += 9;
+    if (clientName) {
+        doc.text(`Guest / Booking Ref: ${clientName}`, col2X, issuerY);
+        issuerY += 4.5;
+    }
+    if (po.payment_terms) {
+        doc.text(`Payment Terms: ${po.payment_terms}`, col2X, issuerY);
+        issuerY += 4.5;
+    }
+
+    topY = Math.max(supplierY, issuerY) + 8;
+
+    const ccy = po.po_currency || 'USD';
+    const items = po.items || [];
+
+    // Table header
+    doc.setFillColor(primaryColor[0], primaryColor[1], primaryColor[2]);
+    doc.rect(20, topY, 170, 7, 'F');
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(8.5);
+    doc.setTextColor(255, 255, 255);
+    doc.text('Day / Date', 23, topY + 5);
+    doc.text('Service Description & Specifications', 56, topY + 5);
+    doc.text('Qty', 132, topY + 5, { align: 'center' });
+    doc.text(`Unit (${ccy})`, 158, topY + 5, { align: 'right' });
+    doc.text(`Total (${ccy})`, 188, topY + 5, { align: 'right' });
+    topY += 7;
+
+    doc.setFont('helvetica', 'normal');
+    doc.setFontSize(8.5);
+    doc.setTextColor(charcoalColor[0], charcoalColor[1], charcoalColor[2]);
+
+    for (const it of items) {
+        const dateLabel = [
+            it.day_number != null ? `Day ${it.day_number}` : '',
+            it.service_date ? formatDate(it.service_date) : '',
+        ]
+            .filter(Boolean)
+            .join(' - ') || '-';
+
+        const specs = it.service_details
+            ? [
+                  it.service_details.room_type && `Room: ${it.service_details.room_type}`,
+                  it.service_details.meal_plan && `Meal: ${it.service_details.meal_plan}`,
+                  it.service_details.number_of_nights && `Nights: ${it.service_details.number_of_nights}`,
+                  it.service_details.vehicle_type && `Vehicle: ${it.service_details.vehicle_type}`,
+                  it.service_details.check_in_date && `In: ${it.service_details.check_in_date}`,
+                  it.service_details.check_out_date && `Out: ${it.service_details.check_out_date}`,
+              ]
+                  .filter(Boolean)
+                  .join(' | ')
+            : '';
+
+        const fullDesc = [it.description, specs, it.special_notes ? `Note: ${it.special_notes}` : '']
+            .filter(Boolean)
+            .join('\n');
+
+        const splitDesc: string[] = doc.splitTextToSize(fullDesc || '-', 68);
+        const cellHeight = Math.max(8, splitDesc.length * 4.2 + 2.5);
+
+        if (topY + cellHeight > 265) {
+            doc.addPage();
+            topY = 20;
+            doc.setFillColor(primaryColor[0], primaryColor[1], primaryColor[2]);
+            doc.rect(20, topY, 170, 7, 'F');
+            doc.setFont('helvetica', 'bold');
+            doc.setFontSize(8.5);
+            doc.setTextColor(255, 255, 255);
+            doc.text('Day / Date', 23, topY + 5);
+            doc.text('Service Description & Specifications', 56, topY + 5);
+            doc.text('Qty', 132, topY + 5, { align: 'center' });
+            doc.text(`Unit (${ccy})`, 158, topY + 5, { align: 'right' });
+            doc.text(`Total (${ccy})`, 188, topY + 5, { align: 'right' });
+            topY += 7;
+            doc.setFont('helvetica', 'normal');
+            doc.setFontSize(8.5);
+            doc.setTextColor(charcoalColor[0], charcoalColor[1], charcoalColor[2]);
+        }
+
+        doc.setDrawColor(230, 230, 230);
+        doc.setLineWidth(0.2);
+        doc.line(20, topY + cellHeight, 190, topY + cellHeight);
+
+        doc.text(dateLabel, 23, topY + 5);
+        doc.text(splitDesc, 56, topY + 5);
+        doc.text(String(it.quantity ?? 1), 132, topY + 5, { align: 'center' });
+        doc.text(it.unit_price != null ? Number(it.unit_price).toFixed(2) : '-', 158, topY + 5, { align: 'right' });
+        doc.text(it.total_price != null ? Number(it.total_price).toFixed(2) : '-', 188, topY + 5, { align: 'right' });
+
+        topY += cellHeight;
+    }
+
+    topY += 8;
+    topY = drawVendorNotes(doc, po.vendor_notes || undefined, topY, primaryColor, charcoalColor);
+
+    if (topY > 235) {
+        doc.addPage();
+        topY = 20;
+    }
+
+    const disc = Number(po.discount || 0);
+    const tx = Number(po.tax || 0);
+    const sub = po.subtotal != null ? Number(po.subtotal) : Number(po.po_value_own_ccy || 0);
+    const finalTotal = po.po_value_own_ccy != null ? Number(po.po_value_own_ccy) : sub + tx - disc;
+
+    doc.setFont('helvetica', 'normal');
+    doc.setFontSize(9.5);
+    doc.setTextColor(charcoalColor[0], charcoalColor[1], charcoalColor[2]);
+
+    if (disc > 0 || tx > 0) {
+        doc.text('Subtotal:', 115, topY);
+        doc.text(`${ccy} ${sub.toFixed(2)}`, 188, topY, { align: 'right' });
+        topY += 5.5;
+        if (disc > 0) {
+            doc.text('Discount:', 115, topY);
+            doc.text(`- ${ccy} ${disc.toFixed(2)}`, 188, topY, { align: 'right' });
+            topY += 5.5;
+        }
+        if (tx > 0) {
+            doc.text('Tax:', 115, topY);
+            doc.text(`+ ${ccy} ${tx.toFixed(2)}`, 188, topY, { align: 'right' });
+            topY += 5.5;
+        }
+    }
+
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(10);
+    doc.setTextColor(primaryColor[0], primaryColor[1], primaryColor[2]);
+    doc.text('Total PO Amount:', 115, topY);
+    doc.text(`${ccy} ${finalTotal.toFixed(2)}`, 188, topY, { align: 'right' });
+    topY += 6;
+
+    if (po.po_value_lkr != null) {
+        doc.setFont('helvetica', 'normal');
+        doc.setFontSize(9);
+        doc.setTextColor(charcoalColor[0], charcoalColor[1], charcoalColor[2]);
+        doc.text(
+            `Agreed LKR Value${po.po_rate_used && ccy !== 'LKR' ? ` (@ ${po.po_rate_used})` : ''}:`,
+            115,
+            topY
+        );
+        doc.text(
+            `LKR ${Number(po.po_value_lkr).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`,
+            188,
+            topY,
+            { align: 'right' }
+        );
+        topY += 8;
+    }
+
+    const totalPages = doc.internal.getNumberOfPages();
+    for (let i = 1; i <= totalPages; i++) {
+        doc.setPage(i);
+        doc.setFont('helvetica', 'normal');
+        doc.setFontSize(7.5);
+        doc.setTextColor(150, 150, 150);
+        doc.text(`Page ${i} of ${totalPages}`, 105, 287, { align: 'center' });
+        doc.text('Nilathra Collection - Luxury Unfiltered - Colombo, Sri Lanka', 20, 287);
+    }
+
+    return doc;
+};
+
+

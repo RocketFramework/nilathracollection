@@ -490,12 +490,20 @@ export async function uploadSupplierInvoiceFileAction(formData: FormData) {
     }
 }
 
-export async function getPayslipSignedUrlAction(filePath: string) {
+export async function getPayslipSignedUrlAction(filePath: string, downloadFilename?: string | boolean) {
     try {
+        if (!filePath) return { error: "No file path provided." };
+        if (filePath.startsWith('http://') || filePath.startsWith('https://')) {
+            return { success: true, url: filePath };
+        }
         const adminSupabase = createAdminClient();
         const { data, error } = await adminSupabase.storage
             .from('payslips')
-            .createSignedUrl(filePath, 3600); // 1 hour expiration
+            .createSignedUrl(
+                filePath,
+                3600,
+                downloadFilename ? { download: downloadFilename } : undefined
+            ); // 1 hour expiration
 
         if (error) throw error;
         return { success: true, url: data.signedUrl };
@@ -2190,6 +2198,21 @@ export async function sendPurchaseOrderEmailAction(options: {
         // Update PO status and tracking fields in Supabase if poId is provided
         if (poId) {
             await FinanceService.updatePOEmailSentStatus(poId, to, sentToName || null, new Date().toISOString());
+            if (pdfBase64) {
+                try {
+                    const adminSupabase = createAdminClient();
+                    const pdfBuffer = Buffer.from(pdfBase64, 'base64');
+                    await adminSupabase.storage
+                        .from('payslips')
+                        .upload(`po-pdfs/${poId}.pdf`, pdfBuffer, {
+                            contentType: 'application/pdf',
+                            cacheControl: '3600',
+                            upsert: true,
+                        });
+                } catch (storageErr) {
+                    console.warn("Could not archive PO PDF in storage:", storageErr);
+                }
+            }
         }
         
         return { success: true };

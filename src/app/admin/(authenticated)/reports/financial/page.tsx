@@ -19,7 +19,7 @@ export default async function FinancialReportsPage() {
         errors.push(e?.message || "Failed to load the PO finance report.");
     }
     try {
-        ledger = await FinanceReportService.getCashLedger();
+        ledger = await FinanceReportService.getCashLedger(rows);
     } catch (e: any) {
         errors.push(e?.message || "Failed to load the payments ledger.");
     }
