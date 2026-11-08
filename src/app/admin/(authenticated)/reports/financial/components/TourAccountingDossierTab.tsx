@@ -3,6 +3,15 @@
 import React, { useMemo, useState } from "react";
 import { FinanceTourDossierDTO } from "@/dtos/finance-report.dto";
 import AccountingDocumentModal, { AccountingDocModalData } from "./AccountingDocumentModal";
+import {
+    viewStoredAttachment,
+    downloadStoredAttachment,
+    downloadPoPdfFile,
+    downloadSettlementVoucherPdfFile,
+    downloadCustomerInvoicePdfFile,
+    downloadCustomerReceiptPdfFile,
+    downloadExpenseVoucherPdfFile,
+} from "@/utils/accounting-documents-client";
 
 const fmt = (n: number | null | undefined) =>
     n === null || n === undefined
@@ -126,11 +135,9 @@ export default function TourAccountingDossierTab({ tours }: { tours: FinanceTour
                 "USD Amount",
                 "LKR Amount",
                 "Status / Method",
-                "Attachment / Receipt URL",
             ],
         ];
 
-        // 1. Customer Invoices & Line Items
         for (const inv of activeTour.customer_invoices) {
             for (const item of inv.items || []) {
                 const lkr = inv.tour_usd_buying_rate && inv.currency === "USD" ? item.amount * inv.tour_usd_buying_rate : inv.currency === "LKR" ? item.amount : "";
@@ -149,12 +156,11 @@ export default function TourAccountingDossierTab({ tours }: { tours: FinanceTour
                     inv.currency === "USD" ? String(item.amount) : "",
                     String(lkr),
                     inv.status || "",
-                    "",
                 ]);
             }
             for (const pay of inv.payments || []) {
                 lines.push([
-                    "Customer Receipt Voucher",
+                    "Customer Receipt",
                     activeTour.tour_code,
                     pay.transaction_id || pay.id,
                     pay.payment_date || "",
@@ -168,32 +174,10 @@ export default function TourAccountingDossierTab({ tours }: { tours: FinanceTour
                     String(pay.amount_usd ?? ""),
                     String(pay.amount_lkr ?? ""),
                     pay.payment_method || "",
-                    pay.attachment_url || "",
                 ]);
             }
         }
 
-        for (const pay of activeTour.unassigned_customer_payments) {
-            lines.push([
-                "Customer Advance Receipt",
-                activeTour.tour_code,
-                pay.transaction_id || pay.id,
-                pay.payment_date || "",
-                activeTour.client_name || "",
-                "Advance Payment",
-                "1",
-                pay.currency,
-                String(pay.amount),
-                String(pay.amount),
-                String(pay.exchange_rate ?? ""),
-                String(pay.amount_usd ?? ""),
-                String(pay.amount_lkr ?? ""),
-                pay.payment_method || "",
-                pay.attachment_url || "",
-            ]);
-        }
-
-        // 2. POs, Supplier Invoices & Supplier Payments
         for (const po of activeTour.purchase_orders) {
             for (const it of po.items || []) {
                 lines.push([
@@ -211,53 +195,29 @@ export default function TourAccountingDossierTab({ tours }: { tours: FinanceTour
                     po.po_currency === "USD" ? String(it.total_price ?? "") : "",
                     String(it.total_price_lkr ?? ""),
                     po.po_status || "",
-                    po.signed_document_url || "",
                 ]);
             }
             for (const sinv of po.supplier_invoices || []) {
-                if (sinv.items && sinv.items.length > 0) {
-                    for (const sit of sinv.items) {
-                        lines.push([
-                            "Supplier Invoice Line",
-                            activeTour.tour_code,
-                            sinv.invoice_number,
-                            sinv.invoice_date || "",
-                            po.vendor_name || "",
-                            sit.description,
-                            String(sit.quantity),
-                            sinv.currency,
-                            String(sit.unit_price),
-                            String(sit.total_price),
-                            String(sinv.exchange_rate ?? ""),
-                            sinv.currency === "USD" ? String(sit.total_price) : "",
-                            sinv.currency === "LKR" ? String(sit.total_price) : sinv.exchange_rate ? String(sit.total_price * sinv.exchange_rate) : "",
-                            sinv.status || "",
-                            sinv.attachment_url || "",
-                        ]);
-                    }
-                } else {
-                    lines.push([
-                        "Supplier Invoice Header",
-                        activeTour.tour_code,
-                        sinv.invoice_number,
-                        sinv.invoice_date || "",
-                        po.vendor_name || "",
-                        `Supplier Bill against ${po.po_number}`,
-                        "1",
-                        sinv.currency,
-                        String(sinv.amount),
-                        String(sinv.amount),
-                        String(sinv.exchange_rate ?? ""),
-                        sinv.currency === "USD" ? String(sinv.amount) : "",
-                        String(sinv.amount_lkr ?? ""),
-                        sinv.status || "",
-                        sinv.attachment_url || "",
-                    ]);
-                }
+                lines.push([
+                    "Supplier Invoice",
+                    activeTour.tour_code,
+                    sinv.invoice_number,
+                    sinv.invoice_date || "",
+                    po.vendor_name || "",
+                    `Supplier Bill against ${po.po_number}`,
+                    "1",
+                    sinv.currency,
+                    String(sinv.amount),
+                    String(sinv.amount),
+                    String(sinv.exchange_rate ?? ""),
+                    sinv.currency === "USD" ? String(sinv.amount) : "",
+                    String(sinv.amount_lkr ?? ""),
+                    sinv.status || "",
+                ]);
             }
             for (const spay of po.supplier_payments || []) {
                 lines.push([
-                    spay.is_refund ? "Supplier Refund Voucher" : "Supplier Payment Voucher",
+                    spay.is_refund ? "Supplier Refund" : "Supplier Payment",
                     activeTour.tour_code,
                     spay.payment_reference || spay.id,
                     spay.payment_date || "",
@@ -271,15 +231,13 @@ export default function TourAccountingDossierTab({ tours }: { tours: FinanceTour
                     spay.currency === "USD" ? String(spay.amount) : "",
                     String(spay.amount_lkr ?? ""),
                     spay.payment_method || "",
-                    spay.attachment_url || "",
                 ]);
             }
         }
 
-        // 3. Misc Tour Expenses
         for (const exp of activeTour.tour_expenses) {
             lines.push([
-                "Tour Petty Cash / Misc Expense",
+                "Tour Misc Expense",
                 activeTour.tour_code,
                 exp.payment_reference || exp.id,
                 exp.expense_date || "",
@@ -293,7 +251,6 @@ export default function TourAccountingDossierTab({ tours }: { tours: FinanceTour
                 String(exp.amount_usd ?? ""),
                 String(exp.amount_lkr ?? ""),
                 exp.payment_method || "",
-                exp.receipt_url || "",
             ]);
         }
 
@@ -315,7 +272,7 @@ export default function TourAccountingDossierTab({ tours }: { tours: FinanceTour
                         Tour Accounting Dossier &amp; Tax Filing Pack
                     </h2>
                     <p className="text-sm text-[#6B7280] mt-1">
-                        Complete single-screen accounting record for a tour: Customer Invoices with every line item, Receipt Vouchers, Supplier POs with line items, Supplier Tax Bills, Payment Vouchers, and Petty Cash Expenses.
+                        Simple, accounting-friendly tour dataset: Customer Invoices + Receipt PDFs + Bank Slips, Purchase Order PDFs + Supplier Bills + Payment Slips, and Expense Vouchers.
                     </p>
                 </div>
                 {activeTour && (
@@ -439,7 +396,6 @@ export default function TourAccountingDossierTab({ tours }: { tours: FinanceTour
                             </div>
                         </div>
 
-                        {/* 5 Accounting & Tax Summary Cards */}
                         <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-5 gap-4">
                             <div className="bg-emerald-50/70 border border-emerald-200 rounded-xl p-4">
                                 <span className="text-[10px] uppercase tracking-wider text-emerald-800 font-bold block">
@@ -519,15 +475,15 @@ export default function TourAccountingDossierTab({ tours }: { tours: FinanceTour
                         </div>
                     </div>
 
-                    {/* SECTION A: CUSTOMER INVOICES, LINE ITEMS & RECEIPT VOUCHERS */}
+                    {/* SECTION A: CUSTOMER INVOICES, LINE ITEMS & RECEIPTS */}
                     <div className="bg-white border border-[#E5E7EB] rounded-2xl shadow-sm overflow-hidden">
                         <div className="px-6 py-4 bg-emerald-950 text-white flex items-center justify-between">
                             <div>
                                 <h3 className="text-sm font-bold uppercase tracking-wider">
-                                    Section A &mdash; Customer Tax Invoices, Line Items &amp; Receipt Vouchers (AR)
+                                    Section A &mdash; Customer Invoices, Line Items, Receipt PDFs &amp; Bank Slips (AR)
                                 </h3>
                                 <p className="text-[11px] text-emerald-200 mt-0.5">
-                                    Every customer invoice generated for {activeTour.tour_code} with full line-item breakdown and payment receipts.
+                                    Customer invoice line items, downloadable Invoice PDF, Customer Payment Receipt PDFs, and uploaded Bank Slips.
                                 </p>
                             </div>
                             <span className="px-3 py-1 rounded-full bg-emerald-800 text-xs font-mono">
@@ -560,11 +516,10 @@ export default function TourAccountingDossierTab({ tours }: { tours: FinanceTour
                                             <div className="text-[11px] text-[#4B5563] mt-1">
                                                 Billed To: <strong>{inv.billing_details?.name || inv.client_name || "—"}</strong>
                                                 {inv.billing_details?.email ? ` (${inv.billing_details.email})` : ""}
-                                                {inv.billing_details?.address ? ` — ${inv.billing_details.address}` : ""}
                                             </div>
                                         </div>
-                                        <div className="flex items-center gap-3">
-                                            <div className="text-right font-mono">
+                                        <div className="flex items-center gap-2 print:hidden">
+                                            <div className="text-right font-mono mr-2">
                                                 <span className="text-sm font-bold text-[#2B2B2B] block">
                                                     {inv.currency} {fmt(inv.amount)}
                                                 </span>
@@ -574,16 +529,23 @@ export default function TourAccountingDossierTab({ tours }: { tours: FinanceTour
                                             </div>
                                             <button
                                                 type="button"
-                                                onClick={() => setModalDoc({ type: "customer_invoice", invoice: inv })}
-                                                className="px-3 py-1.5 rounded-xl bg-[#2B2B2B] text-white text-xs font-semibold hover:bg-black print:hidden"
+                                                onClick={() => downloadCustomerInvoicePdfFile(inv)}
+                                                className="px-3 py-1.5 rounded-xl bg-emerald-800 text-white text-xs font-semibold hover:bg-emerald-950"
                                             >
-                                                View / Print Invoice Copy
+                                                Download Invoice PDF ↓
+                                            </button>
+                                            <button
+                                                type="button"
+                                                onClick={() => setModalDoc({ type: "customer_invoice", invoice: inv })}
+                                                className="px-3 py-1.5 rounded-xl border border-[#2B2B2B] bg-white text-[#2B2B2B] text-xs font-semibold hover:bg-gray-100"
+                                            >
+                                                View Copy
                                             </button>
                                         </div>
                                     </div>
 
-                                    {/* Customer Invoice Line Items Table */}
                                     <div className="p-4 space-y-4">
+                                        {/* Customer Invoice Line Items */}
                                         <div>
                                             <h4 className="text-[10px] font-bold uppercase tracking-wider text-[#6B7280] mb-2">
                                                 Invoice Line Items ({inv.items?.length || 0})
@@ -591,10 +553,10 @@ export default function TourAccountingDossierTab({ tours }: { tours: FinanceTour
                                             <table className="w-full text-xs border border-[#E5E7EB] rounded-xl overflow-hidden">
                                                 <thead className="bg-[#F5F3EF] text-[#6B7280] uppercase text-[10px]">
                                                     <tr>
-                                                        <th className="p-2.5 text-left w-12">#</th>
-                                                        <th className="p-2.5 text-left">Line Item Description</th>
-                                                        <th className="p-2.5 text-right">Amount ({inv.currency})</th>
-                                                        <th className="p-2.5 text-right">LKR Equivalent (at {inv.tour_usd_buying_rate ?? "—"})</th>
+                                                        <th className="p-2 text-left w-10">#</th>
+                                                        <th className="p-2 text-left">Line Item Description</th>
+                                                        <th className="p-2 text-right">Amount ({inv.currency})</th>
+                                                        <th className="p-2 text-right">LKR Equivalent (at {inv.tour_usd_buying_rate ?? "—"})</th>
                                                     </tr>
                                                 </thead>
                                                 <tbody className="divide-y divide-[#F3F4F6]">
@@ -607,44 +569,21 @@ export default function TourAccountingDossierTab({ tours }: { tours: FinanceTour
                                                                 : null;
                                                         return (
                                                             <tr key={item.id}>
-                                                                <td className="p-2.5 font-mono text-[#6B7280]">{idx + 1}</td>
-                                                                <td className="p-2.5 font-medium text-[#2B2B2B]">{item.description}</td>
-                                                                <td className="p-2.5 text-right font-mono">{fmt(item.amount)}</td>
-                                                                <td className="p-2.5 text-right font-mono">{fmt(itemLkr)}</td>
+                                                                <td className="p-2 font-mono text-[#6B7280]">{idx + 1}</td>
+                                                                <td className="p-2 font-medium text-[#2B2B2B]">{item.description}</td>
+                                                                <td className="p-2 text-right font-mono">{fmt(item.amount)}</td>
+                                                                <td className="p-2 text-right font-mono">{fmt(itemLkr)}</td>
                                                             </tr>
                                                         );
                                                     })}
                                                 </tbody>
                                                 <tfoot className="bg-[#FAF9F6] font-mono text-xs border-t border-[#E5E7EB]">
-                                                    <tr>
-                                                        <td colSpan={2} className="p-2 text-right font-sans text-[#6B7280]">
-                                                            Subtotal {inv.service_fee_percentage != null ? `(incl. ${inv.service_fee_percentage}% Service Fee)` : ""}
+                                                    <tr className="font-bold">
+                                                        <td colSpan={2} className="p-2 text-right font-sans">
+                                                            Invoice Total
+                                                            {(inv.discount_amount || 0) > 0 ? ` (after -${inv.currency} ${fmt(inv.discount_amount)} disc)` : ""}
+                                                            {(inv.tax_amount || 0) > 0 ? ` (+${inv.currency} ${fmt(inv.tax_amount)} tax)` : ""}
                                                         </td>
-                                                        <td className="p-2 text-right">{inv.currency} {fmt(inv.subtotal)}</td>
-                                                        <td className="p-2 text-right">
-                                                            {inv.tour_usd_buying_rate && inv.subtotal != null ? fmt(inv.subtotal * inv.tour_usd_buying_rate) : "—"}
-                                                        </td>
-                                                    </tr>
-                                                    {(inv.discount_amount || 0) > 0 && (
-                                                        <tr>
-                                                            <td colSpan={2} className="p-2 text-right font-sans text-emerald-700">Discount</td>
-                                                            <td className="p-2 text-right text-emerald-700">- {inv.currency} {fmt(inv.discount_amount)}</td>
-                                                            <td className="p-2 text-right text-emerald-700">
-                                                                {inv.tour_usd_buying_rate ? `- ${fmt((inv.discount_amount || 0) * inv.tour_usd_buying_rate)}` : "—"}
-                                                            </td>
-                                                        </tr>
-                                                    )}
-                                                    {(inv.tax_amount || 0) > 0 && (
-                                                        <tr>
-                                                            <td colSpan={2} className="p-2 text-right font-sans text-[#6B7280]">Tax</td>
-                                                            <td className="p-2 text-right">+ {inv.currency} {fmt(inv.tax_amount)}</td>
-                                                            <td className="p-2 text-right">
-                                                                {inv.tour_usd_buying_rate ? fmt((inv.tax_amount || 0) * inv.tour_usd_buying_rate) : "—"}
-                                                            </td>
-                                                        </tr>
-                                                    )}
-                                                    <tr className="font-bold border-t border-[#E5E7EB]">
-                                                        <td colSpan={2} className="p-2 text-right font-sans">Invoice Net Total</td>
                                                         <td className="p-2 text-right">{inv.currency} {fmt(inv.amount)}</td>
                                                         <td className="p-2 text-right">LKR {fmt(inv.amount_lkr)}</td>
                                                     </tr>
@@ -652,53 +591,61 @@ export default function TourAccountingDossierTab({ tours }: { tours: FinanceTour
                                             </table>
                                         </div>
 
-                                        {/* Linked Customer Payment Vouchers */}
+                                        {/* Customer Payments & Bank Slips */}
                                         <div>
                                             <h4 className="text-[10px] font-bold uppercase tracking-wider text-emerald-800 mb-2">
-                                                Customer Receipt Vouchers Linked to {inv.invoice_number} ({inv.payments?.length || 0})
+                                                Customer Payments, Receipt PDFs &amp; Uploaded Bank Slips ({inv.payments?.length || 0})
                                             </h4>
                                             <table className="w-full text-xs border border-emerald-200 rounded-xl overflow-hidden">
                                                 <thead className="bg-emerald-50 text-emerald-900 uppercase text-[10px]">
                                                     <tr>
-                                                        <th className="p-2.5 text-left">Receipt Date</th>
-                                                        <th className="p-2.5 text-left">Method</th>
-                                                        <th className="p-2.5 text-left">Bank / Transaction Ref</th>
-                                                        <th className="p-2.5 text-right">Amount</th>
-                                                        <th className="p-2.5 text-right">FX Rate</th>
-                                                        <th className="p-2.5 text-right">USD</th>
-                                                        <th className="p-2.5 text-right">LKR</th>
-                                                        <th className="p-2.5 text-right print:hidden">Bank Slip &amp; Voucher</th>
+                                                        <th className="p-2 text-left">Receipt Date</th>
+                                                        <th className="p-2 text-left">Method</th>
+                                                        <th className="p-2 text-left">Bank / Tx Ref</th>
+                                                        <th className="p-2 text-right">Amount</th>
+                                                        <th className="p-2 text-right">FX Rate</th>
+                                                        <th className="p-2 text-right">USD</th>
+                                                        <th className="p-2 text-right">LKR</th>
+                                                        <th className="p-2 text-right print:hidden">Bank Slip &amp; Receipt PDF</th>
                                                     </tr>
                                                 </thead>
                                                 <tbody className="divide-y divide-emerald-100">
                                                     {(inv.payments || []).map(p => (
                                                         <tr key={p.id} className="bg-emerald-50/30">
-                                                            <td className="p-2.5">{fmtDate(p.payment_date)}</td>
-                                                            <td className="p-2.5">{p.payment_method || "—"}</td>
-                                                            <td className="p-2.5 font-mono">{p.transaction_id || "—"}</td>
-                                                            <td className="p-2.5 text-right font-mono">{p.currency} {fmt(p.amount)}</td>
-                                                            <td className="p-2.5 text-right font-mono">{p.exchange_rate ?? "—"}</td>
-                                                            <td className="p-2.5 text-right font-mono">{fmt(p.amount_usd)}</td>
-                                                            <td className="p-2.5 text-right font-mono font-bold">{fmt(p.amount_lkr)}</td>
-                                                            <td className="p-2.5 text-right space-x-2 print:hidden">
+                                                            <td className="p-2">{fmtDate(p.payment_date)}</td>
+                                                            <td className="p-2">{p.payment_method || "—"}</td>
+                                                            <td className="p-2 font-mono">{p.transaction_id || "—"}</td>
+                                                            <td className="p-2 text-right font-mono">{p.currency} {fmt(p.amount)}</td>
+                                                            <td className="p-2 text-right font-mono">{p.exchange_rate ?? "—"}</td>
+                                                            <td className="p-2 text-right font-mono">{fmt(p.amount_usd)}</td>
+                                                            <td className="p-2 text-right font-mono font-bold">{fmt(p.amount_lkr)}</td>
+                                                            <td className="p-2 text-right space-x-1.5 print:hidden">
                                                                 {p.attachment_url ? (
-                                                                    <a
-                                                                        href={p.attachment_url}
-                                                                        target="_blank"
-                                                                        rel="noreferrer"
-                                                                        className="px-2.5 py-1 rounded-lg bg-emerald-700 text-white text-[11px] font-semibold hover:bg-emerald-800 inline-block"
-                                                                    >
-                                                                        Bank Slip ↗
-                                                                    </a>
+                                                                    <>
+                                                                        <button
+                                                                            type="button"
+                                                                            onClick={() => viewStoredAttachment(p.attachment_url)}
+                                                                            className="px-2 py-1 rounded-lg bg-white border border-emerald-400 text-emerald-900 text-[11px] font-semibold hover:bg-emerald-50"
+                                                                        >
+                                                                            View Slip ↗
+                                                                        </button>
+                                                                        <button
+                                                                            type="button"
+                                                                            onClick={() => downloadStoredAttachment(p.attachment_url, `Customer_Slip_${p.transaction_id || p.id.slice(0, 8)}`)}
+                                                                            className="px-2 py-1 rounded-lg bg-emerald-700 text-white text-[11px] font-semibold hover:bg-emerald-800"
+                                                                        >
+                                                                            Download Slip ↓
+                                                                        </button>
+                                                                    </>
                                                                 ) : (
                                                                     <span className="text-[10px] text-amber-700 font-semibold">No Slip</span>
                                                                 )}
                                                                 <button
                                                                     type="button"
-                                                                    onClick={() => setModalDoc({ type: "customer_payment", payment: p, invoice: inv })}
-                                                                    className="px-2.5 py-1 rounded-lg border border-emerald-300 bg-white text-emerald-900 text-[11px] font-semibold hover:bg-emerald-50"
+                                                                    onClick={() => downloadCustomerReceiptPdfFile(p, inv)}
+                                                                    className="px-2 py-1 rounded-lg bg-[#2B2B2B] text-white text-[11px] font-semibold hover:bg-black"
                                                                 >
-                                                                    Receipt Voucher
+                                                                    Receipt PDF ↓
                                                                 </button>
                                                             </td>
                                                         </tr>
@@ -726,38 +673,51 @@ export default function TourAccountingDossierTab({ tours }: { tours: FinanceTour
                                     <table className="w-full text-xs border border-emerald-200 rounded-xl overflow-hidden bg-white">
                                         <thead className="bg-emerald-50 text-emerald-900 uppercase text-[10px]">
                                             <tr>
-                                                <th className="p-2.5 text-left">Date</th>
-                                                <th className="p-2.5 text-left">Method</th>
-                                                <th className="p-2.5 text-left">Transaction Ref</th>
-                                                <th className="p-2.5 text-right">Amount</th>
-                                                <th className="p-2.5 text-right">FX Rate</th>
-                                                <th className="p-2.5 text-right">USD</th>
-                                                <th className="p-2.5 text-right">LKR</th>
-                                                <th className="p-2.5 text-right print:hidden">Actions</th>
+                                                <th className="p-2 text-left">Date</th>
+                                                <th className="p-2 text-left">Method</th>
+                                                <th className="p-2 text-left">Transaction Ref</th>
+                                                <th className="p-2 text-right">Amount</th>
+                                                <th className="p-2 text-right">FX Rate</th>
+                                                <th className="p-2 text-right">USD</th>
+                                                <th className="p-2 text-right">LKR</th>
+                                                <th className="p-2 text-right print:hidden">Bank Slip &amp; Receipt PDF</th>
                                             </tr>
                                         </thead>
                                         <tbody className="divide-y divide-emerald-100">
                                             {activeTour.unassigned_customer_payments.map(p => (
                                                 <tr key={p.id}>
-                                                    <td className="p-2.5">{fmtDate(p.payment_date)}</td>
-                                                    <td className="p-2.5">{p.payment_method || "—"}</td>
-                                                    <td className="p-2.5 font-mono">{p.transaction_id || "—"}</td>
-                                                    <td className="p-2.5 text-right font-mono">{p.currency} {fmt(p.amount)}</td>
-                                                    <td className="p-2.5 text-right font-mono">{p.exchange_rate ?? "—"}</td>
-                                                    <td className="p-2.5 text-right font-mono">{fmt(p.amount_usd)}</td>
-                                                    <td className="p-2.5 text-right font-mono">{fmt(p.amount_lkr)}</td>
-                                                    <td className="p-2.5 text-right space-x-2 print:hidden">
+                                                    <td className="p-2">{fmtDate(p.payment_date)}</td>
+                                                    <td className="p-2">{p.payment_method || "—"}</td>
+                                                    <td className="p-2 font-mono">{p.transaction_id || "—"}</td>
+                                                    <td className="p-2 text-right font-mono">{p.currency} {fmt(p.amount)}</td>
+                                                    <td className="p-2 text-right font-mono">{p.exchange_rate ?? "—"}</td>
+                                                    <td className="p-2 text-right font-mono">{fmt(p.amount_usd)}</td>
+                                                    <td className="p-2 text-right font-mono">{fmt(p.amount_lkr)}</td>
+                                                    <td className="p-2 text-right space-x-1.5 print:hidden">
                                                         {p.attachment_url && (
-                                                            <a href={p.attachment_url} target="_blank" rel="noreferrer" className="text-emerald-700 underline font-semibold">
-                                                                Slip ↗
-                                                            </a>
+                                                            <>
+                                                                <button
+                                                                    type="button"
+                                                                    onClick={() => viewStoredAttachment(p.attachment_url)}
+                                                                    className="px-2 py-1 rounded-lg border border-emerald-400 text-emerald-900 text-[11px] font-semibold"
+                                                                >
+                                                                    View Slip ↗
+                                                                </button>
+                                                                <button
+                                                                    type="button"
+                                                                    onClick={() => downloadStoredAttachment(p.attachment_url, `Advance_Slip_${p.transaction_id || p.id.slice(0, 8)}`)}
+                                                                    className="px-2 py-1 rounded-lg bg-emerald-700 text-white text-[11px] font-semibold"
+                                                                >
+                                                                    Download Slip ↓
+                                                                </button>
+                                                            </>
                                                         )}
                                                         <button
                                                             type="button"
-                                                            onClick={() => setModalDoc({ type: "customer_payment", payment: p })}
-                                                            className="px-2.5 py-1 rounded-lg border border-emerald-300 text-emerald-900 text-[11px] font-semibold"
+                                                            onClick={() => downloadCustomerReceiptPdfFile(p)}
+                                                            className="px-2 py-1 rounded-lg bg-[#2B2B2B] text-white text-[11px] font-semibold"
                                                         >
-                                                            Voucher
+                                                            Receipt PDF ↓
                                                         </button>
                                                     </td>
                                                 </tr>
@@ -769,15 +729,15 @@ export default function TourAccountingDossierTab({ tours }: { tours: FinanceTour
                         </div>
                     </div>
 
-                    {/* SECTION B: SUPPLIER PURCHASE ORDERS, BILLS & PAYMENT VOUCHERS (AP) */}
+                    {/* SECTION B: SUPPLIER PO PDFS, SUPPLIER INVOICES & PAYMENT SLIPS */}
                     <div className="bg-white border border-[#E5E7EB] rounded-2xl shadow-sm overflow-hidden">
                         <div className="px-6 py-4 bg-[#2B2B2B] text-white flex items-center justify-between">
                             <div>
                                 <h3 className="text-sm font-bold uppercase tracking-wider text-[#D4AF37]">
-                                    Section B &mdash; Supplier Purchase Orders, Tax Bills &amp; Payment Vouchers (AP)
+                                    Section B &mdash; Purchase Orders (PO PDF), Supplier Invoices &amp; Bank Payment Slips (AP)
                                 </h3>
                                 <p className="text-[11px] text-gray-300 mt-0.5">
-                                    Every PO with contracted line items, supplier invoices received, uploaded supplier bills, and payment/refund vouchers.
+                                    Every PO with downloadable PO PDF, contracted line items, supplier invoices received, and downloadable bank payment slips.
                                 </p>
                             </div>
                             <span className="px-3 py-1 rounded-full bg-white/10 text-xs font-mono">
@@ -794,7 +754,7 @@ export default function TourAccountingDossierTab({ tours }: { tours: FinanceTour
 
                             {activeTour.purchase_orders.map(po => (
                                 <div key={po.purchase_order_id} className="border border-[#E5E7EB] rounded-2xl overflow-hidden">
-                                    {/* PO Header */}
+                                    {/* PO Header with Direct PO PDF & Settlement Voucher Downloads */}
                                     <div className="bg-[#FAF9F6] px-5 py-3.5 border-b border-[#E5E7EB] flex flex-wrap items-center justify-between gap-4">
                                         <div>
                                             <div className="flex items-center gap-2.5">
@@ -808,28 +768,43 @@ export default function TourAccountingDossierTab({ tours }: { tours: FinanceTour
                                                 {po.po_date && <span className="text-xs text-[#6B7280]">&middot; {fmtDate(po.po_date)}</span>}
                                             </div>
                                             <div className="text-[11px] text-[#6B7280] mt-0.5">
-                                                {[po.vendor_email, po.vendor_phone, po.vendor_address, po.settlement_mode && `Settlement: ${po.settlement_mode}`]
+                                                {[po.vendor_email, po.vendor_phone, po.settlement_mode && `Settlement: ${po.settlement_mode}`]
                                                     .filter(Boolean)
                                                     .join(" · ")}
                                             </div>
                                         </div>
-                                        <div className="flex items-center gap-2 print:hidden">
+                                        <div className="flex flex-wrap items-center gap-2 print:hidden">
                                             {po.signed_document_url && (
-                                                <a
-                                                    href={po.signed_document_url}
-                                                    target="_blank"
-                                                    rel="noreferrer"
-                                                    className="px-3 py-1.5 rounded-xl bg-blue-50 border border-blue-200 text-blue-800 text-xs font-semibold hover:bg-blue-100"
-                                                >
-                                                    Signed PO ↗
-                                                </a>
+                                                <>
+                                                    <button
+                                                        type="button"
+                                                        onClick={() => viewStoredAttachment(po.signed_document_url)}
+                                                        className="px-2.5 py-1.5 rounded-xl bg-blue-50 border border-blue-200 text-blue-800 text-xs font-semibold hover:bg-blue-100"
+                                                    >
+                                                        View Signed PO ↗
+                                                    </button>
+                                                    <button
+                                                        type="button"
+                                                        onClick={() => downloadStoredAttachment(po.signed_document_url, `Signed_PO_${po.po_number}`)}
+                                                        className="px-2.5 py-1.5 rounded-xl bg-blue-600 text-white text-xs font-semibold hover:bg-blue-700"
+                                                    >
+                                                        Download Signed PO ↓
+                                                    </button>
+                                                </>
                                             )}
                                             <button
                                                 type="button"
-                                                onClick={() => setModalDoc({ type: "purchase_order", po })}
+                                                onClick={() => downloadPoPdfFile(po, activeTour.client_name)}
+                                                className="px-3 py-1.5 rounded-xl bg-emerald-800 text-white text-xs font-semibold hover:bg-emerald-950"
+                                            >
+                                                Download PO PDF ↓
+                                            </button>
+                                            <button
+                                                type="button"
+                                                onClick={() => downloadSettlementVoucherPdfFile(po, activeTour.client_name)}
                                                 className="px-3 py-1.5 rounded-xl bg-[#2B2B2B] text-white text-xs font-semibold hover:bg-black"
                                             >
-                                                View / Print PO Copy
+                                                Settlement Voucher PDF ↓
                                             </button>
                                         </div>
                                     </div>
@@ -915,36 +890,34 @@ export default function TourAccountingDossierTab({ tours }: { tours: FinanceTour
                                                                     <span className="text-xs text-[#6B7280]">
                                                                         Date: {fmtDate(sinv.invoice_date)} &middot; Due: {fmtDate(sinv.due_date)}
                                                                     </span>
-                                                                    {sinv.is_tallied && (
-                                                                        <span className="text-[10px] text-emerald-700 font-bold">✓ Tallied</span>
-                                                                    )}
                                                                 </div>
-                                                                <div className="flex items-center gap-2">
+                                                                <div className="flex flex-wrap items-center gap-2">
                                                                     <span className="font-mono font-bold text-xs">
                                                                         {sinv.currency} {fmt(sinv.amount)}
                                                                         {sinv.exchange_rate && sinv.currency !== "LKR" ? ` @ ${sinv.exchange_rate}` : ""} = LKR {fmt(sinv.amount_lkr)}
                                                                     </span>
                                                                     {sinv.attachment_url ? (
-                                                                        <a
-                                                                            href={sinv.attachment_url}
-                                                                            target="_blank"
-                                                                            rel="noreferrer"
-                                                                            className="px-2.5 py-1 rounded-lg bg-blue-600 text-white text-[11px] font-semibold hover:bg-blue-700 print:hidden"
-                                                                        >
-                                                                            Uploaded Bill Copy ↗
-                                                                        </a>
+                                                                        <>
+                                                                            <button
+                                                                                type="button"
+                                                                                onClick={() => viewStoredAttachment(sinv.attachment_url)}
+                                                                                className="px-2.5 py-1 rounded-lg bg-white border border-blue-400 text-blue-900 text-[11px] font-semibold hover:bg-blue-50 print:hidden"
+                                                                            >
+                                                                                View Supplier Bill ↗
+                                                                            </button>
+                                                                            <button
+                                                                                type="button"
+                                                                                onClick={() => downloadStoredAttachment(sinv.attachment_url, `Supplier_Invoice_${sinv.invoice_number}`)}
+                                                                                className="px-2.5 py-1 rounded-lg bg-blue-600 text-white text-[11px] font-semibold hover:bg-blue-700 print:hidden"
+                                                                            >
+                                                                                Download Bill ↓
+                                                                            </button>
+                                                                        </>
                                                                     ) : (
                                                                         <span className="px-2 py-0.5 rounded bg-red-100 text-red-700 text-[10px] font-bold print:hidden">
-                                                                            Missing Bill Scan
+                                                                            No Bill Uploaded
                                                                         </span>
                                                                     )}
-                                                                    <button
-                                                                        type="button"
-                                                                        onClick={() => setModalDoc({ type: "supplier_invoice", invoice: sinv, po })}
-                                                                        className="px-2.5 py-1 rounded-lg border border-blue-300 bg-white text-blue-900 text-[11px] font-semibold hover:bg-blue-50 print:hidden"
-                                                                    >
-                                                                        Bill Voucher
-                                                                    </button>
                                                                 </div>
                                                             </div>
 
@@ -976,10 +949,10 @@ export default function TourAccountingDossierTab({ tours }: { tours: FinanceTour
                                             )}
                                         </div>
 
-                                        {/* 3. Supplier Payment / Refund Vouchers */}
+                                        {/* 3. Supplier Payment / Refund Slips */}
                                         <div>
                                             <h4 className="text-[10px] font-bold uppercase tracking-wider text-amber-900 mb-2">
-                                                3. Supplier Payment &amp; Refund Vouchers ({po.supplier_payments?.length || 0})
+                                                3. Supplier Payments &amp; Bank Slips ({po.supplier_payments?.length || 0})
                                             </h4>
                                             <table className="w-full text-xs border border-amber-200 rounded-xl overflow-hidden">
                                                 <thead className="bg-amber-50 text-amber-900 uppercase text-[10px]">
@@ -990,7 +963,7 @@ export default function TourAccountingDossierTab({ tours }: { tours: FinanceTour
                                                         <th className="p-2 text-right">Original Amount</th>
                                                         <th className="p-2 text-right">FX Rate</th>
                                                         <th className="p-2 text-right">LKR Value</th>
-                                                        <th className="p-2 text-right print:hidden">Slip &amp; Voucher</th>
+                                                        <th className="p-2 text-right print:hidden">Bank Slip &amp; Voucher</th>
                                                     </tr>
                                                 </thead>
                                                 <tbody className="divide-y divide-amber-100">
@@ -1002,7 +975,6 @@ export default function TourAccountingDossierTab({ tours }: { tours: FinanceTour
                                                                     {spay.is_refund ? "Supplier Refund" : "Payment"}
                                                                 </span>
                                                                 {spay.invoice_number && <span className="block text-[10px] font-mono text-[#6B7280]">Inv: {spay.invoice_number}</span>}
-                                                                {spay.refund_reason && <span className="block text-[10px] text-red-700">Reason: {spay.refund_reason}</span>}
                                                             </td>
                                                             <td className="p-2">
                                                                 {spay.payment_method || "—"}
@@ -1011,25 +983,33 @@ export default function TourAccountingDossierTab({ tours }: { tours: FinanceTour
                                                             <td className="p-2 text-right font-mono">{spay.currency} {fmt(spay.amount)}</td>
                                                             <td className="p-2 text-right font-mono">{spay.exchange_rate ?? "—"}</td>
                                                             <td className="p-2 text-right font-mono font-bold">{fmt(spay.amount_lkr)}</td>
-                                                            <td className="p-2 text-right space-x-2 print:hidden">
+                                                            <td className="p-2 text-right space-x-1.5 print:hidden">
                                                                 {spay.attachment_url ? (
-                                                                    <a
-                                                                        href={spay.attachment_url}
-                                                                        target="_blank"
-                                                                        rel="noreferrer"
-                                                                        className="px-2.5 py-1 rounded-lg bg-amber-700 text-white text-[11px] font-semibold hover:bg-amber-800 inline-block"
-                                                                    >
-                                                                        Bank Slip ↗
-                                                                    </a>
+                                                                    <>
+                                                                        <button
+                                                                            type="button"
+                                                                            onClick={() => viewStoredAttachment(spay.attachment_url)}
+                                                                            className="px-2 py-1 rounded-lg bg-white border border-amber-400 text-amber-950 text-[11px] font-semibold hover:bg-amber-50"
+                                                                        >
+                                                                            View Slip ↗
+                                                                        </button>
+                                                                        <button
+                                                                            type="button"
+                                                                            onClick={() => downloadStoredAttachment(spay.attachment_url, `Supplier_Slip_${po.po_number}_${spay.payment_reference || spay.id.slice(0, 6)}`)}
+                                                                            className="px-2 py-1 rounded-lg bg-amber-700 text-white text-[11px] font-semibold hover:bg-amber-800"
+                                                                        >
+                                                                            Download Slip ↓
+                                                                        </button>
+                                                                    </>
                                                                 ) : (
                                                                     <span className="text-[10px] text-red-600 font-semibold">No Slip</span>
                                                                 )}
                                                                 <button
                                                                     type="button"
                                                                     onClick={() => setModalDoc({ type: "supplier_payment", payment: spay, po })}
-                                                                    className="px-2.5 py-1 rounded-lg border border-amber-300 bg-white text-amber-950 text-[11px] font-semibold hover:bg-amber-50"
+                                                                    className="px-2 py-1 rounded-lg border border-[#2B2B2B] bg-white text-[#2B2B2B] text-[11px] font-semibold hover:bg-gray-100"
                                                                 >
-                                                                    Payment Voucher
+                                                                    Voucher
                                                                 </button>
                                                             </td>
                                                         </tr>
@@ -1058,7 +1038,7 @@ export default function TourAccountingDossierTab({ tours }: { tours: FinanceTour
                                     Section C &mdash; Petty Cash &amp; Miscellaneous Tour Expenses
                                 </h3>
                                 <p className="text-[11px] text-amber-200 mt-0.5">
-                                    Direct non-PO tour expenses with category, payee, FX conversion, and uploaded receipt copies.
+                                    Direct non-PO tour expenses with downloadable Expense Voucher PDF and uploaded receipt copies.
                                 </p>
                             </div>
                             <span className="px-3 py-1 rounded-full bg-amber-800 text-xs font-mono">
@@ -1078,7 +1058,7 @@ export default function TourAccountingDossierTab({ tours }: { tours: FinanceTour
                                         <th className="p-2.5 text-right">Amount</th>
                                         <th className="p-2.5 text-right">FX Rate</th>
                                         <th className="p-2.5 text-right">LKR Amount</th>
-                                        <th className="p-2.5 text-right print:hidden">Receipt Copy</th>
+                                        <th className="p-2.5 text-right print:hidden">Receipt &amp; Voucher PDF</th>
                                     </tr>
                                 </thead>
                                 <tbody className="divide-y divide-[#F3F4F6]">
@@ -1098,19 +1078,34 @@ export default function TourAccountingDossierTab({ tours }: { tours: FinanceTour
                                             <td className="p-2.5 text-right font-mono">{exp.currency} {fmt(exp.amount)}</td>
                                             <td className="p-2.5 text-right font-mono">{exp.exchange_rate ?? "—"}</td>
                                             <td className="p-2.5 text-right font-mono font-bold">{fmt(exp.amount_lkr)}</td>
-                                            <td className="p-2.5 text-right print:hidden">
+                                            <td className="p-2.5 text-right space-x-1.5 print:hidden">
                                                 {exp.receipt_url ? (
-                                                    <a
-                                                        href={exp.receipt_url}
-                                                        target="_blank"
-                                                        rel="noreferrer"
-                                                        className="px-2.5 py-1 rounded-lg bg-amber-700 text-white text-[11px] font-semibold hover:bg-amber-800 inline-block"
-                                                    >
-                                                        Receipt ↗
-                                                    </a>
+                                                    <>
+                                                        <button
+                                                            type="button"
+                                                            onClick={() => viewStoredAttachment(exp.receipt_url)}
+                                                            className="px-2 py-1 rounded-lg bg-white border border-amber-400 text-amber-950 text-[11px] font-semibold hover:bg-amber-50"
+                                                        >
+                                                            View Receipt ↗
+                                                        </button>
+                                                        <button
+                                                            type="button"
+                                                            onClick={() => downloadStoredAttachment(exp.receipt_url, `Expense_Receipt_${exp.id.slice(0, 8)}`)}
+                                                            className="px-2 py-1 rounded-lg bg-amber-700 text-white text-[11px] font-semibold hover:bg-amber-800"
+                                                        >
+                                                            Download Receipt ↓
+                                                        </button>
+                                                    </>
                                                 ) : (
                                                     <span className="text-[10px] text-red-600 font-semibold">No Receipt</span>
                                                 )}
+                                                <button
+                                                    type="button"
+                                                    onClick={() => downloadExpenseVoucherPdfFile(exp)}
+                                                    className="px-2 py-1 rounded-lg bg-[#2B2B2B] text-white text-[11px] font-semibold hover:bg-black"
+                                                >
+                                                    Voucher PDF ↓
+                                                </button>
                                             </td>
                                         </tr>
                                     ))}
@@ -1132,4 +1127,3 @@ export default function TourAccountingDossierTab({ tours }: { tours: FinanceTour
         </div>
     );
 }
-
