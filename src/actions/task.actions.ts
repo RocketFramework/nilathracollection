@@ -3,6 +3,7 @@
 import { createClient } from '@/utils/supabase/server';
 import { TaskService } from '@/services/task.service';
 import { PushService } from '@/services/push.service';
+import { SmsService } from '@/services/sms.service';
 import type { CreateTaskDTO, TaskFiltersDTO, TaskTemplateInputDTO } from '@/dtos/task.dto';
 import type { TaskStatus } from '@/types/types';
 
@@ -21,6 +22,7 @@ export async function createTaskAction(i: CreateTaskDTO) {
     if (i.assignedTo !== actor) {
         await PushService.sendToUser(i.assignedTo, { title: 'New task assigned', body: task.title, url: '/admin/m-tasks' });
     }
+    await SmsService.sendTaskAssignedSms(task);
     return task;
 }
 export async function savePushSubscriptionAction(sub: { endpoint: string; p256dh: string; auth: string }, userAgent?: string) {
