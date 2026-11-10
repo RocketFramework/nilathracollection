@@ -13,6 +13,7 @@ export interface TourExpenseDTO {
     payment_method?: string | null;
     payment_reference?: string | null;
     receipt_url?: string | null;
+    signed_document_url?: string | null;
     notes?: string | null;
     created_at?: string;
 }

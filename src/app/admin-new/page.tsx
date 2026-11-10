@@ -4158,6 +4158,8 @@ function PlannerWizardWorkspace() {
   const [expenseNotes, setExpenseNotes] = useState<string>('');
   const [expenseReceiptUrl, setExpenseReceiptUrl] = useState<string>('');
   const [isUploadingExpenseReceipt, setIsUploadingExpenseReceipt] = useState<boolean>(false);
+  const [expenseSignedDocUrl, setExpenseSignedDocUrl] = useState<string>('');
+  const [isUploadingExpenseSignedDoc, setIsUploadingExpenseSignedDoc] = useState<boolean>(false);
   const [isSavingExpense, setIsSavingExpense] = useState<boolean>(false);
 
   const loadTourExpenses = async (tid: string) => {
@@ -8439,6 +8441,7 @@ ${chauffeurHtml}
     setExpenseRef(primary.payment_reference || '');
     setExpenseNotes(primary.notes || '');
     setExpenseReceiptUrl(primary.receipt_url || '');
+    setExpenseSignedDocUrl(primary.signed_document_url || '');
     setExpenseLineItems(
       items.map(item => ({
         id: item.id,
@@ -8502,6 +8505,7 @@ ${chauffeurHtml}
           payment_method: expenseMethod || null,
           payment_reference: expenseRef || null,
           receipt_url: expenseReceiptUrl || null,
+          signed_document_url: expenseSignedDocUrl || null,
           notes: expenseNotes || null
         });
         if (!res.success) {
@@ -8518,6 +8522,7 @@ ${chauffeurHtml}
       setExpenseRef('');
       setExpenseNotes('');
       setExpenseReceiptUrl('');
+      setExpenseSignedDocUrl('');
       setShowExpenseForm(false);
       await loadTourExpenses(tourId);
     } catch (err: any) {
@@ -18341,6 +18346,7 @@ ${chauffeurHtml}
                                 setExpenseRef('');
                                 setExpenseNotes('');
                                 setExpenseReceiptUrl('');
+                                setExpenseSignedDocUrl('');
                                 setExpenseLineItems([{ category: 'Other', description: '', amount: '' }]);
                                 setExpenseDate(new Date().toISOString().split('T')[0]);
                                 setExpenseExchangeRate(expenseCurrency === 'LKR' ? '1.0' : plRate.toString());
@@ -18490,6 +18496,32 @@ ${chauffeurHtml}
                           </div>
 
                           <div className="flex flex-wrap items-center gap-3">
+                            {/* Upload Signed Voucher / Direct Bill */}
+                            <input
+                              type="file"
+                              accept=".pdf,.jpg,.jpeg,.png,.webp"
+                              id="expense-signed-voucher-upload"
+                              className="hidden"
+                              disabled={isUploadingExpenseSignedDoc}
+                              onChange={(e) => {
+                                handleUploadSettlementFile(e.target.files?.[0], setExpenseSignedDocUrl, setIsUploadingExpenseSignedDoc);
+                                e.target.value = '';
+                              }}
+                            />
+                            <label htmlFor="expense-signed-voucher-upload" className="flex items-center gap-2 px-4 py-2 border border-dashed border-neutral-300 hover:border-emerald-800 rounded-xl bg-neutral-50 text-xs font-bold text-neutral-600 hover:text-emerald-800 transition-all cursor-pointer select-none">
+                              <Upload className="w-4 h-4" />
+                              {isUploadingExpenseSignedDoc ? 'Uploading...' : 'Upload Signed Voucher / Bill (PDF / image)'}
+                            </label>
+                            {expenseSignedDocUrl && (
+                              <div className="flex items-center gap-2 bg-emerald-50 text-emerald-800 px-3 py-1.5 rounded-xl border border-emerald-200 text-xs font-semibold">
+                                <Check className="w-3.5 h-3.5" />
+                                <span>Signed Voucher Uploaded</span>
+                                <button type="button" onClick={() => handleViewStoredDocument(expenseSignedDocUrl)} className="underline font-bold cursor-pointer">View</button>
+                                <button type="button" onClick={() => setExpenseSignedDocUrl('')} className="text-red-500 hover:text-red-700 ml-1 font-bold cursor-pointer" title="Remove Signed Voucher">✕</button>
+                              </div>
+                            )}
+
+                            {/* Upload Receipt / Payment Slip */}
                             <input
                               type="file"
                               accept=".pdf,.jpg,.jpeg,.png,.webp"
@@ -18503,13 +18535,14 @@ ${chauffeurHtml}
                             />
                             <label htmlFor="expense-receipt-upload" className="flex items-center gap-2 px-4 py-2 border border-dashed border-neutral-300 hover:border-emerald-800 rounded-xl bg-neutral-50 text-xs font-bold text-neutral-600 hover:text-emerald-800 transition-all cursor-pointer select-none">
                               <Upload className="w-4 h-4" />
-                              {isUploadingExpenseReceipt ? 'Uploading...' : 'Upload Receipt (PDF / image)'}
+                              {isUploadingExpenseReceipt ? 'Uploading...' : 'Upload Receipt / Slip (PDF / image)'}
                             </label>
                             {expenseReceiptUrl && (
                               <div className="flex items-center gap-2 bg-emerald-50 text-emerald-800 px-3 py-1.5 rounded-xl border border-emerald-200 text-xs font-semibold">
                                 <Check className="w-3.5 h-3.5" />
                                 <span>Receipt Uploaded</span>
-                                <button type="button" onClick={() => setExpenseReceiptUrl('')} className="text-red-500 hover:text-red-700 ml-1 font-bold" title="Remove Receipt">✕</button>
+                                <button type="button" onClick={() => handleViewStoredDocument(expenseReceiptUrl)} className="underline font-bold cursor-pointer">View</button>
+                                <button type="button" onClick={() => setExpenseReceiptUrl('')} className="text-red-500 hover:text-red-700 ml-1 font-bold cursor-pointer" title="Remove Receipt">✕</button>
                               </div>
                             )}
                           </div>
@@ -18622,6 +18655,12 @@ ${chauffeurHtml}
                                         </div>
                                       </div>
                                       <div className="flex items-center gap-3">
+                                        {ex.signed_document_url && (
+                                          <button type="button" onClick={() => handleViewStoredDocument(ex.signed_document_url as string)} className="inline-flex items-center gap-1 px-2 py-0.5 rounded-lg bg-neutral-100 hover:bg-emerald-50 text-neutral-600 hover:text-emerald-800 border border-neutral-200 text-[9px] font-bold cursor-pointer">
+                                            <FileText className="w-2.5 h-2.5" />
+                                            View Signed Voucher
+                                          </button>
+                                        )}
                                         {ex.receipt_url && (
                                           <button type="button" onClick={() => handleViewStoredDocument(ex.receipt_url as string)} className="inline-flex items-center gap-1 px-2 py-0.5 rounded-lg bg-neutral-100 hover:bg-emerald-50 text-neutral-600 hover:text-emerald-800 border border-neutral-200 text-[9px] font-bold cursor-pointer">
                                             <Image className="w-2.5 h-2.5" />

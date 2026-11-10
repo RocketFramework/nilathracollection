@@ -185,9 +185,9 @@ export const generateSettlementVoucherPdf = async (
 
     // Items
     const items: any[] = [...(po.items || [])].sort((a: any, b: any) => (a.day_number || 0) - (b.day_number || 0));
-    // Driver, activity-provider, and transport-provider vouchers are shown in LKR (converted at the agreed fx rate)
+    // Driver, activity-provider, restaurant, and transport-provider vouchers are shown in LKR (converted at the agreed fx rate)
     const isTransport = po.vendor_type === 'transport' || po.vendor_type === 'transport_provider';
-    const isLkrVendorType = po.vendor_type === 'driver' || po.vendor_type === 'vendor' || isTransport;
+    const isLkrVendorType = po.vendor_type === 'driver' || po.vendor_type === 'vendor' || po.vendor_type === 'restaurant' || isTransport;
 
     const itemFx = items.find((i: any) => i.fx_rate != null && Number(i.fx_rate) > 0)?.fx_rate;
     const effectiveFx = itemFx ? Number(itemFx) : (usdLkrRate && usdLkrRate > 0 ? usdLkrRate : 1);

@@ -237,7 +237,7 @@ export class FinanceReportService {
             supabase.from('purchase_order_items').select('id, purchase_order_id, description, quantity, unit_price, total_price'),
             supabase.from('supplier_invoices').select('id, purchase_order_id, invoice_number, currency'),
             supabase.from('supplier_invoice_items').select('id, supplier_invoice_id, description, quantity, unit_price, total_price'),
-            supabase.from('tour_expenses').select('id, tour_id, category, description, paid_to, amount, currency, exchange_rate, expense_date, created_at, payment_method, payment_reference, receipt_url, notes').order('expense_date', { ascending: false, nullsFirst: false }),
+            supabase.from('tour_expenses').select('*').order('expense_date', { ascending: false, nullsFirst: false }),
         ]);
 
         for (const r of [custPay, supPay, custInv, custInvItems, tours, touristProfiles, pos, poItems, supInv, supInvItems, expenses]) {
@@ -426,6 +426,7 @@ export class FinanceReportService {
                 payment_method: e.payment_method || null,
                 payment_reference: e.payment_reference || null,
                 receipt_url: e.receipt_url || null,
+                signed_document_url: e.signed_document_url || null,
                 notes: e.notes || null,
             };
             expenseDtos.push(expDto);
@@ -450,7 +451,7 @@ export class FinanceReportService {
                 amount_usd: amountUsd,
                 amount_lkr: amountLkr,
                 is_refund: false,
-                attachment_url: e.receipt_url || null,
+                attachment_url: e.receipt_url || e.signed_document_url || null,
                 category: e.category || null,
                 notes: e.notes || null,
                 line_items: [{

@@ -121,7 +121,7 @@ export default function TourAccountingDossierTab({ tours }: { tours: FinanceTour
         const allSupPays = activeTour.purchase_orders.flatMap(p => p.supplier_payments || []);
         const supPaysWithSlip = allSupPays.filter(p => !!p.attachment_url).length;
         const custPaysWithSlip = allCustPays.filter(p => !!p.attachment_url).length;
-        const expsWithReceipt = activeTour.tour_expenses.filter(e => !!e.receipt_url).length;
+        const expsWithReceipt = activeTour.tour_expenses.filter(e => !!(e.receipt_url || e.signed_document_url)).length;
 
         return {
             invUsd,
@@ -1132,7 +1132,7 @@ export default function TourAccountingDossierTab({ tours }: { tours: FinanceTour
                                         <th className="p-2.5 text-right">Amount</th>
                                         <th className="p-2.5 text-right">FX Rate</th>
                                         <th className="p-2.5 text-right">LKR Amount</th>
-                                        <th className="p-2.5 text-right print:hidden">Receipt &amp; Voucher PDF</th>
+                                        <th className="p-2.5 text-right print:hidden">Signed Voucher, Receipt &amp; Voucher PDF</th>
                                     </tr>
                                 </thead>
                                 <tbody className="divide-y divide-[#F3F4F6]">
@@ -1152,8 +1152,26 @@ export default function TourAccountingDossierTab({ tours }: { tours: FinanceTour
                                             <td className="p-2.5 text-right font-mono">{exp.currency} {fmt(exp.amount)}</td>
                                             <td className="p-2.5 text-right font-mono">{exp.exchange_rate ?? "—"}</td>
                                             <td className="p-2.5 text-right font-mono font-bold">{fmt(exp.amount_lkr)}</td>
-                                            <td className="p-2.5 text-right space-x-1.5 print:hidden">
-                                                {exp.receipt_url ? (
+                                            <td className="p-2.5 text-right space-x-1.5 space-y-1 print:hidden">
+                                                {exp.signed_document_url && (
+                                                    <>
+                                                        <button
+                                                            type="button"
+                                                            onClick={() => viewStoredAttachment(exp.signed_document_url)}
+                                                            className="px-2 py-1 rounded-lg bg-white border border-blue-400 text-blue-950 text-[11px] font-semibold hover:bg-blue-50"
+                                                        >
+                                                            View Signed Voucher ↗
+                                                        </button>
+                                                        <button
+                                                            type="button"
+                                                            onClick={() => downloadStoredAttachment(exp.signed_document_url, `Expense_Signed_Voucher_${exp.id.slice(0, 8)}`)}
+                                                            className="px-2 py-1 rounded-lg bg-blue-700 text-white text-[11px] font-semibold hover:bg-blue-800"
+                                                        >
+                                                            Download Signed Voucher ↓
+                                                        </button>
+                                                    </>
+                                                )}
+                                                {exp.receipt_url && (
                                                     <>
                                                         <button
                                                             type="button"
@@ -1170,8 +1188,9 @@ export default function TourAccountingDossierTab({ tours }: { tours: FinanceTour
                                                             Download Receipt ↓
                                                         </button>
                                                     </>
-                                                ) : (
-                                                    <span className="text-[10px] text-red-600 font-semibold">No Receipt</span>
+                                                )}
+                                                {!exp.signed_document_url && !exp.receipt_url && (
+                                                    <span className="text-[10px] text-red-600 font-semibold">No Receipt / No Signed Voucher</span>
                                                 )}
                                                 <button
                                                     type="button"
