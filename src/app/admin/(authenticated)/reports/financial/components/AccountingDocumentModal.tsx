@@ -13,7 +13,6 @@ import {
     viewStoredAttachment,
     downloadStoredAttachment,
     downloadPoPdfFile,
-    downloadSettlementVoucherPdfFile,
     downloadCustomerInvoicePdfFile,
     downloadCustomerReceiptPdfFile,
 } from "@/utils/accounting-documents-client";
@@ -75,22 +74,13 @@ export default function AccountingDocumentModal({
                             </button>
                         )}
                         {doc.type === "purchase_order" && (
-                            <>
-                                <button
-                                    type="button"
-                                    onClick={() => downloadPoPdfFile(doc.po)}
-                                    className="px-3.5 py-1.5 rounded-xl bg-emerald-800 text-white text-xs font-semibold hover:bg-emerald-950"
-                                >
-                                    Download Official PO PDF
-                                </button>
-                                <button
-                                    type="button"
-                                    onClick={() => downloadSettlementVoucherPdfFile(doc.po)}
-                                    className="px-3.5 py-1.5 rounded-xl border border-[#2B2B2B] text-xs font-semibold text-[#2B2B2B] hover:bg-gray-100"
-                                >
-                                    Download Settlement Voucher PDF
-                                </button>
-                            </>
+                            <button
+                                type="button"
+                                onClick={() => downloadPoPdfFile(doc.po)}
+                                className="px-3.5 py-1.5 rounded-xl bg-emerald-800 text-white text-xs font-semibold hover:bg-emerald-950"
+                            >
+                                Download Official PO PDF
+                            </button>
                         )}
                         {doc.type === "customer_payment" && (
                             <button
@@ -354,8 +344,8 @@ export default function AccountingDocumentModal({
                             {doc.po.signed_document_url && (
                                 <div className="p-4 rounded-xl bg-blue-50 border border-blue-200 flex items-center justify-between print:hidden">
                                     <div>
-                                        <span className="font-bold text-blue-900 block">Signed PO / Settlement Document Attached</span>
-                                        <span className="text-[11px] text-blue-700">Uploaded signed document for direct settlement</span>
+                                        <span className="font-bold text-blue-900 block">Signed Voucher / Settlement Document Attached</span>
+                                        <span className="text-[11px] text-blue-700">Uploaded signed voucher document from supplier</span>
                                     </div>
                                     <div className="flex gap-2">
                                         <button
@@ -363,14 +353,14 @@ export default function AccountingDocumentModal({
                                             onClick={() => viewStoredAttachment(doc.po.signed_document_url)}
                                             className="px-3 py-1.5 rounded-xl bg-white border border-blue-300 text-blue-900 font-semibold text-xs"
                                         >
-                                            View Signed PO ↗
+                                            View Signed Voucher ↗
                                         </button>
                                         <button
                                             type="button"
-                                            onClick={() => downloadStoredAttachment(doc.po.signed_document_url, `Signed_PO_${doc.po.po_number}`)}
+                                            onClick={() => downloadStoredAttachment(doc.po.signed_document_url, `Signed_Voucher_${doc.po.po_number}`)}
                                             className="px-3 py-1.5 rounded-xl bg-blue-600 text-white font-semibold text-xs"
                                         >
-                                            Download Signed PO ↓
+                                            Download Signed Voucher ↓
                                         </button>
                                     </div>
                                 </div>

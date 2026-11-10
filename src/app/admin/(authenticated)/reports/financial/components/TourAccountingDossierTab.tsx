@@ -7,7 +7,6 @@ import {
     viewStoredAttachment,
     downloadStoredAttachment,
     downloadPoPdfFile,
-    downloadSettlementVoucherPdfFile,
     downloadCustomerInvoicePdfFile,
     downloadCustomerReceiptPdfFile,
     downloadExpenseVoucherPdfFile,
@@ -22,6 +21,40 @@ const fmtDate = (d: string | null | undefined) => {
     if (!d) return "—";
     const dt = new Date(d);
     return isNaN(dt.getTime()) ? d : dt.toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" });
+};
+
+const getPoAuditStatus = (po: FinanceTourDossierDTO["purchase_orders"][number]) => {
+    const hasUploadedSupplierBill = (po.supplier_invoices || []).some(inv => !!inv.attachment_url);
+    const hasSignedVoucher = !!po.signed_document_url;
+    const hasSupplierProof = hasUploadedSupplierBill || hasSignedVoucher;
+    const hasPayments =
+        (po.supplier_payments || []).some(p => !p.is_refund && Number(p.amount) > 0) ||
+        (po.paid_lkr_net ?? 0) > 0;
+
+    if (!hasSupplierProof && hasPayments) {
+        return {
+            code: "payment_without_proof" as const,
+            badge: "⚠ PO Without Proof for Payments Made",
+            shortBadge: "⚠ Payment Without Supplier Proof",
+            reason:
+                "Accounting Audit Exception (Unvouched Disbursement): Payment(s) have been made against this PO, but neither a Supplier Invoice/Bill document nor a Signed Voucher from the supplier has been uploaded as proof.",
+        };
+    }
+    if (!hasSupplierProof && !hasPayments) {
+        return {
+            code: "incomplete_po" as const,
+            badge: "⚠ Incomplete PO — No Supplier Proof",
+            shortBadge: "⚠ Incomplete PO",
+            reason:
+                "Incomplete PO (Unsubstantiated Commitment): No payment has been made and neither a Supplier Invoice/Bill document nor a Signed Voucher has been uploaded to prove supplier acceptance or authorize payment.",
+        };
+    }
+    return {
+        code: "verified" as const,
+        badge: "✓ Supplier Proof Attached",
+        shortBadge: "✓ Proof Attached",
+        reason: "",
+    };
 };
 
 const csvEscape = (v: any) => {
@@ -752,16 +785,37 @@ export default function TourAccountingDossierTab({ tours }: { tours: FinanceTour
                                 </p>
                             )}
 
-                            {activeTour.purchase_orders.map(po => (
-                                <div key={po.purchase_order_id} className="border border-[#E5E7EB] rounded-2xl overflow-hidden">
-                                    {/* PO Header with Direct PO PDF & Settlement Voucher Downloads */}
+                            {activeTour.purchase_orders.map(po => {
+                                const poAudit = getPoAuditStatus(po);
+                                return (
+                                <div
+                                    key={po.purchase_order_id}
+                                    className={`border rounded-2xl overflow-hidden ${
+                                        poAudit.code === "payment_without_proof"
+                                            ? "border-red-300"
+                                            : poAudit.code === "incomplete_po"
+                                            ? "border-amber-300"
+                                            : "border-[#E5E7EB]"
+                                    }`}
+                                >
+                                    {/* PO Header with Direct PO PDF & Signed Voucher Downloads */}
                                     <div className="bg-[#FAF9F6] px-5 py-3.5 border-b border-[#E5E7EB] flex flex-wrap items-center justify-between gap-4">
                                         <div>
-                                            <div className="flex items-center gap-2.5">
+                                            <div className="flex flex-wrap items-center gap-2.5">
                                                 <span className="font-mono font-bold text-sm text-[#2B2B2B]">{po.po_number}</span>
                                                 <span className="px-2 py-0.5 rounded bg-[#E5E7EB] text-[#2B2B2B] text-[10px] font-bold uppercase">
                                                     {po.po_status}
                                                 </span>
+                                                {poAudit.code === "payment_without_proof" && (
+                                                    <span className="px-2.5 py-0.5 rounded-md bg-red-100 border border-red-300 text-red-800 text-[10px] font-bold uppercase tracking-wide">
+                                                        {poAudit.badge}
+                                                    </span>
+                                                )}
+                                                {poAudit.code === "incomplete_po" && (
+                                                    <span className="px-2.5 py-0.5 rounded-md bg-amber-100 border border-amber-300 text-amber-900 text-[10px] font-bold uppercase tracking-wide">
+                                                        {poAudit.badge}
+                                                    </span>
+                                                )}
                                                 <span className="text-xs font-semibold text-[#2B2B2B]">
                                                     {po.vendor_name} <span className="text-[#6B7280] font-normal">({po.vendor_type})</span>
                                                 </span>
@@ -781,14 +835,14 @@ export default function TourAccountingDossierTab({ tours }: { tours: FinanceTour
                                                         onClick={() => viewStoredAttachment(po.signed_document_url)}
                                                         className="px-2.5 py-1.5 rounded-xl bg-blue-50 border border-blue-200 text-blue-800 text-xs font-semibold hover:bg-blue-100"
                                                     >
-                                                        View Signed PO ↗
+                                                        View Signed Voucher ↗
                                                     </button>
                                                     <button
                                                         type="button"
-                                                        onClick={() => downloadStoredAttachment(po.signed_document_url, `Signed_PO_${po.po_number}`)}
+                                                        onClick={() => downloadStoredAttachment(po.signed_document_url, `Signed_Voucher_${po.po_number}`)}
                                                         className="px-2.5 py-1.5 rounded-xl bg-blue-600 text-white text-xs font-semibold hover:bg-blue-700"
                                                     >
-                                                        Download Signed PO ↓
+                                                        Download Signed Voucher ↓
                                                     </button>
                                                 </>
                                             )}
@@ -799,15 +853,23 @@ export default function TourAccountingDossierTab({ tours }: { tours: FinanceTour
                                             >
                                                 Download PO PDF ↓
                                             </button>
-                                            <button
-                                                type="button"
-                                                onClick={() => downloadSettlementVoucherPdfFile(po, activeTour.client_name)}
-                                                className="px-3 py-1.5 rounded-xl bg-[#2B2B2B] text-white text-xs font-semibold hover:bg-black"
-                                            >
-                                                Settlement Voucher PDF ↓
-                                            </button>
                                         </div>
                                     </div>
+
+                                    {poAudit.code !== "verified" && (
+                                        <div
+                                            className={`px-5 py-2.5 text-xs font-medium border-b flex items-center justify-between gap-2 ${
+                                                poAudit.code === "payment_without_proof"
+                                                    ? "bg-red-50 border-red-200 text-red-900"
+                                                    : "bg-amber-50 border-amber-200 text-amber-900"
+                                            }`}
+                                        >
+                                            <span>{poAudit.reason}</span>
+                                            <span className="text-[10px] font-mono uppercase font-bold whitespace-nowrap">
+                                                No Bill Uploaded &middot; No Signed Voucher
+                                            </span>
+                                        </div>
+                                    )}
 
                                     <div className="p-4 space-y-5">
                                         {/* 1. PO Line Items */}
@@ -874,9 +936,19 @@ export default function TourAccountingDossierTab({ tours }: { tours: FinanceTour
                                                 2. Supplier Invoices / Bills Received ({po.supplier_invoices?.length || 0})
                                             </h4>
                                             {(po.supplier_invoices || []).length === 0 ? (
-                                                <div className="p-3 rounded-xl bg-amber-50 border border-amber-200 text-xs text-amber-800">
-                                                    No supplier invoice recorded against {po.po_number}.
-                                                </div>
+                                                po.signed_document_url ? (
+                                                    <div className="p-3 rounded-xl bg-blue-50 border border-blue-200 text-xs text-blue-900">
+                                                        No separate supplier invoice recorded against {po.po_number} &mdash; substantiated by uploaded <strong>Signed Voucher</strong>.
+                                                    </div>
+                                                ) : poAudit.code === "payment_without_proof" ? (
+                                                    <div className="p-3 rounded-xl bg-red-50 border border-red-200 text-xs text-red-800 font-medium">
+                                                        ⚠ No supplier invoice or Signed Voucher uploaded against {po.po_number} &mdash; <strong>PO Without Proof for Payments Made</strong>.
+                                                    </div>
+                                                ) : (
+                                                    <div className="p-3 rounded-xl bg-amber-50 border border-amber-200 text-xs text-amber-900 font-medium">
+                                                        ⚠ No supplier invoice or Signed Voucher uploaded against {po.po_number} &mdash; <strong>Incomplete PO (No Supplier Proof of Acceptance)</strong>.
+                                                    </div>
+                                                )
                                             ) : (
                                                 <div className="space-y-3">
                                                     {(po.supplier_invoices || []).map(sinv => (
@@ -913,9 +985,17 @@ export default function TourAccountingDossierTab({ tours }: { tours: FinanceTour
                                                                                 Download Bill ↓
                                                                             </button>
                                                                         </>
+                                                                    ) : po.signed_document_url ? (
+                                                                        <span className="px-2 py-0.5 rounded bg-blue-100 text-blue-800 text-[10px] font-bold print:hidden">
+                                                                            No Bill Scan &middot; Signed Voucher Attached ✓
+                                                                        </span>
+                                                                    ) : poAudit.code === "payment_without_proof" ? (
+                                                                        <span className="px-2 py-0.5 rounded bg-red-100 border border-red-300 text-red-800 text-[10px] font-bold">
+                                                                            ⚠ No Bill or Signed Voucher &mdash; PO Without Proof for Payments
+                                                                        </span>
                                                                     ) : (
-                                                                        <span className="px-2 py-0.5 rounded bg-red-100 text-red-700 text-[10px] font-bold print:hidden">
-                                                                            No Bill Uploaded
+                                                                        <span className="px-2 py-0.5 rounded bg-amber-100 border border-amber-300 text-amber-900 text-[10px] font-bold">
+                                                                            ⚠ No Bill or Signed Voucher &mdash; Incomplete PO
                                                                         </span>
                                                                     )}
                                                                 </div>
@@ -1004,13 +1084,6 @@ export default function TourAccountingDossierTab({ tours }: { tours: FinanceTour
                                                                 ) : (
                                                                     <span className="text-[10px] text-red-600 font-semibold">No Slip</span>
                                                                 )}
-                                                                <button
-                                                                    type="button"
-                                                                    onClick={() => setModalDoc({ type: "supplier_payment", payment: spay, po })}
-                                                                    className="px-2 py-1 rounded-lg border border-[#2B2B2B] bg-white text-[#2B2B2B] text-[11px] font-semibold hover:bg-gray-100"
-                                                                >
-                                                                    Voucher
-                                                                </button>
                                                             </td>
                                                         </tr>
                                                     ))}
@@ -1026,7 +1099,8 @@ export default function TourAccountingDossierTab({ tours }: { tours: FinanceTour
                                         </div>
                                     </div>
                                 </div>
-                            ))}
+                                );
+                            })}
                         </div>
                     </div>
 

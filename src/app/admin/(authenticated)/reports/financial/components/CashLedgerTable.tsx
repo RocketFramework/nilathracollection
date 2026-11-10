@@ -292,13 +292,6 @@ export default function CashLedgerTable({ ledger }: { ledger: FinanceLedgerDTO }
                                             ) : (
                                                 <span className="text-[10px] opacity-60">No Slip</span>
                                             )}
-                                            <button
-                                                type="button"
-                                                onClick={() => setModalDoc({ type: "ledger_voucher", row: r })}
-                                                className="px-2 py-1 rounded bg-[#2B2B2B] text-white text-[10px] font-semibold hover:bg-black"
-                                            >
-                                                Voucher
-                                            </button>
                                         </td>
                                     </tr>
 

@@ -7,7 +7,6 @@ import {
     viewStoredAttachment,
     downloadStoredAttachment,
     downloadPoPdfFile,
-    downloadSettlementVoucherPdfFile,
 } from "@/utils/accounting-documents-client";
 
 const lkr = (v: number | null | undefined) =>
@@ -29,6 +28,40 @@ const fmtDate = (d: string | null | undefined) => {
     if (!d) return "—";
     const dt = new Date(d);
     return isNaN(dt.getTime()) ? d : dt.toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" });
+};
+
+const getPoAuditStatus = (po: FinancePoReportRowDTO) => {
+    const hasUploadedSupplierBill = (po.supplier_invoices || []).some(inv => !!inv.attachment_url);
+    const hasSignedVoucher = !!po.signed_document_url;
+    const hasSupplierProof = hasUploadedSupplierBill || hasSignedVoucher;
+    const hasPayments =
+        (po.supplier_payments || []).some(p => !p.is_refund && Number(p.amount) > 0) ||
+        (po.paid_lkr_net ?? 0) > 0;
+
+    if (!hasSupplierProof && hasPayments) {
+        return {
+            code: "payment_without_proof" as const,
+            badge: "⚠ PO Without Proof for Payments Made",
+            shortBadge: "⚠ PO Without Proof (Paid)",
+            reason:
+                "Accounting Audit Exception (Unvouched Disbursement): Payment(s) have been made against this PO, but neither a Supplier Invoice/Bill document nor a Signed Voucher from the supplier has been uploaded as proof.",
+        };
+    }
+    if (!hasSupplierProof && !hasPayments) {
+        return {
+            code: "incomplete_po" as const,
+            badge: "⚠ Incomplete PO — No Supplier Proof",
+            shortBadge: "⚠ Incomplete PO",
+            reason:
+                "Incomplete PO (Unsubstantiated Commitment): No payment has been made and neither a Supplier Invoice/Bill document nor a Signed Voucher has been uploaded to prove supplier acceptance or authorize payment.",
+        };
+    }
+    return {
+        code: "verified" as const,
+        badge: "✓ Supplier Proof Attached",
+        shortBadge: "✓ Proof Attached",
+        reason: "",
+    };
 };
 
 const csvEscape = (v: any) => {
@@ -335,6 +368,7 @@ export default function FinancialReportTable({
                             const isOpen = !!expandedIds[r.purchase_order_id];
                             const attachedBills = (r.supplier_invoices || []).filter(i => !!i.attachment_url);
                             const attachedSlips = (r.supplier_payments || []).filter(p => !!p.attachment_url);
+                            const poAudit = getPoAuditStatus(r);
 
                             return (
                                 <React.Fragment key={r.purchase_order_id}>
@@ -355,7 +389,25 @@ export default function FinancialReportTable({
                                             {r.vendor_name}
                                             <span className="block text-[10px] text-[#9CA3AF]">{r.vendor_type}</span>
                                         </td>
-                                        <td className="p-3">{r.po_status}</td>
+                                        <td className="p-3">
+                                            <span className="block">{r.po_status}</span>
+                                            {poAudit.code === "payment_without_proof" && (
+                                                <span
+                                                    title={poAudit.reason}
+                                                    className="inline-block mt-1 px-1.5 py-0.5 rounded bg-red-100 border border-red-300 text-red-800 text-[9px] font-bold whitespace-nowrap"
+                                                >
+                                                    {poAudit.shortBadge}
+                                                </span>
+                                            )}
+                                            {poAudit.code === "incomplete_po" && (
+                                                <span
+                                                    title={poAudit.reason}
+                                                    className="inline-block mt-1 px-1.5 py-0.5 rounded bg-amber-100 border border-amber-300 text-amber-900 text-[9px] font-bold whitespace-nowrap"
+                                                >
+                                                    {poAudit.shortBadge}
+                                                </span>
+                                            )}
+                                        </td>
                                         <td className="p-3 text-right font-mono whitespace-nowrap">
                                             {r.po_value_own_ccy === null ? "—" : `${r.po_currency || ""} ${fmt(r.po_value_own_ccy)}`}
                                         </td>
@@ -392,11 +444,11 @@ export default function FinancialReportTable({
                                                 {r.signed_document_url && (
                                                     <button
                                                         type="button"
-                                                        onClick={() => downloadStoredAttachment(r.signed_document_url, `Signed_PO_${r.po_number}`)}
+                                                        onClick={() => downloadStoredAttachment(r.signed_document_url, `Signed_Voucher_${r.po_number}`)}
                                                         className="px-2 py-1 rounded bg-indigo-50 text-indigo-800 border border-indigo-200 text-[10px] font-semibold hover:bg-indigo-100"
-                                                        title="Download uploaded Signed PO"
+                                                        title="Download uploaded Signed Voucher"
                                                     >
-                                                        Signed PO ↓
+                                                        Signed Voucher ↓
                                                     </button>
                                                 )}
                                                 {attachedBills.map((b, idx) => (
@@ -421,14 +473,6 @@ export default function FinancialReportTable({
                                                         Bank Slip{attachedSlips.length > 1 ? ` #${idx + 1}` : ""} ↓
                                                     </button>
                                                 ))}
-                                                <button
-                                                    type="button"
-                                                    onClick={() => downloadSettlementVoucherPdfFile(r)}
-                                                    className="px-2 py-1 rounded border border-[#2B2B2B] text-[#2B2B2B] bg-white text-[10px] font-semibold hover:bg-gray-100"
-                                                    title="Download Payment Settlement Voucher PDF"
-                                                >
-                                                    Voucher PDF ↓
-                                                </button>
                                             </div>
                                         </td>
                                     </tr>
@@ -437,6 +481,23 @@ export default function FinancialReportTable({
                                         <tr className="bg-[#FAF9F6]">
                                             <td colSpan={15} className="p-5 border-t border-[#E5E7EB]">
                                                 <div className="space-y-4">
+                                                    {poAudit.code !== "verified" && (
+                                                        <div
+                                                            className={`p-3 rounded-xl border text-xs font-medium flex flex-wrap items-center justify-between gap-2 ${
+                                                                poAudit.code === "payment_without_proof"
+                                                                    ? "bg-red-50 border-red-200 text-red-900"
+                                                                    : "bg-amber-50 border-amber-200 text-amber-900"
+                                                            }`}
+                                                        >
+                                                            <div>
+                                                                <span className="font-bold uppercase tracking-wide mr-2">{poAudit.badge}:</span>
+                                                                <span>{poAudit.reason}</span>
+                                                            </div>
+                                                            <span className="text-[10px] font-mono uppercase font-bold whitespace-nowrap">
+                                                                No Bill Uploaded &middot; No Signed Voucher
+                                                            </span>
+                                                        </div>
+                                                    )}
                                                     {/* 1. PO Line Items */}
                                                     <div className="bg-white border border-[#E5E7EB] rounded-xl p-3">
                                                         <div className="flex items-center justify-between mb-2">
@@ -550,8 +611,12 @@ export default function FinancialReportTable({
                                                                                                 Download ↓
                                                                                             </button>
                                                                                         </>
+                                                                                    ) : r.signed_document_url ? (
+                                                                                        <span className="text-[10px] text-blue-800 font-semibold">Signed Voucher ✓</span>
+                                                                                    ) : poAudit.code === "payment_without_proof" ? (
+                                                                                        <span className="text-[10px] text-red-700 font-bold">⚠ No Bill / No Signed Voucher (Paid Without Proof)</span>
                                                                                     ) : (
-                                                                                        <span className="text-[10px] text-red-600 font-semibold">No Bill Scan</span>
+                                                                                        <span className="text-[10px] text-amber-800 font-bold">⚠ No Bill / No Signed Voucher (Incomplete PO)</span>
                                                                                     )}
                                                                                 </td>
                                                                             </tr>
