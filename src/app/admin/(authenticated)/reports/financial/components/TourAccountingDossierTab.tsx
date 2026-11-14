@@ -278,13 +278,14 @@ export default function TourAccountingDossierTab({ tours }: { tours: FinanceTour
                 ]);
             }
             for (const sinv of po.supplier_invoices || []) {
+                const isVoucher = sinv.invoice_type === "Signed Voucher";
                 lines.push([
-                    "Supplier Invoice",
+                    isVoucher ? "Signed Voucher" : "Supplier Invoice",
                     activeTour.tour_code,
                     sinv.invoice_number,
                     sinv.invoice_date || "",
                     po.vendor_name || "",
-                    `Supplier Bill against ${po.po_number}`,
+                    `${isVoucher ? "Signed Settlement Voucher" : "Supplier Bill"} against ${po.po_number}`,
                     "1",
                     sinv.currency,
                     String(sinv.amount),
@@ -980,7 +981,7 @@ export default function TourAccountingDossierTab({ tours }: { tours: FinanceTour
                                         {/* 2. Supplier Invoices & Bill Copies */}
                                         <div>
                                             <h4 className="text-[10px] font-bold uppercase tracking-wider text-blue-900 mb-2">
-                                                2. Supplier Invoices / Bills Received ({po.supplier_invoices?.length || 0})
+                                                2. Supplier Invoices / Signed Vouchers Received ({po.supplier_invoices?.length || 0})
                                             </h4>
                                             {(po.supplier_invoices || []).length === 0 ? (
                                                 po.signed_document_url ? (
@@ -1003,7 +1004,11 @@ export default function TourAccountingDossierTab({ tours }: { tours: FinanceTour
                                                             <div className="flex flex-wrap items-center justify-between gap-2">
                                                                 <div className="flex items-center gap-2">
                                                                     <span className="font-mono font-bold text-xs text-[#2B2B2B]">{sinv.invoice_number}</span>
-                                                                    <span className="px-2 py-0.5 rounded bg-blue-100 text-blue-900 text-[10px] font-bold">
+                                                                    <span className={`px-2 py-0.5 rounded text-[10px] font-bold ${
+                                                                        sinv.invoice_type === "Signed Voucher"
+                                                                            ? "bg-amber-100 text-amber-900 border border-amber-200"
+                                                                            : "bg-blue-100 text-blue-900"
+                                                                    }`}>
                                                                         {sinv.invoice_type || "Final"} &middot; {sinv.status}
                                                                     </span>
                                                                     <span className="text-xs text-[#6B7280]">
@@ -1022,14 +1027,19 @@ export default function TourAccountingDossierTab({ tours }: { tours: FinanceTour
                                                                                 onClick={() => viewStoredAttachment(sinv.attachment_url)}
                                                                                 className="px-2.5 py-1 rounded-lg bg-white border border-blue-400 text-blue-900 text-[11px] font-semibold hover:bg-blue-50 print:hidden"
                                                                             >
-                                                                                View Supplier Bill ↗
+                                                                                {sinv.invoice_type === "Signed Voucher" ? "View Signed Voucher ↗" : "View Supplier Bill ↗"}
                                                                             </button>
                                                                             <button
                                                                                 type="button"
-                                                                                onClick={() => downloadStoredAttachment(sinv.attachment_url, `Supplier_Invoice_${sinv.invoice_number}`)}
+                                                                                onClick={() => downloadStoredAttachment(
+                                                                                    sinv.attachment_url,
+                                                                                    sinv.invoice_type === "Signed Voucher"
+                                                                                        ? `Signed_Voucher_${sinv.invoice_number}`
+                                                                                        : `Supplier_Invoice_${sinv.invoice_number}`
+                                                                                )}
                                                                                 className="px-2.5 py-1 rounded-lg bg-blue-600 text-white text-[11px] font-semibold hover:bg-blue-700 print:hidden"
                                                                             >
-                                                                                Download Bill ↓
+                                                                                {sinv.invoice_type === "Signed Voucher" ? "Download Voucher ↓" : "Download Bill ↓"}
                                                                             </button>
                                                                         </>
                                                                     ) : po.signed_document_url ? (

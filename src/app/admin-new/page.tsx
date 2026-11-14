@@ -153,6 +153,7 @@ import {
   sendPaymentConfirmationEmailAction,
   deleteSupplierPaymentAction,
   deleteSupplierInvoiceAction,
+  updateSupplierInvoiceTypeAction,
   getExchangeRateAction,
   lockTourUsdBuyingRateAction,
   getSeamlessConciergeCostItemsAction,
@@ -4105,8 +4106,9 @@ function PlannerWizardWorkspace() {
   const [invoiceAmount, setInvoiceAmount] = useState<string>('');
   const [invoiceDate, setInvoiceDate] = useState<string>('');
   const [invoiceAttachment, setInvoiceAttachment] = useState<string>('');
-  const [invoiceType, setInvoiceType] = useState<'Pro Forma' | 'Final'>('Final');
+  const [invoiceType, setInvoiceType] = useState<'Pro Forma' | 'Final' | 'Signed Voucher'>('Final');
   const [isUploadingInvoiceFile, setIsUploadingInvoiceFile] = useState<boolean>(false);
+  const [convertingInvoiceId, setConvertingInvoiceId] = useState<string | null>(null);
 
   // Payment input states
   const [payingInvoiceId, setPayingInvoiceId] = useState<string | null>(null);
@@ -8100,7 +8102,7 @@ ${chauffeurHtml}
     const amount = parseFloat(invoiceAmount);
     const rate = parseFloat(invoiceExchangeRate) || 1.0;
     if (!invoiceNumber) {
-      alert("Please enter an invoice number.");
+      alert(invoiceType === 'Signed Voucher' ? "Please enter a voucher number / reference." : "Please enter an invoice number.");
       return;
     }
     if (isNaN(amount) || amount <= 0) {
@@ -8151,7 +8153,9 @@ ${chauffeurHtml}
         attachment_url: invoiceAttachment || undefined,
         invoice_type: invoiceType,
         items: invoiceItems.map(item => ({
-          purchase_order_item_id: item.purchase_order_item_id,
+          purchase_order_item_id: item.purchase_order_item_id && !String(item.purchase_order_item_id).startsWith('transport-day-')
+            ? item.purchase_order_item_id
+            : null,
           description: item.description,
           quantity: parseFloat(item.quantity) || 0,
           unit_price: parseFloat(item.unit_price) || 0
@@ -8159,7 +8163,8 @@ ${chauffeurHtml}
       });
 
       if (res.success) {
-        alert(isTallied ? "Invoice recorded and tallied!" : "Invoice recorded with discrepancy warning.");
+        const docLabel = invoiceType === 'Signed Voucher' ? 'Signed Voucher' : 'Invoice';
+        alert(isTallied ? `${docLabel} recorded and tallied!` : `${docLabel} recorded with discrepancy warning.`);
         setInvoiceNumber('');
         setInvoiceAmount('');
         setInvoiceDate('');
@@ -8169,7 +8174,7 @@ ${chauffeurHtml}
         setEnteringInvoicePoId(null);
         loadProcurementData(tourId);
       } else {
-        alert("Failed to save invoice: " + res.error);
+        alert("Failed to save " + (invoiceType === 'Signed Voucher' ? "signed voucher" : "invoice") + ": " + res.error);
       }
     } catch (err: any) {
       alert("Error: " + err.message);
@@ -8323,6 +8328,25 @@ ${chauffeurHtml}
     setDirectSettleDate(po.settled_date ? String(po.settled_date).split('T')[0] : new Date().toISOString().split('T')[0]);
     setDirectSettleNotes(po.settlement_notes || '');
     setDirectSettleDocUrl(po.signed_document_url || '');
+  };
+
+  const handleOpenSignedVoucherAsBill = (po: any, agreedLkrTotal: number | null) => {
+    const poLkrItems = poHasAgreedLkrItems(po);
+    const defaultInvItems = buildInvoiceItemsFromPo(po);
+    const useLkr = poLkrItems || agreedLkrTotal !== null;
+    const defaultAmount = poLkrItems
+      ? defaultInvItems.reduce((s: number, i: any) => s + (Number(i.quantity) * Number(i.unit_price)), 0)
+      : (agreedLkrTotal !== null ? agreedLkrTotal : po.total_amount);
+
+    setEnteringInvoicePoId(po.id);
+    setInvoiceType('Signed Voucher');
+    setInvoiceNumber(`VCH-${po.po_number || String(po.id || '').slice(0, 8).toUpperCase()}`);
+    setInvoiceAmount(Number(defaultAmount || 0).toFixed(2));
+    setInvoiceCurrency(useLkr ? 'LKR' : (po.currency || 'USD'));
+    setInvoiceExchangeRate(useLkr ? '1.0' : plRate.toString());
+    setInvoiceDate(po.settled_date ? String(po.settled_date).split('T')[0] : new Date().toISOString().split('T')[0]);
+    setInvoiceAttachment(po.signed_document_url || '');
+    initInvoiceItems(po);
   };
 
   const handleSaveDirectSettlement = async (po: any) => {
@@ -8686,6 +8710,25 @@ ${chauffeurHtml}
       }
     } catch (err: any) {
       alert("Error: " + err.message);
+    }
+  };
+
+  const handleMakeProFormaFinal = async (inv: any) => {
+    if (!window.confirm(`Mark Pro Forma invoice #${inv.invoice_number} as the Final Invoice?`)) {
+      return;
+    }
+    setConvertingInvoiceId(inv.id);
+    try {
+      const res = await updateSupplierInvoiceTypeAction(inv.id, 'Final');
+      if (res.success) {
+        await loadProcurementData(tourId);
+      } else {
+        alert("Failed to update invoice type: " + res.error);
+      }
+    } catch (err: any) {
+      alert("Error: " + err.message);
+    } finally {
+      setConvertingInvoiceId(null);
     }
   };
 
@@ -16954,12 +16997,30 @@ ${chauffeurHtml}
                                             <div className="text-amber-600 font-semibold">Signed document not uploaded yet.</div>
                                           )}
                                         </div>
-                                        <div className="flex items-center gap-2">
+                                        <div className="flex flex-wrap items-center gap-2">
                                           {po.signed_document_url && (
                                             <button type="button" onClick={() => handleViewStoredDocument(po.signed_document_url)} className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-neutral-100 hover:bg-emerald-50 text-neutral-600 hover:text-emerald-800 border border-neutral-200 text-[10px] font-bold">
                                               <Image className="w-3 h-3" />
                                               View Signed Document
                                             </button>
+                                          )}
+                                          {po.signed_document_url && (
+                                            invoices.some((inv: any) => inv.invoice_type === 'Signed Voucher') ? (
+                                              <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-amber-50 text-amber-800 border border-amber-200 text-[10px] font-bold">
+                                                <Check className="w-3 h-3" />
+                                                Recorded as Signed Voucher Bill
+                                              </span>
+                                            ) : (
+                                              <button
+                                                type="button"
+                                                onClick={() => handleOpenSignedVoucherAsBill(po, agreedLkrTotal)}
+                                                className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-amber-600 hover:bg-amber-700 text-white shadow-sm text-[10px] font-bold cursor-pointer"
+                                                title="Record this Signed Voucher as the Bill of Record so you can tally PO items and attach Bank Transfer Slips"
+                                              >
+                                                <Receipt className="w-3 h-3" />
+                                                Use Signed Voucher as Bill
+                                              </button>
+                                            )
                                           )}
                                           <button type="button" onClick={() => handleOpenDirectSettlement(po)} className="px-2.5 py-1 rounded-lg border border-neutral-200 text-neutral-600 hover:bg-neutral-50 text-[10px] font-bold">Edit Details</button>
                                         </div>
@@ -17105,22 +17166,22 @@ ${chauffeurHtml}
                                       {/* Upload Payment Slip */}
                                       <div className="space-y-2">
                                         <label className="text-[10px] uppercase tracking-wider text-neutral-400 font-bold block">
-                                          Upload Payment Slip / Receipt (JPEG, PNG, GIF, WebP)
+                                          Upload Bank Slip / Payment Receipt (PDF, JPEG, PNG, GIF, WebP)
                                         </label>
                                         <div className="flex items-center gap-3">
                                           <div className="relative flex-1 max-w-md">
                                             <input
                                               type="file"
-                                              accept=".jpg,.jpeg,.png,.gif,.webp"
+                                              accept=".pdf,.jpg,.jpeg,.png,.gif,.webp"
                                               disabled={isUploadingPayslip}
                                               onChange={async (e) => {
                                                 const file = e.target.files?.[0];
                                                 if (!file) return;
 
-                                                // Validate image
-                                                const validTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/gif', 'image/webp'];
+                                                // Validate PDF or image
+                                                const validTypes = ['application/pdf', 'image/jpeg', 'image/jpg', 'image/png', 'image/gif', 'image/webp'];
                                                 if (!validTypes.includes(file.type)) {
-                                                  alert("Please upload a valid image file (JPG, PNG, GIF, WebP).");
+                                                  alert("Please upload a valid PDF or image file (PDF, JPG, PNG, GIF, WebP).");
                                                   e.target.value = '';
                                                   return;
                                                 }
@@ -17149,7 +17210,7 @@ ${chauffeurHtml}
                                               className="flex items-center gap-2 justify-center px-4 py-2 border border-dashed border-neutral-300 hover:border-emerald-800 rounded-xl bg-neutral-50 hover:bg-neutral-50/80 text-xs font-bold text-neutral-600 hover:text-emerald-800 transition-all cursor-pointer select-none"
                                             >
                                               <Upload className="w-4 h-4" />
-                                              {isUploadingPayslip ? 'Uploading & Converting to WebP...' : 'Choose File (Slip/Receipt)'}
+                                              {isUploadingPayslip ? 'Uploading Slip...' : 'Choose File (Bank Slip / Receipt)'}
                                             </label>
                                           </div>
 
@@ -17362,14 +17423,14 @@ ${chauffeurHtml}
                                         <div className="flex items-center gap-3">
                                           <input
                                             type="file"
-                                            accept=".jpg,.jpeg,.png,.gif,.webp"
+                                            accept=".pdf,.jpg,.jpeg,.png,.gif,.webp"
                                             disabled={isUploadingPayslip}
                                             onChange={async (e) => {
                                               const file = e.target.files?.[0];
                                               if (!file) return;
-                                              const validTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/gif', 'image/webp'];
+                                              const validTypes = ['application/pdf', 'image/jpeg', 'image/jpg', 'image/png', 'image/gif', 'image/webp'];
                                               if (!validTypes.includes(file.type)) {
-                                                alert("Please upload a valid image file (JPG, PNG, GIF, WebP).");
+                                                alert("Please upload a valid PDF or image file (PDF, JPG, PNG, GIF, WebP).");
                                                 e.target.value = '';
                                                 return;
                                               }
@@ -17397,7 +17458,7 @@ ${chauffeurHtml}
                                             className="flex items-center gap-2 justify-center px-4 py-2 border border-dashed border-amber-300 hover:border-amber-800 rounded-xl bg-white text-xs font-bold text-amber-800 transition-all cursor-pointer select-none"
                                           >
                                             <Upload className="w-4 h-4" />
-                                            {isUploadingPayslip ? 'Uploading & Converting to WebP...' : 'Choose File (Slip/Receipt)'}
+                                            {isUploadingPayslip ? 'Uploading Slip...' : 'Choose File (PDF / Image)'}
                                           </label>
                                           {refundSlipUrl && (
                                             <div className="flex items-center gap-2 bg-emerald-50 text-emerald-800 px-3 py-1.5 rounded-xl border border-emerald-200 text-xs font-semibold">
@@ -17516,7 +17577,7 @@ ${chauffeurHtml}
                                   <div className="flex items-center justify-between border-t border-neutral-100 pt-4">
                                     <h4 className="text-xs font-bold text-neutral-700 uppercase tracking-wide flex items-center gap-1.5">
                                       <Receipt className="w-4 h-4 text-emerald-800" />
-                                      Invoices & Reconciliation
+                                      Invoices, Signed Vouchers & Reconciliation
                                     </h4>
                                     {enteringInvoicePoId !== po.id && (
                                       <button
@@ -17539,7 +17600,7 @@ ${chauffeurHtml}
                                         className="flex items-center gap-1 px-2.5 py-1 text-xs font-bold text-emerald-850 hover:text-emerald-950 border border-neutral-250 bg-white rounded-lg transition-all shadow-sm"
                                       >
                                         <Plus className="w-3.5 h-3.5" />
-                                        Record Invoice & Match Items
+                                        Record Invoice / Signed Voucher
                                       </button>
                                     )}
                                   </div>
@@ -17547,7 +17608,9 @@ ${chauffeurHtml}
                                   {enteringInvoicePoId === po.id && (
                                     <div className="p-5 bg-white border border-neutral-200 rounded-2xl space-y-4 shadow-sm animate-in slide-in-from-top-2 duration-200">
                                       <div className="flex items-center justify-between border-b border-neutral-100 pb-2">
-                                        <h5 className="text-xs font-bold text-neutral-700">Record Inbound Invoice</h5>
+                                        <h5 className="text-xs font-bold text-neutral-700">
+                                          {invoiceType === 'Signed Voucher' ? 'Record Signed Settlement Voucher as Bill' : 'Record Inbound Invoice'}
+                                        </h5>
                                         <button
                                           type="button"
                                           onClick={() => {
@@ -17569,12 +17632,14 @@ ${chauffeurHtml}
 
                                       <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4">
                                         <div className="space-y-1">
-                                          <label className="text-[10px] uppercase tracking-wider text-neutral-400 font-bold">Invoice Number</label>
+                                          <label className="text-[10px] uppercase tracking-wider text-neutral-400 font-bold">
+                                            {invoiceType === 'Signed Voucher' ? 'Voucher Number / Ref' : 'Invoice Number'}
+                                          </label>
                                           <input
                                             type="text"
                                             value={invoiceNumber}
                                             onChange={(e) => setInvoiceNumber(e.target.value)}
-                                            placeholder="INV-10291"
+                                            placeholder={invoiceType === 'Signed Voucher' ? `VCH-${po.po_number || '0001'}` : 'INV-10291'}
                                             className="w-full bg-neutral-50 border border-neutral-200 rounded-xl p-2 text-xs outline-none"
                                           />
                                         </div>
@@ -17597,7 +17662,9 @@ ${chauffeurHtml}
                                         </div>
 
                                         <div className="space-y-1">
-                                          <label className="text-[10px] uppercase tracking-wider text-neutral-400 font-bold">Invoice Amount</label>
+                                          <label className="text-[10px] uppercase tracking-wider text-neutral-400 font-bold">
+                                            {invoiceType === 'Signed Voucher' ? 'Voucher Amount' : 'Invoice Amount'}
+                                          </label>
                                           <input
                                             type="number"
                                             value={invoiceAmount}
@@ -17623,7 +17690,9 @@ ${chauffeurHtml}
 
                                       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                                         <div className="space-y-1">
-                                          <label className="text-[10px] uppercase tracking-wider text-neutral-400 font-bold">Invoice Date</label>
+                                          <label className="text-[10px] uppercase tracking-wider text-neutral-400 font-bold">
+                                            {invoiceType === 'Signed Voucher' ? 'Voucher Date' : 'Invoice Date'}
+                                          </label>
                                           <input
                                             type="date"
                                             value={invoiceDate}
@@ -17633,19 +17702,36 @@ ${chauffeurHtml}
                                         </div>
 
                                         <div className="space-y-1">
-                                          <label className="text-[10px] uppercase tracking-wider text-neutral-400 font-bold">Invoice Type</label>
+                                          <label className="text-[10px] uppercase tracking-wider text-neutral-400 font-bold">Document Type</label>
                                           <select
                                             value={invoiceType}
-                                            onChange={(e) => setInvoiceType(e.target.value as 'Pro Forma' | 'Final')}
+                                            onChange={(e) => {
+                                              const nextType = e.target.value as 'Pro Forma' | 'Final' | 'Signed Voucher';
+                                              setInvoiceType(nextType);
+                                              if (nextType === 'Signed Voucher') {
+                                                if (!invoiceNumber) {
+                                                  setInvoiceNumber(`VCH-${po.po_number || String(po.id || '').slice(0, 8).toUpperCase()}`);
+                                                }
+                                                if (!invoiceAttachment && po.signed_document_url) {
+                                                  setInvoiceAttachment(po.signed_document_url);
+                                                }
+                                                if (po.settled_date) {
+                                                  setInvoiceDate(String(po.settled_date).split('T')[0]);
+                                                }
+                                              }
+                                            }}
                                             className="w-full bg-neutral-50 border border-neutral-200 rounded-xl p-2 text-xs outline-none"
                                           >
                                             <option value="Pro Forma">Pro Forma Invoice</option>
                                             <option value="Final">Final Invoice</option>
+                                            <option value="Signed Voucher">Signed Voucher (Self-Billed / No Supplier Invoice)</option>
                                           </select>
                                         </div>
 
                                         <div className="space-y-1 sm:col-span-2">
-                                          <label className="text-[10px] uppercase tracking-wider text-neutral-400 font-bold">Invoice Document (PDF / Image)</label>
+                                          <label className="text-[10px] uppercase tracking-wider text-neutral-400 font-bold">
+                                            {invoiceType === 'Signed Voucher' ? 'Signed Voucher Document (PDF / Image)' : 'Invoice Document (PDF / Image)'}
+                                          </label>
                                           <input
                                             type="file"
                                             accept=".pdf,.jpg,.jpeg,.png,.webp"
@@ -17659,7 +17745,7 @@ ${chauffeurHtml}
                                                 formData.append("file", file);
                                                 const uploadRes = await uploadSupplierInvoiceFileAction(formData);
                                                 if (uploadRes.error) {
-                                                  alert("Failed to upload invoice: " + uploadRes.error);
+                                                  alert("Failed to upload document: " + uploadRes.error);
                                                 } else if (uploadRes.url) {
                                                   setInvoiceAttachment(uploadRes.url);
                                                 }
@@ -17678,7 +17764,14 @@ ${chauffeurHtml}
                                           {invoiceAttachment && !isUploadingInvoiceFile && (
                                             <div className="flex items-center gap-2 text-[10px] font-semibold text-emerald-800">
                                               <Check className="w-3 h-3" />
-                                              <span>{invoiceType} invoice uploaded</span>
+                                              <span>{invoiceType === 'Signed Voucher' ? 'Signed Voucher attached' : `${invoiceType} invoice uploaded`}</span>
+                                              <button
+                                                type="button"
+                                                onClick={() => handleViewStoredDocument(invoiceAttachment)}
+                                                className="underline font-bold"
+                                              >
+                                                View
+                                              </button>
                                               <button
                                                 type="button"
                                                 onClick={() => setInvoiceAttachment('')}
@@ -17821,7 +17914,7 @@ ${chauffeurHtml}
                                           onClick={() => handleReceiveInvoice(po)}
                                           className="px-4 py-2 bg-emerald-800 hover:bg-emerald-950 text-white rounded-xl text-xs font-bold shadow-sm"
                                         >
-                                          Save Invoice
+                                          {invoiceType === 'Signed Voucher' ? 'Save Signed Voucher' : 'Save Invoice'}
                                         </button>
                                         <button
                                           onClick={() => setEnteringInvoicePoId(null)}
@@ -17873,11 +17966,29 @@ ${chauffeurHtml}
                                             {/* Invoice header info */}
                                             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-neutral-100 pb-3">
                                               <div>
-                                                <div className="flex items-center gap-2">
+                                                <div className="flex flex-wrap items-center gap-2">
                                                   <span className="text-xs font-bold text-neutral-805">#{inv.invoice_number}</span>
-                                                  <span className={`px-2 py-0.5 text-[9px] font-bold rounded-full border ${inv.invoice_type === 'Pro Forma' ? 'bg-violet-50 border-violet-200 text-violet-800' : 'bg-neutral-100 border-neutral-200 text-neutral-700'}`}>
-                                                    {inv.invoice_type === 'Pro Forma' ? 'Pro Forma' : 'Final'}
+                                                  <span className={`px-2 py-0.5 text-[9px] font-bold rounded-full border ${
+                                                    inv.invoice_type === 'Pro Forma'
+                                                      ? 'bg-violet-50 border-violet-200 text-violet-800'
+                                                      : inv.invoice_type === 'Signed Voucher'
+                                                        ? 'bg-amber-50 border-amber-200 text-amber-800'
+                                                        : 'bg-neutral-100 border-neutral-200 text-neutral-700'
+                                                  }`}>
+                                                    {inv.invoice_type === 'Pro Forma' ? 'Pro Forma' : inv.invoice_type === 'Signed Voucher' ? 'Signed Voucher' : 'Final'}
                                                   </span>
+                                                  {inv.invoice_type === 'Pro Forma' && (
+                                                    <button
+                                                      type="button"
+                                                      disabled={convertingInvoiceId === inv.id}
+                                                      onClick={() => handleMakeProFormaFinal(inv)}
+                                                      className="inline-flex items-center gap-1 px-2 py-0.5 rounded-lg bg-violet-600 hover:bg-violet-700 disabled:opacity-50 text-white transition-all text-[9px] font-bold cursor-pointer focus:outline-none"
+                                                      title="Promote this Pro Forma invoice to be the Final Invoice"
+                                                    >
+                                                      <Check className="w-2.5 h-2.5" />
+                                                      {convertingInvoiceId === inv.id ? 'Updating...' : 'Make Final Invoice'}
+                                                    </button>
+                                                  )}
                                                   {inv.attachment_url && (
                                                     <button
                                                       type="button"
@@ -17896,7 +18007,7 @@ ${chauffeurHtml}
                                                       className="inline-flex items-center gap-1 px-2 py-0.5 rounded-lg bg-neutral-100 hover:bg-emerald-50 text-neutral-600 hover:text-emerald-800 border border-neutral-200 transition-all text-[9px] font-bold cursor-pointer focus:outline-none"
                                                     >
                                                       <Receipt className="w-2.5 h-2.5" />
-                                                      View Invoice
+                                                      {inv.invoice_type === 'Signed Voucher' ? 'View Signed Voucher' : 'View Invoice'}
                                                     </button>
                                                   )}
                                                   <span className={`px-2 py-0.5 text-[9px] font-bold rounded-full ${calculatedStatus === 'Paid' ? 'bg-emerald-100 border border-emerald-200 text-emerald-800' :
@@ -18017,7 +18128,9 @@ ${chauffeurHtml}
                                             <div className="space-y-3 font-sans">
                                               <div className="flex items-center justify-between border-t border-neutral-100 pt-3 flex-wrap gap-2">
                                                 <div className="flex items-center gap-2">
-                                                  <span className="text-[10px] font-bold text-neutral-400 uppercase tracking-widest">Invoice Disbursements</span>
+                                                  <span className="text-[10px] font-bold text-neutral-400 uppercase tracking-widest">
+                                                    {inv.invoice_type === 'Signed Voucher' ? 'Voucher Disbursements' : 'Invoice Disbursements'}
+                                                  </span>
                                                   <span className={`px-2.5 py-0.5 text-[9px] font-extrabold rounded-full ${remainingInvBalance <= 0.01 ? 'bg-emerald-50 text-emerald-700 border border-emerald-200' : 'bg-amber-50 text-amber-800 border border-amber-200'}`}>
                                                     {remainingInvBalance <= 0.01 ? 'Fully Paid ($0.00 Due)' : `Balance Due: ${inv.currency || 'USD'} ${remainingInvBalance.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`}
                                                   </span>
@@ -18043,7 +18156,9 @@ ${chauffeurHtml}
 
                                               {payingInvoiceId === inv.id && (
                                                 <div className="p-4 bg-neutral-50 border border-neutral-200 rounded-xl space-y-4 animate-in slide-in-from-top-2 duration-200">
-                                                  <h5 className="text-xs font-bold text-neutral-700">Record Payment Against Invoice</h5>
+                                                  <h5 className="text-xs font-bold text-neutral-700">
+                                                    {inv.invoice_type === 'Signed Voucher' ? 'Record Payment Against Signed Voucher' : 'Record Payment Against Invoice'}
+                                                  </h5>
                                                   <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4">
                                                     <div className="space-y-1">
                                                       <label className="text-[10px] uppercase tracking-wider text-neutral-400 font-bold">Currency</label>
@@ -18127,22 +18242,22 @@ ${chauffeurHtml}
                                                   {/* Upload Payment Slip */}
                                                   <div className="space-y-2">
                                                     <label className="text-[10px] uppercase tracking-wider text-neutral-400 font-bold block">
-                                                      Upload Payment Slip / Receipt (JPEG, PNG, GIF, WebP)
+                                                      Upload Bank Slip / Payment Receipt (PDF, JPEG, PNG, GIF, WebP)
                                                     </label>
                                                     <div className="flex items-center gap-3">
                                                       <div className="relative flex-1 max-w-md">
                                                         <input
                                                           type="file"
-                                                          accept=".jpg,.jpeg,.png,.gif,.webp"
+                                                          accept=".pdf,.jpg,.jpeg,.png,.gif,.webp"
                                                           disabled={isUploadingInvoicePayslip}
                                                           onChange={async (e) => {
                                                             const file = e.target.files?.[0];
                                                             if (!file) return;
 
-                                                            // Validate image
-                                                            const validTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/gif', 'image/webp'];
+                                                            // Validate PDF or image
+                                                            const validTypes = ['application/pdf', 'image/jpeg', 'image/jpg', 'image/png', 'image/gif', 'image/webp'];
                                                             if (!validTypes.includes(file.type)) {
-                                                              alert("Please upload a valid image file (JPG, PNG, GIF, WebP).");
+                                                              alert("Please upload a valid PDF or image file (PDF, JPG, PNG, GIF, WebP).");
                                                               e.target.value = '';
                                                               return;
                                                             }
@@ -18171,7 +18286,7 @@ ${chauffeurHtml}
                                                           className="flex items-center gap-2 justify-center px-4 py-2 border border-dashed border-neutral-300 hover:border-emerald-800 rounded-xl bg-neutral-50 hover:bg-neutral-50/80 text-xs font-bold text-neutral-600 hover:text-emerald-800 transition-all cursor-pointer select-none"
                                                         >
                                                           <Upload className="w-4 h-4" />
-                                                          {isUploadingInvoicePayslip ? 'Uploading & Converting to WebP...' : 'Choose File (Slip/Receipt)'}
+                                                          {isUploadingInvoicePayslip ? 'Uploading Slip...' : 'Choose File (Bank Slip / Receipt)'}
                                                         </label>
                                                       </div>
 

@@ -160,7 +160,7 @@ export interface DBSupplierInvoice {
     amount: number;
     status: 'Pending' | 'Received' | 'Partial Paid' | 'Paid' | 'Confirmed';
     attachment_url?: string;
-    invoice_type?: 'Pro Forma' | 'Final';
+    invoice_type?: 'Pro Forma' | 'Final' | 'Signed Voucher';
     is_tallied?: boolean;
     discrepancy_amount?: number;
     approved_by?: string | null;

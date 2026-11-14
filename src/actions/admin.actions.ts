@@ -417,15 +417,33 @@ export async function uploadPayslipAction(formData: FormData) {
             return { error: "No file provided" };
         }
 
+        if (file.size > 10 * 1024 * 1024) {
+            return { error: "File is too large (max 10 MB)." };
+        }
+
         const arrayBuffer = await file.arrayBuffer();
         const buffer = Buffer.from(arrayBuffer);
+        const adminSupabase = createAdminClient();
 
-        // Convert the input image buffer (JPEG, PNG, GIF, JPG) to optimized WebP format on the fly
+        // Store PDF bank slips / receipts directly without rasterizing
+        if (file.type === 'application/pdf') {
+            const filePath = `${Math.random().toString(36).substring(2, 15)}_${Date.now()}.pdf`;
+            const { error: uploadError } = await adminSupabase.storage
+                .from('payslips')
+                .upload(filePath, buffer, {
+                    contentType: 'application/pdf',
+                    cacheControl: '3600',
+                    upsert: false
+                });
+            if (uploadError) throw uploadError;
+            return { success: true, url: filePath };
+        }
+
+        // Convert input image buffer (JPEG, PNG, GIF, WebP) to optimized WebP format on the fly
         const optimizedBuffer = await sharp(buffer)
             .webp({ quality: 80 })
             .toBuffer();
 
-        const adminSupabase = createAdminClient();
         const fileName = `${Math.random().toString(36).substring(2, 15)}_${Date.now()}.webp`;
         const filePath = `${fileName}`;
 
@@ -1680,6 +1698,18 @@ export async function deleteSupplierInvoiceAction(id: string) {
     } catch (error: any) {
         console.error("Error deleting supplier invoice:", error);
         return { success: false, error: error.message || "Failed to delete supplier invoice." };
+    }
+}
+
+export async function updateSupplierInvoiceTypeAction(id: string, invoiceType: 'Pro Forma' | 'Final' | 'Signed Voucher') {
+    try {
+        await FinanceService.updateSupplierInvoiceType(id, invoiceType);
+        revalidatePath("/admin-new");
+        revalidatePath("/admin/reports/financial");
+        return { success: true };
+    } catch (error: any) {
+        console.error("Error updating supplier invoice type:", error);
+        return { success: false, error: error.message || "Failed to update supplier invoice type." };
     }
 }
 export async function getExchangeRateAction() {

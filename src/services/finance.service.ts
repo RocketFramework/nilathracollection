@@ -228,7 +228,12 @@ export class FinanceService {
         let invoiceId = id;
         if (id) {
             const { error } = await supabase.from('supplier_invoices').update(invData).eq('id', id);
-            if (error) throw error;
+            if (error) {
+                if (error.code === '23514' && invData.invoice_type === 'Signed Voucher') {
+                    throw new Error("Database constraint rejected 'Signed Voucher'. Please run data/migrations/add_signed_voucher_to_supplier_invoices_type.sql in Supabase SQL Editor.");
+                }
+                throw error;
+            }
             
             const { error: delError } = await supabase
                 .from('supplier_invoice_items')
@@ -237,7 +242,12 @@ export class FinanceService {
             if (delError) throw delError;
         } else {
             const { data, error } = await supabase.from('supplier_invoices').insert([invData]).select().single();
-            if (error) throw error;
+            if (error) {
+                if (error.code === '23514' && invData.invoice_type === 'Signed Voucher') {
+                    throw new Error("Database constraint rejected 'Signed Voucher'. Please run data/migrations/add_signed_voucher_to_supplier_invoices_type.sql in Supabase SQL Editor.");
+                }
+                throw error;
+            }
             invoiceId = data.id;
         }
 
@@ -286,6 +296,25 @@ export class FinanceService {
             .delete()
             .eq('id', id);
         if (error) throw error;
+        return true;
+    }
+
+    /**
+     * Updates the invoice_type of a supplier invoice (e.g. promoting a Pro Forma invoice to Final)
+     * without modifying its line items or payments.
+     */
+    static async updateSupplierInvoiceType(id: string, invoiceType: 'Pro Forma' | 'Final' | 'Signed Voucher'): Promise<boolean> {
+        const supabase = createAdminClient();
+        const { error } = await supabase
+            .from('supplier_invoices')
+            .update({ invoice_type: invoiceType })
+            .eq('id', id);
+        if (error) {
+            if (error.code === '23514' && invoiceType === 'Signed Voucher') {
+                throw new Error("Database constraint rejected 'Signed Voucher'. Please run data/migrations/add_signed_voucher_to_supplier_invoices_type.sql in Supabase SQL Editor.");
+            }
+            throw error;
+        }
         return true;
     }
 
