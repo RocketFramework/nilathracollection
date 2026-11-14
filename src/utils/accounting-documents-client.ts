@@ -205,20 +205,49 @@ export async function downloadCustomerReceiptPdfFile(
 }
 
 /**
- * Generates and downloads the official Expense Voucher PDF.
+ * Generates and downloads the official Expense Voucher PDF (single item or consolidated payee voucher).
  */
-export async function downloadExpenseVoucherPdfFile(exp: FinanceTourExpenseDetailDTO) {
+export async function downloadExpenseVoucherPdfFile(
+    expOrItems: FinanceTourExpenseDetailDTO | FinanceTourExpenseDetailDTO[],
+    tourMeta?: {
+        client_name?: string | null;
+        pax_count?: number;
+        start_date?: string | null;
+        end_date?: string | null;
+        tour_code?: string | null;
+    }
+) {
     try {
+        const items = Array.isArray(expOrItems) ? expOrItems : [expOrItems];
+        const primary = items[0];
+        if (!primary) return;
+
+        const touristData = tourMeta
+            ? {
+                  profile: {
+                      first_name: tourMeta.client_name || "",
+                      last_name: "",
+                  },
+                  preferences: {
+                      adults: tourMeta.pax_count ?? 1,
+                      children: 0,
+                      infants: 0,
+                      arrival_date: tourMeta.start_date || undefined,
+                      departure_date: tourMeta.end_date || undefined,
+                  },
+              }
+            : undefined;
+
         const doc = await generateExpenseVoucherPdf(
-            exp,
+            items,
             undefined,
             "Nilathra Finance",
-            undefined,
-            exp.tour_code
+            touristData,
+            tourMeta?.tour_code ?? primary.tour_code
         );
         if (doc) {
-            const payeeSlug = (exp.paid_to || exp.category || "Expense").replace(/[^a-zA-Z0-9_-]/g, "_");
-            doc.save(`EXP-${String(exp.id || "").slice(0, 8).toUpperCase()}_${payeeSlug}.pdf`);
+            const payeeSlug = (primary.paid_to || primary.category || "Expense").replace(/[^a-zA-Z0-9_-]/g, "_");
+            doc.save(`EXP-${String(primary.id || "").slice(0, 8).toUpperCase()}_${payeeSlug}.pdf`);
         }
     } catch (err: any) {
         alert("Error generating Expense Voucher PDF: " + (err?.message || err));

@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useMemo, useState } from "react";
-import { FinanceTourDossierDTO } from "@/dtos/finance-report.dto";
+import { FinanceTourDossierDTO, FinanceTourExpenseDetailDTO } from "@/dtos/finance-report.dto";
 import AccountingDocumentModal, { AccountingDocModalData } from "./AccountingDocumentModal";
 import {
     viewStoredAttachment,
@@ -92,6 +92,53 @@ export default function TourAccountingDossierTab({ tours }: { tours: FinanceTour
         [filteredTours, selectedTourId]
     );
 
+    const expenseGroups = useMemo(() => {
+        if (!activeTour) return [];
+        const groupsMap = new Map<
+            string,
+            {
+                key: string;
+                paidToLabel: string;
+                voucherNo: string;
+                items: FinanceTourExpenseDetailDTO[];
+                totalLkr: number;
+                signedDocs: string[];
+                receiptDocs: string[];
+            }
+        >();
+
+        for (const ex of activeTour.tour_expenses) {
+            const rawPaidTo = (ex.paid_to || "").trim();
+            const key = rawPaidTo ? rawPaidTo.toLowerCase() : "__unspecified__";
+            let grp = groupsMap.get(key);
+            if (!grp) {
+                grp = {
+                    key,
+                    paidToLabel: rawPaidTo || "Unspecified Payee",
+                    voucherNo: `EXP-${String(ex.id || "").slice(0, 8).toUpperCase()}`,
+                    items: [],
+                    totalLkr: 0,
+                    signedDocs: [],
+                    receiptDocs: [],
+                };
+                groupsMap.set(key, grp);
+            }
+            grp.items.push(ex);
+            const itemLkr =
+                ex.amount_lkr ??
+                Number(ex.amount || 0) * (ex.currency === "LKR" ? 1 : Number(ex.exchange_rate || 1));
+            grp.totalLkr += itemLkr;
+            if (ex.signed_document_url && !grp.signedDocs.includes(ex.signed_document_url)) {
+                grp.signedDocs.push(ex.signed_document_url);
+            }
+            if (ex.receipt_url && !grp.receiptDocs.includes(ex.receipt_url)) {
+                grp.receiptDocs.push(ex.receipt_url);
+            }
+        }
+
+        return Array.from(groupsMap.values());
+    }, [activeTour]);
+
     const summary = useMemo(() => {
         if (!activeTour) return null;
         const activeInvs = activeTour.customer_invoices.filter(i => i.status !== "Cancelled");
@@ -121,7 +168,7 @@ export default function TourAccountingDossierTab({ tours }: { tours: FinanceTour
         const allSupPays = activeTour.purchase_orders.flatMap(p => p.supplier_payments || []);
         const supPaysWithSlip = allSupPays.filter(p => !!p.attachment_url).length;
         const custPaysWithSlip = allCustPays.filter(p => !!p.attachment_url).length;
-        const expsWithReceipt = activeTour.tour_expenses.filter(e => !!(e.receipt_url || e.signed_document_url)).length;
+        const expsWithReceipt = expenseGroups.filter(g => g.signedDocs.length > 0 || g.receiptDocs.length > 0).length;
 
         return {
             invUsd,
@@ -145,10 +192,10 @@ export default function TourAccountingDossierTab({ tours }: { tours: FinanceTour
             supInvsWithAttachment,
             allSupPaysCount: allSupPays.length,
             supPaysWithSlip,
-            expsCount: activeTour.tour_expenses.length,
+            expsCount: expenseGroups.length,
             expsWithReceipt,
         };
-    }, [activeTour]);
+    }, [activeTour, expenseGroups]);
 
     const handleExportTourCsv = () => {
         if (!activeTour) return;
@@ -1012,14 +1059,21 @@ export default function TourAccountingDossierTab({ tours }: { tours: FinanceTour
                                                                         </tr>
                                                                     </thead>
                                                                     <tbody className="divide-y divide-blue-100">
-                                                                        {sinv.items.map(sit => (
-                                                                            <tr key={sit.id}>
-                                                                                <td className="p-1.5">{sit.description}</td>
-                                                                                <td className="p-1.5 text-right font-mono">{sit.quantity}</td>
-                                                                                <td className="p-1.5 text-right font-mono">{fmt(sit.unit_price)}</td>
-                                                                                <td className="p-1.5 text-right font-mono">{fmt(sit.total_price)}</td>
-                                                                            </tr>
-                                                                        ))}
+                                                                        {[...sinv.items]
+                                                                            .sort((a, b) =>
+                                                                                (a.description || "").localeCompare(b.description || "", undefined, {
+                                                                                    numeric: true,
+                                                                                    sensitivity: "base",
+                                                                                })
+                                                                            )
+                                                                            .map(sit => (
+                                                                                <tr key={sit.id}>
+                                                                                    <td className="p-1.5">{sit.description}</td>
+                                                                                    <td className="p-1.5 text-right font-mono">{sit.quantity}</td>
+                                                                                    <td className="p-1.5 text-right font-mono">{fmt(sit.unit_price)}</td>
+                                                                                    <td className="p-1.5 text-right font-mono">{fmt(sit.total_price)}</td>
+                                                                                </tr>
+                                                                            ))}
                                                                     </tbody>
                                                                 </table>
                                                             )}
@@ -1106,111 +1160,259 @@ export default function TourAccountingDossierTab({ tours }: { tours: FinanceTour
 
                     {/* SECTION C: PETTY CASH & MISCELLANEOUS TOUR EXPENSES */}
                     <div className="bg-white border border-[#E5E7EB] rounded-2xl shadow-sm overflow-hidden">
-                        <div className="px-6 py-4 bg-amber-900 text-white flex items-center justify-between">
+                        <div className="px-6 py-4 bg-amber-900 text-white flex flex-wrap items-center justify-between gap-3">
                             <div>
                                 <h3 className="text-sm font-bold uppercase tracking-wider">
                                     Section C &mdash; Petty Cash &amp; Miscellaneous Tour Expenses
                                 </h3>
                                 <p className="text-[11px] text-amber-200 mt-0.5">
-                                    Direct non-PO tour expenses with downloadable Expense Voucher PDF and uploaded receipt copies.
+                                    Direct non-PO tour expenses clubbed by payee into consolidated Expense Vouchers, with uploaded Signed Vouchers / Bills and Payment Slips / Receipts.
                                 </p>
                             </div>
-                            <span className="px-3 py-1 rounded-full bg-amber-800 text-xs font-mono">
-                                {activeTour.tour_expenses.length} Expense(s)
-                            </span>
+                            <div className="flex items-center gap-2">
+                                <span className="px-3 py-1 rounded-full bg-amber-800 text-xs font-mono">
+                                    {expenseGroups.length} Voucher(s) &middot; {activeTour.tour_expenses.length} Item(s)
+                                </span>
+                                {expenseGroups.length > 0 && (
+                                    <span className="px-3 py-1 rounded-full bg-amber-950/70 border border-amber-700 text-xs font-mono font-bold">
+                                        Total: LKR {fmt(summary.expLkr)}
+                                    </span>
+                                )}
+                            </div>
                         </div>
 
-                        <div className="p-6">
-                            <table className="w-full text-xs border border-[#E5E7EB] rounded-xl overflow-hidden">
-                                <thead className="bg-[#F5F3EF] text-[#6B7280] uppercase text-[10px]">
-                                    <tr>
-                                        <th className="p-2.5 text-left">Date</th>
-                                        <th className="p-2.5 text-left">Category</th>
-                                        <th className="p-2.5 text-left">Description &amp; Notes</th>
-                                        <th className="p-2.5 text-left">Paid To</th>
-                                        <th className="p-2.5 text-left">Method / Ref</th>
-                                        <th className="p-2.5 text-right">Amount</th>
-                                        <th className="p-2.5 text-right">FX Rate</th>
-                                        <th className="p-2.5 text-right">LKR Amount</th>
-                                        <th className="p-2.5 text-right print:hidden">Signed Voucher, Receipt &amp; Voucher PDF</th>
-                                    </tr>
-                                </thead>
-                                <tbody className="divide-y divide-[#F3F4F6]">
-                                    {activeTour.tour_expenses.map(exp => (
-                                        <tr key={exp.id}>
-                                            <td className="p-2.5 whitespace-nowrap">{fmtDate(exp.expense_date)}</td>
-                                            <td className="p-2.5 font-semibold">{exp.category || "—"}</td>
-                                            <td className="p-2.5">
-                                                <div>{exp.description || "—"}</div>
-                                                {exp.notes && <div className="text-[10px] text-[#6B7280]">Note: {exp.notes}</div>}
-                                            </td>
-                                            <td className="p-2.5">{exp.paid_to || "—"}</td>
-                                            <td className="p-2.5">
-                                                {exp.payment_method || "—"}
-                                                {exp.payment_reference && <span className="block text-[10px] font-mono text-[#6B7280]">{exp.payment_reference}</span>}
-                                            </td>
-                                            <td className="p-2.5 text-right font-mono">{exp.currency} {fmt(exp.amount)}</td>
-                                            <td className="p-2.5 text-right font-mono">{exp.exchange_rate ?? "—"}</td>
-                                            <td className="p-2.5 text-right font-mono font-bold">{fmt(exp.amount_lkr)}</td>
-                                            <td className="p-2.5 text-right space-x-1.5 space-y-1 print:hidden">
-                                                {exp.signed_document_url && (
-                                                    <>
+                        <div className="p-6 space-y-5">
+                            {expenseGroups.length === 0 ? (
+                                <p className="text-xs text-[#9CA3AF] text-center py-4">
+                                    No miscellaneous tour expenses recorded for this tour.
+                                </p>
+                            ) : (
+                                <>
+                                    {expenseGroups.map(group => {
+                                        const hasProof = group.signedDocs.length > 0 || group.receiptDocs.length > 0;
+                                        const methods = Array.from(new Set(group.items.map(i => i.payment_method).filter(Boolean) as string[]));
+                                        const refs = Array.from(new Set(group.items.map(i => i.payment_reference).filter(Boolean) as string[]));
+                                        const hasMultipleDocsInGroup = group.signedDocs.length > 1 || group.receiptDocs.length > 1;
+                                        const payeeSlug = group.paidToLabel.replace(/[^a-zA-Z0-9_-]/g, "_");
+
+                                        return (
+                                            <div
+                                                key={group.key}
+                                                className={`border rounded-2xl overflow-hidden ${
+                                                    hasProof ? "border-[#E5E7EB]" : "border-amber-300"
+                                                }`}
+                                            >
+                                                {/* Consolidated Payee Voucher Header */}
+                                                <div className="bg-[#FAF9F6] px-5 py-3.5 border-b border-[#E5E7EB] flex flex-wrap items-center justify-between gap-4">
+                                                    <div>
+                                                        <div className="flex flex-wrap items-center gap-2.5">
+                                                            <span className="font-mono font-bold text-sm text-[#2B2B2B]">{group.voucherNo}</span>
+                                                            <span className="text-xs font-bold text-[#2B2B2B]">
+                                                                Paid To: {group.paidToLabel}
+                                                            </span>
+                                                            <span className="px-2 py-0.5 rounded-full bg-amber-100 text-amber-900 border border-amber-200 text-[10px] font-bold">
+                                                                {group.items.length} {group.items.length === 1 ? "item" : "items"}
+                                                            </span>
+                                                            {hasProof ? (
+                                                                <span className="px-2.5 py-0.5 rounded-md bg-emerald-50 border border-emerald-200 text-emerald-800 text-[10px] font-bold uppercase tracking-wide">
+                                                                    ✓ Proof Attached
+                                                                </span>
+                                                            ) : (
+                                                                <span className="px-2.5 py-0.5 rounded-md bg-red-100 border border-red-300 text-red-800 text-[10px] font-bold uppercase tracking-wide">
+                                                                    ⚠ No Signed Voucher / No Receipt
+                                                                </span>
+                                                            )}
+                                                        </div>
+                                                        <div className="text-[11px] text-[#6B7280] mt-0.5">
+                                                            {[
+                                                                methods.length > 0 && `Method: ${methods.join(", ")}`,
+                                                                refs.length > 0 && `Ref: ${refs.join(", ")}`,
+                                                            ]
+                                                                .filter(Boolean)
+                                                                .join(" · ") || "Consolidated Direct Expense Voucher"}
+                                                        </div>
+                                                    </div>
+
+                                                    <div className="flex flex-wrap items-center gap-2 print:hidden">
+                                                        <span className="font-mono font-bold text-xs text-[#2B2B2B] mr-1">
+                                                            Voucher Total: LKR {fmt(group.totalLkr)}
+                                                        </span>
+
+                                                        {group.signedDocs.map((docUrl, idx) => {
+                                                            const suffix = group.signedDocs.length > 1 ? ` #${idx + 1}` : "";
+                                                            return (
+                                                                <React.Fragment key={`sv-${docUrl}`}>
+                                                                    <button
+                                                                        type="button"
+                                                                        onClick={() => viewStoredAttachment(docUrl)}
+                                                                        className="px-2.5 py-1.5 rounded-xl bg-blue-50 border border-blue-200 text-blue-900 text-xs font-semibold hover:bg-blue-100"
+                                                                    >
+                                                                        View Signed Voucher{suffix} ↗
+                                                                    </button>
+                                                                    <button
+                                                                        type="button"
+                                                                        onClick={() =>
+                                                                            downloadStoredAttachment(
+                                                                                docUrl,
+                                                                                `Signed_Voucher_${group.voucherNo}_${payeeSlug}${group.signedDocs.length > 1 ? `_${idx + 1}` : ""}`
+                                                                            )
+                                                                        }
+                                                                        className="px-2.5 py-1.5 rounded-xl bg-blue-700 text-white text-xs font-semibold hover:bg-blue-800"
+                                                                    >
+                                                                        Download Signed Voucher{suffix} ↓
+                                                                    </button>
+                                                                </React.Fragment>
+                                                            );
+                                                        })}
+
+                                                        {group.receiptDocs.map((recUrl, idx) => {
+                                                            const suffix = group.receiptDocs.length > 1 ? ` #${idx + 1}` : "";
+                                                            return (
+                                                                <React.Fragment key={`rc-${recUrl}`}>
+                                                                    <button
+                                                                        type="button"
+                                                                        onClick={() => viewStoredAttachment(recUrl)}
+                                                                        className="px-2.5 py-1.5 rounded-xl bg-amber-50 border border-amber-300 text-amber-950 text-xs font-semibold hover:bg-amber-100"
+                                                                    >
+                                                                        View Receipt / Slip{suffix} ↗
+                                                                    </button>
+                                                                    <button
+                                                                        type="button"
+                                                                        onClick={() =>
+                                                                            downloadStoredAttachment(
+                                                                                recUrl,
+                                                                                `Expense_Receipt_${group.voucherNo}_${payeeSlug}${group.receiptDocs.length > 1 ? `_${idx + 1}` : ""}`
+                                                                            )
+                                                                        }
+                                                                        className="px-2.5 py-1.5 rounded-xl bg-amber-700 text-white text-xs font-semibold hover:bg-amber-800"
+                                                                    >
+                                                                        Download Receipt / Slip{suffix} ↓
+                                                                    </button>
+                                                                </React.Fragment>
+                                                            );
+                                                        })}
+
                                                         <button
                                                             type="button"
-                                                            onClick={() => viewStoredAttachment(exp.signed_document_url)}
-                                                            className="px-2 py-1 rounded-lg bg-white border border-blue-400 text-blue-950 text-[11px] font-semibold hover:bg-blue-50"
+                                                            onClick={() => downloadExpenseVoucherPdfFile(group.items, activeTour)}
+                                                            className="px-3 py-1.5 rounded-xl bg-emerald-800 text-white text-xs font-semibold hover:bg-emerald-950"
+                                                            title="Download Consolidated Expense Voucher PDF for this Payee"
                                                         >
-                                                            View Signed Voucher ↗
+                                                            Voucher ({group.items.length}) PDF ↓
                                                         </button>
-                                                        <button
-                                                            type="button"
-                                                            onClick={() => downloadStoredAttachment(exp.signed_document_url, `Expense_Signed_Voucher_${exp.id.slice(0, 8)}`)}
-                                                            className="px-2 py-1 rounded-lg bg-blue-700 text-white text-[11px] font-semibold hover:bg-blue-800"
-                                                        >
-                                                            Download Signed Voucher ↓
-                                                        </button>
-                                                    </>
+                                                    </div>
+                                                </div>
+
+                                                {!hasProof && (
+                                                    <div className="px-5 py-2 text-xs font-medium bg-amber-50 border-b border-amber-200 text-amber-900 flex items-center justify-between gap-2">
+                                                        <span>
+                                                            Direct expense disbursement recorded without an uploaded Signed Voucher / Direct Bill or Bank Slip / Receipt.
+                                                        </span>
+                                                        <span className="text-[10px] font-mono uppercase font-bold whitespace-nowrap">
+                                                            No Signed Voucher &middot; No Receipt
+                                                        </span>
+                                                    </div>
                                                 )}
-                                                {exp.receipt_url && (
-                                                    <>
-                                                        <button
-                                                            type="button"
-                                                            onClick={() => viewStoredAttachment(exp.receipt_url)}
-                                                            className="px-2 py-1 rounded-lg bg-white border border-amber-400 text-amber-950 text-[11px] font-semibold hover:bg-amber-50"
-                                                        >
-                                                            View Receipt ↗
-                                                        </button>
-                                                        <button
-                                                            type="button"
-                                                            onClick={() => downloadStoredAttachment(exp.receipt_url, `Expense_Receipt_${exp.id.slice(0, 8)}`)}
-                                                            className="px-2 py-1 rounded-lg bg-amber-700 text-white text-[11px] font-semibold hover:bg-amber-800"
-                                                        >
-                                                            Download Receipt ↓
-                                                        </button>
-                                                    </>
-                                                )}
-                                                {!exp.signed_document_url && !exp.receipt_url && (
-                                                    <span className="text-[10px] text-red-600 font-semibold">No Receipt / No Signed Voucher</span>
-                                                )}
-                                                <button
-                                                    type="button"
-                                                    onClick={() => downloadExpenseVoucherPdfFile(exp)}
-                                                    className="px-2 py-1 rounded-lg bg-[#2B2B2B] text-white text-[11px] font-semibold hover:bg-black"
-                                                >
-                                                    Voucher PDF ↓
-                                                </button>
-                                            </td>
-                                        </tr>
-                                    ))}
-                                    {activeTour.tour_expenses.length === 0 && (
-                                        <tr>
-                                            <td colSpan={9} className="p-6 text-center text-[#9CA3AF]">
-                                                No miscellaneous tour expenses recorded for this tour.
-                                            </td>
-                                        </tr>
+
+                                                {/* Clubbed Expense Line Items Table */}
+                                                <div className="p-4">
+                                                    <table className="w-full text-xs border border-[#E5E7EB] rounded-xl overflow-hidden">
+                                                        <thead className="bg-[#F5F3EF] text-[#6B7280] uppercase text-[10px]">
+                                                            <tr>
+                                                                <th className="p-2 text-left">Date</th>
+                                                                <th className="p-2 text-left">Category</th>
+                                                                <th className="p-2 text-left">Description &amp; Notes</th>
+                                                                <th className="p-2 text-left">Method / Ref</th>
+                                                                <th className="p-2 text-right">Amount</th>
+                                                                <th className="p-2 text-right">FX Rate</th>
+                                                                <th className="p-2 text-right">LKR Amount</th>
+                                                                {hasMultipleDocsInGroup && (
+                                                                    <th className="p-2 text-right print:hidden">Item Docs</th>
+                                                                )}
+                                                            </tr>
+                                                        </thead>
+                                                        <tbody className="divide-y divide-[#F3F4F6]">
+                                                            {group.items.map(exp => {
+                                                                const rowLkr =
+                                                                    exp.amount_lkr ??
+                                                                    Number(exp.amount || 0) *
+                                                                        (exp.currency === "LKR" ? 1 : Number(exp.exchange_rate || 1));
+                                                                return (
+                                                                    <tr key={exp.id}>
+                                                                        <td className="p-2 whitespace-nowrap font-mono">{fmtDate(exp.expense_date)}</td>
+                                                                        <td className="p-2">
+                                                                            <span className="px-2 py-0.5 text-[10px] font-bold rounded-full bg-[#F5F3EF] text-[#4B5563] uppercase tracking-wider">
+                                                                                {exp.category || "Other"}
+                                                                            </span>
+                                                                        </td>
+                                                                        <td className="p-2">
+                                                                            <div className="font-medium text-[#2B2B2B]">{exp.description || "—"}</div>
+                                                                            {exp.notes && <div className="text-[10px] text-[#6B7280]">Note: {exp.notes}</div>}
+                                                                        </td>
+                                                                        <td className="p-2">
+                                                                            {exp.payment_method || "—"}
+                                                                            {exp.payment_reference && (
+                                                                                <span className="block text-[10px] font-mono text-[#6B7280]">
+                                                                                    Ref: {exp.payment_reference}
+                                                                                </span>
+                                                                            )}
+                                                                        </td>
+                                                                        <td className="p-2 text-right font-mono">
+                                                                            {exp.currency} {fmt(exp.amount)}
+                                                                        </td>
+                                                                        <td className="p-2 text-right font-mono">{exp.exchange_rate ?? "—"}</td>
+                                                                        <td className="p-2 text-right font-mono font-bold">{fmt(rowLkr)}</td>
+                                                                        {hasMultipleDocsInGroup && (
+                                                                            <td className="p-2 text-right space-x-1 print:hidden">
+                                                                                {exp.signed_document_url && (
+                                                                                    <button
+                                                                                        type="button"
+                                                                                        onClick={() => viewStoredAttachment(exp.signed_document_url)}
+                                                                                        className="px-1.5 py-0.5 rounded border border-blue-300 text-blue-900 text-[10px] font-semibold hover:bg-blue-50"
+                                                                                    >
+                                                                                        Signed Voucher ↗
+                                                                                    </button>
+                                                                                )}
+                                                                                {exp.receipt_url && (
+                                                                                    <button
+                                                                                        type="button"
+                                                                                        onClick={() => viewStoredAttachment(exp.receipt_url)}
+                                                                                        className="px-1.5 py-0.5 rounded border border-amber-300 text-amber-900 text-[10px] font-semibold hover:bg-amber-50"
+                                                                                    >
+                                                                                        Receipt ↗
+                                                                                    </button>
+                                                                                )}
+                                                                            </td>
+                                                                        )}
+                                                                    </tr>
+                                                                );
+                                                            })}
+                                                        </tbody>
+                                                        <tfoot className="bg-[#FAF9F6] font-mono font-bold text-xs border-t border-[#E5E7EB]">
+                                                            <tr>
+                                                                <td colSpan={6} className="p-2 text-right font-sans">
+                                                                    Consolidated Voucher Total ({group.items.length} {group.items.length === 1 ? "item" : "items"})
+                                                                </td>
+                                                                <td className="p-2 text-right">LKR {fmt(group.totalLkr)}</td>
+                                                                {hasMultipleDocsInGroup && <td className="print:hidden" />}
+                                                            </tr>
+                                                        </tfoot>
+                                                    </table>
+                                                </div>
+                                            </div>
+                                        );
+                                    })}
+
+                                    {expenseGroups.length > 1 && (
+                                        <div className="flex items-center justify-between px-5 py-3 rounded-xl bg-amber-50/70 border border-amber-200 text-xs font-bold text-amber-950">
+                                            <span>
+                                                Section C Total ({expenseGroups.length} Consolidated Vouchers &middot; {activeTour.tour_expenses.length} Expense Items)
+                                            </span>
+                                            <span className="font-mono text-sm">LKR {fmt(summary.expLkr)}</span>
+                                        </div>
                                     )}
-                                </tbody>
-                            </table>
+                                </>
+                            )}
                         </div>
                     </div>
                 </div>

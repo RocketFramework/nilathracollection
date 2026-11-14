@@ -35,6 +35,7 @@ export class FinanceReportService {
             supabase
                 .from('v_finance_po_report')
                 .select('*')
+                .eq('po_status', 'Accepted')
                 .order('po_date', { ascending: false, nullsFirst: false })
                 .order('po_number', { ascending: false }),
             supabase
@@ -104,6 +105,9 @@ export class FinanceReportService {
                 total_price: Number(item.total_price) || 0,
             });
             supInvItemsByInv.set(item.supplier_invoice_id, list);
+        }
+        for (const list of supInvItemsByInv.values()) {
+            list.sort((a, b) => (a.description || '').localeCompare(b.description || '', undefined, { numeric: true, sensitivity: 'base' }));
         }
 
         const supInvById = new Map<string, any>();
@@ -277,6 +281,9 @@ export class FinanceReportService {
             const list = supInvItemsByInv.get(it.supplier_invoice_id) || [];
             list.push(it);
             supInvItemsByInv.set(it.supplier_invoice_id, list);
+        }
+        for (const list of supInvItemsByInv.values()) {
+            list.sort((a, b) => (a.description || '').localeCompare(b.description || '', undefined, { numeric: true, sensitivity: 'base' }));
         }
 
         const rows: FinanceLedgerRowDTO[] = [];
