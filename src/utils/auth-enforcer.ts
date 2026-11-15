@@ -14,6 +14,7 @@ export async function enforcePermission(
     const context = {
         userId: profile.id,
         userRole: profile.role || 'tourist',
+        userRoles: profile.roles && profile.roles.length > 0 ? profile.roles : [profile.role || 'tourist'],
         payload: details?.payload
     };
 
@@ -46,6 +47,7 @@ export async function checkPermission(
     const context = {
         userId: profile.id,
         userRole: profile.role || 'tourist',
+        userRoles: profile.roles && profile.roles.length > 0 ? profile.roles : [profile.role || 'tourist'],
         payload: details?.payload
     };
 

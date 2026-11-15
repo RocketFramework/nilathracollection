@@ -3772,7 +3772,14 @@ function PlannerWizardWorkspace() {
 
         // 3. Apply restored values or default fallback
         const roleRes = await getUserRoleAction().catch(() => null);
-        const canAccessFinance = roleRes?.actualRole === 'admin' || roleRes?.actualRole === 'finance' || roleRes?.role === 'admin';
+        const roleResRoles: string[] = Array.isArray((roleRes as any)?.roles) ? (roleRes as any).roles : [];
+        const canAccessFinance =
+          Boolean((roleRes as any)?.hasFinanceAccess) ||
+          roleRes?.actualRole === 'admin' ||
+          roleRes?.actualRole === 'finance' ||
+          roleRes?.role === 'admin' ||
+          roleResRoles.includes('admin') ||
+          roleResRoles.includes('finance');
         setCanAccessFinanceSteps(canAccessFinance);
 
         let finalTrack = urlTrack || restoredTrack || 'basic';

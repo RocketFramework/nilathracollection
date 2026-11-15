@@ -92,12 +92,18 @@ export default function UserManagementPage() {
     };
 
     return (
-        <div className="p-6">
-            <div className="flex justify-between items-center mb-6">
-                <h1 className="text-2xl font-bold">User Management</h1>
+        <div className="p-6 space-y-5">
+            <div className="flex flex-wrap justify-between items-center gap-4">
+                <div>
+                    <h1 className="text-2xl font-bold text-gray-900">User &amp; Role Management</h1>
+                    <p className="text-xs text-gray-500 mt-1">
+                        <strong>Admin &amp; Finance</strong> accounts can switch roles or play two roles together (e.g. Finance Staff + Senior Agent).{" "}
+                        <strong>Supervisors &amp; Agents</strong> have fixed single roles, and <strong>Tourists</strong> only have access to the Tourist Portal.
+                    </p>
+                </div>
                 <button
                     onClick={handleCreateNew}
-                    className="bg-black text-white px-4 py-2 rounded shadow hover:bg-gray-800"
+                    className="bg-black text-white px-4 py-2 rounded-lg shadow hover:bg-gray-800 text-sm font-medium cursor-pointer"
                 >
                     + Add New {getRoleLabel(activeTab)}
                 </button>

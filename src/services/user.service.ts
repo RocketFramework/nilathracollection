@@ -14,6 +14,28 @@ export const SUPERVISOR_ROLES = new Set<string>([
     'principal_supervisor'
 ]);
 
+/**
+ * Only Admin and Finance users can change roles or hold two roles simultaneously
+ * (e.g. Admin <-> Finance, Admin + Finance, Finance + Senior Agent).
+ * Operational hierarchy roles (Agents & Supervisors) are fixed single-role accounts,
+ * and Tourists are strictly restricted to the Tourist Portal only.
+ */
+export const FLEXIBLE_ANCHOR_ROLES = new Set<string>(['admin', 'finance']);
+export const FIXED_HIERARCHY_ROLES = new Set<string>([
+    'principal_supervisor',
+    'executive_supervisor',
+    'senior_supervisor',
+    'agent_supervisor',
+    'executive_agent',
+    'senior_agent',
+    'agent'
+]);
+export const ALL_STAFF_ROLES = new Set<string>([
+    'admin',
+    'finance',
+    ...Array.from(FIXED_HIERARCHY_ROLES)
+]);
+
 export const HIERARCHY_ROLE_RANK: Record<string, number> = {
     agent: 1,
     senior_agent: 2,
@@ -44,59 +66,194 @@ function getProfileTableForRole(role: string): string {
     return `${role}_profiles`;
 }
 
-function buildUserIdToRoleMap(allRoles: any[] | null, allUserRoles: any[] | null): Map<string, string> {
+function normalizeAndOrderUserRoles(rawRoles: Iterable<string>): UserRoleType[] {
+    const unique = Array.from(new Set(Array.from(rawRoles).filter(Boolean)));
+    const staffOnly = unique.filter(r => r !== 'tourist') as UserRoleType[];
+    if (staffOnly.length === 0) {
+        return ['tourist'];
+    }
+    return staffOnly.sort((a, b) => {
+        const anchorScore = (r: string) => (r === 'admin' ? 100 : r === 'finance' ? 90 : (HIERARCHY_ROLE_RANK[r] || 0));
+        return anchorScore(b) - anchorScore(a);
+    });
+}
+
+function buildUserIdToRoleSetMap(allRoles: any[] | null, allUserRoles: any[] | null): Map<string, Set<UserRoleType>> {
     const roleIdToName = new Map<string, string>((allRoles || []).map((r: any) => [r.id, r.name]));
-    const userIdToRoleName = new Map<string, string>();
+    const rawMap = new Map<string, Set<string>>();
     (allUserRoles || []).forEach((ur: any) => {
         const rName = roleIdToName.get(ur.role_id);
         if (!rName) return;
-        const existing = userIdToRoleName.get(ur.user_id);
-        if (!existing) {
-            userIdToRoleName.set(ur.user_id, rName);
+        if (!rawMap.has(ur.user_id)) {
+            rawMap.set(ur.user_id, new Set<string>());
+        }
+        rawMap.get(ur.user_id)!.add(rName);
+    });
+
+    const cleanMap = new Map<string, Set<UserRoleType>>();
+    rawMap.forEach((set, userId) => {
+        const normalized = normalizeAndOrderUserRoles(set);
+        cleanMap.set(userId, new Set<UserRoleType>(normalized));
+    });
+    return cleanMap;
+}
+
+function buildUserIdToRoleMap(allRoles: any[] | null, allUserRoles: any[] | null): Map<string, string> {
+    const roleSetMap = buildUserIdToRoleSetMap(allRoles, allUserRoles);
+    const userIdToRoleName = new Map<string, string>();
+    roleSetMap.forEach((roleSet, userId) => {
+        const arr = Array.from(roleSet);
+        if (arr.includes('admin')) {
+            userIdToRoleName.set(userId, 'admin');
             return;
         }
-        const existingRank = HIERARCHY_ROLE_RANK[existing] || (existing === 'finance' ? 1 : 0);
-        const newRank = HIERARCHY_ROLE_RANK[rName] || (rName === 'finance' ? 1 : 0);
-        if (newRank >= existingRank) {
-            userIdToRoleName.set(ur.user_id, rName);
+        let bestOperational: string | null = null;
+        let bestRank = -1;
+        for (const r of arr) {
+            const rank = HIERARCHY_ROLE_RANK[r] ?? -1;
+            if (rank > bestRank) {
+                bestRank = rank;
+                bestOperational = r;
+            }
         }
+        if (bestOperational) {
+            userIdToRoleName.set(userId, bestOperational);
+            return;
+        }
+        if (arr.includes('finance')) {
+            userIdToRoleName.set(userId, 'finance');
+            return;
+        }
+        userIdToRoleName.set(userId, arr[0] || 'tourist');
     });
     return userIdToRoleName;
 }
 
+function buildUserIdToOperationalRoleMap(allRoles: any[] | null, allUserRoles: any[] | null): Map<string, string> {
+    const roleSetMap = buildUserIdToRoleSetMap(allRoles, allUserRoles);
+    const opMap = new Map<string, string>();
+    roleSetMap.forEach((roleSet, userId) => {
+        let bestOp: string | null = null;
+        let bestRank = -1;
+        for (const r of roleSet) {
+            if (AGENT_ROLES.has(r) || SUPERVISOR_ROLES.has(r)) {
+                const rank = HIERARCHY_ROLE_RANK[r] ?? 0;
+                if (rank > bestRank) {
+                    bestRank = rank;
+                    bestOp = r;
+                }
+            }
+        }
+        if (bestOp) {
+            opMap.set(userId, bestOp);
+        }
+    });
+    return opMap;
+}
+
+export function deriveRoleMetadata(roles: UserRoleType[], fallbackPrimary?: UserRoleType): {
+    roles: UserRoleType[];
+    role_labels: string[];
+    primary_role: UserRoleType;
+    secondary_role: UserRoleType | null;
+    can_edit_roles: boolean;
+} {
+    const ordered = normalizeAndOrderUserRoles(roles.length > 0 ? roles : [fallbackPrimary || 'tourist']);
+    const canEdit = ordered.some(r => FLEXIBLE_ANCHOR_ROLES.has(r));
+
+    let primary: UserRoleType = ordered[0];
+    if (canEdit) {
+        if (fallbackPrimary && FLEXIBLE_ANCHOR_ROLES.has(fallbackPrimary) && ordered.includes(fallbackPrimary)) {
+            primary = fallbackPrimary;
+        } else if (ordered.includes('admin')) {
+            primary = 'admin';
+        } else if (ordered.includes('finance')) {
+            primary = 'finance';
+        }
+    }
+
+    const secondary = ordered.find(r => r !== primary) || null;
+    const displayOrder: UserRoleType[] = secondary ? [primary, secondary] : [primary];
+
+    return {
+        roles: displayOrder,
+        role_labels: displayOrder.map(r => ROLE_LABELS[r] || r),
+        primary_role: primary,
+        secondary_role: secondary,
+        can_edit_roles: canEdit
+    };
+}
+
 export class UserService {
-    static async resolveUserEffectiveRole(userId: string): Promise<UserRoleType> {
+    /**
+     * Resolves all active roles held by a user.
+     * - Staff accounts (Admin/Finance/Supervisors/Agents) never retain stray 'tourist' roles.
+     * - Admin & Finance accounts may hold up to two roles (e.g. ['admin', 'finance'] or ['finance', 'senior_agent']).
+     * - Tourists strictly hold ['tourist'].
+     */
+    static async resolveUserRoles(userId: string): Promise<UserRoleType[]> {
         const adminClient = createAdminClient();
         const { data: userRoleRows } = await adminClient
             .from('user_roles')
             .select('roles(name)')
             .eq('user_id', userId);
 
-        let assignedRoleName: UserRoleType | undefined;
-        let highestRank = -1;
+        const assignedNames: string[] = [];
         for (const row of (userRoleRows || [])) {
-            const rName = (row as any)?.roles?.name as UserRoleType | undefined;
-            if (!rName) continue;
-            const rank = HIERARCHY_ROLE_RANK[rName] ?? (rName === 'finance' ? 1 : 0);
-            if (rank > highestRank) {
-                highestRank = rank;
-                assignedRoleName = rName;
-            }
+            const rName = (row as any)?.roles?.name as string | undefined;
+            if (rName) assignedNames.push(rName);
         }
 
-        const { data: admin } = await adminClient.from('admin_profiles').select('id').eq('id', userId).maybeSingle();
-        if (admin) return (assignedRoleName && assignedRoleName !== 'tourist') ? assignedRoleName : 'admin';
+        const staffAssigned = assignedNames.filter(r => r !== 'tourist');
+        if (staffAssigned.length > 0) {
+            return normalizeAndOrderUserRoles(staffAssigned);
+        }
 
-        const { data: supervisor } = await adminClient.from('agent_supervisor_profiles').select('id').eq('id', userId).maybeSingle();
-        if (supervisor) return (assignedRoleName && SUPERVISOR_ROLES.has(assignedRoleName)) ? assignedRoleName : 'agent_supervisor';
+        // Legacy fallback when user_roles has no staff entry yet
+        const [
+            { data: admin },
+            { data: finance },
+            { data: supervisor },
+            { data: agent },
+            { data: tourist }
+        ] = await Promise.all([
+            adminClient.from('admin_profiles').select('id').eq('id', userId).maybeSingle(),
+            adminClient.from('finance_profiles').select('id').eq('id', userId).maybeSingle(),
+            adminClient.from('agent_supervisor_profiles').select('id').eq('id', userId).maybeSingle(),
+            adminClient.from('agent_profiles').select('id').eq('id', userId).maybeSingle(),
+            adminClient.from('tourist_profiles').select('id').eq('id', userId).maybeSingle()
+        ]);
 
-        const { data: agent } = await adminClient.from('agent_profiles').select('id').eq('id', userId).maybeSingle();
-        if (agent) return (assignedRoleName && AGENT_ROLES.has(assignedRoleName)) ? assignedRoleName : 'agent';
+        const fallbackRoles: string[] = [];
+        if (admin) fallbackRoles.push('admin');
+        if (finance) fallbackRoles.push('finance');
+        if (supervisor) fallbackRoles.push('agent_supervisor');
+        if (agent) fallbackRoles.push('agent');
+        if (fallbackRoles.length > 0) {
+            return normalizeAndOrderUserRoles(fallbackRoles);
+        }
+        if (tourist || assignedNames.includes('tourist')) {
+            return ['tourist'];
+        }
+        return ['tourist'];
+    }
 
-        const { data: finance } = await adminClient.from('finance_profiles').select('id').eq('id', userId).maybeSingle();
-        if (finance) return 'finance';
+    static async resolveUserEffectiveRole(userId: string): Promise<UserRoleType> {
+        const roles = await this.resolveUserRoles(userId);
+        if (roles.includes('admin')) return 'admin';
 
-        return assignedRoleName || 'tourist';
+        let highestOpRole: UserRoleType | undefined;
+        let highestRank = -1;
+        for (const r of roles) {
+            const rank = HIERARCHY_ROLE_RANK[r] ?? -1;
+            if (rank > highestRank) {
+                highestRank = rank;
+                highestOpRole = r;
+            }
+        }
+        if (highestOpRole) return highestOpRole;
+        if (roles.includes('finance')) return 'finance';
+        return 'tourist';
     }
 
     static async getCurrentUserProfile(): Promise<UserProfileDTO | null> {
@@ -106,29 +263,40 @@ export class UserService {
         if (authError || !user) return null;
 
         const adminClient = createAdminClient();
-        const assignedRoleName = await this.resolveUserEffectiveRole(user.id);
+        const roles = await this.resolveUserRoles(user.id);
+        const effectiveRole = roles.includes('admin')
+            ? 'admin'
+            : roles.find(r => AGENT_ROLES.has(r) || SUPERVISOR_ROLES.has(r)) || roles[0] || 'tourist';
+        const roleMeta = deriveRoleMetadata(roles);
 
-        // Check admin profile
-        const { data: admin } = await adminClient.from('admin_profiles').select('*').eq('id', user.id).maybeSingle();
-        if (admin) return { ...admin, role: assignedRoleName || 'admin' };
+        const [
+            { data: admin },
+            { data: finance },
+            { data: supervisor },
+            { data: agent },
+            { data: tourist }
+        ] = await Promise.all([
+            adminClient.from('admin_profiles').select('*').eq('id', user.id).maybeSingle(),
+            adminClient.from('finance_profiles').select('*').eq('id', user.id).maybeSingle(),
+            adminClient.from('agent_supervisor_profiles').select('*').eq('id', user.id).maybeSingle(),
+            adminClient.from('agent_profiles').select('*').eq('id', user.id).maybeSingle(),
+            adminClient.from('tourist_profiles').select('*').eq('id', user.id).maybeSingle()
+        ]);
 
-        // Check agent supervisor profile
-        const { data: supervisor } = await adminClient.from('agent_supervisor_profiles').select('*').eq('id', user.id).maybeSingle();
-        if (supervisor) return { ...supervisor, role: assignedRoleName || 'agent_supervisor' };
+        let chosenProfile: any = null;
+        if (roles.includes('admin') && admin) chosenProfile = admin;
+        else if (roles.includes('finance') && finance) chosenProfile = finance;
+        else if (roles.some(r => SUPERVISOR_ROLES.has(r)) && supervisor) chosenProfile = supervisor;
+        else if (roles.some(r => AGENT_ROLES.has(r)) && agent) chosenProfile = agent;
+        else if (roles.includes('tourist') && tourist) chosenProfile = tourist;
+        else chosenProfile = admin || finance || supervisor || agent || tourist;
 
-        // Check agent profile
-        const { data: agent } = await adminClient.from('agent_profiles').select('*').eq('id', user.id).maybeSingle();
-        if (agent) return { ...agent, role: assignedRoleName || 'agent' };
-
-        // Check finance profile
-        const { data: finance } = await adminClient.from('finance_profiles').select('*').eq('id', user.id).maybeSingle();
-        if (finance) return { ...finance, role: assignedRoleName || 'finance' };
-
-        // Check tourist profile
-        const { data: tourist } = await adminClient.from('tourist_profiles').select('*').eq('id', user.id).maybeSingle();
-        if (tourist) return { ...tourist, role: assignedRoleName || 'tourist' };
-
-        return { id: user.id, role: assignedRoleName };
+        return {
+            ...(chosenProfile || { id: user.id }),
+            email: user.email,
+            role: effectiveRole,
+            ...roleMeta
+        };
     }
 
     static async getUserRole(userId: string): Promise<string | null> {
@@ -230,7 +398,7 @@ export class AdminService {
         if (agentsError) throw agentsError;
         if (supError) throw supError;
 
-        const userIdToRoleName = buildUserIdToRoleMap(allRoles, allUserRoles);
+        const userIdToOpRole = buildUserIdToOperationalRoleMap(allRoles, allUserRoles);
         const candidates: Array<{
             id: string;
             first_name: string;
@@ -242,7 +410,7 @@ export class AdminService {
         }> = [];
 
         (agents || []).forEach((item: any) => {
-            const rName = userIdToRoleName.get(item.id) || 'agent';
+            const rName = userIdToOpRole.get(item.id) || 'agent';
             const rank = HIERARCHY_ROLE_RANK[rName] || 1;
             if (rank < callerRank) {
                 candidates.push({
@@ -258,7 +426,7 @@ export class AdminService {
         });
 
         (supervisors || []).forEach((item: any) => {
-            const rName = userIdToRoleName.get(item.id) || 'agent_supervisor';
+            const rName = userIdToOpRole.get(item.id) || 'agent_supervisor';
             const rank = HIERARCHY_ROLE_RANK[rName] || 4;
             if (rank < callerRank) {
                 candidates.push({
@@ -359,6 +527,27 @@ export class AdminService {
             throw new Error("First Name, Last Name, Email, and Password are required.");
         }
 
+        const cleanSecondary = dto.secondary_role && dto.secondary_role !== dto.role
+            ? dto.secondary_role
+            : null;
+
+        if (cleanSecondary) {
+            if (!FLEXIBLE_ANCHOR_ROLES.has(dto.role)) {
+                throw new Error(
+                    "Dual roles are only permitted for Admin and Finance users. Agents, Supervisors, and Tourists cannot hold multiple roles."
+                );
+            }
+            if (cleanSecondary === 'tourist' || !ALL_STAFF_ROLES.has(cleanSecondary)) {
+                throw new Error(
+                    "Tourist accounts only have access to the Tourist Portal and cannot be combined with staff roles."
+                );
+            }
+        }
+
+        const targetRoles: UserRoleType[] = cleanSecondary
+            ? [dto.role, cleanSecondary]
+            : [dto.role];
+
         const supabaseAdmin = createAdminClient();
 
         // 1. Create user in Supabase Auth via Admin API
@@ -369,7 +558,9 @@ export class AdminService {
             user_metadata: {
                 first_name: dto.first_name,
                 last_name: dto.last_name,
-                phone: dto.phone || ''
+                phone: dto.phone || '',
+                role: dto.role,
+                roles: targetRoles
             }
         });
 
@@ -387,57 +578,85 @@ export class AdminService {
             throw new Error(`Auth user created, but failed to create public user record: ${usersError.message || JSON.stringify(usersError)}`);
         }
 
-        // 2. Fetch the requested role ID
-        const { data: roleData, error: roleError } = await supabaseAdmin
+        // 2. Fetch requested role IDs
+        const { data: roleRows, error: roleError } = await supabaseAdmin
             .from("roles")
-            .select("id")
-            .eq("name", dto.role)
-            .single();
+            .select("id, name")
+            .in("name", targetRoles);
 
-        if (roleError || !roleData) throw new Error(`Failed to locate ${dto.role} role. Did you create it?`);
+        if (roleError || !roleRows || roleRows.length === 0) {
+            throw new Error(`Failed to locate role(s) ${targetRoles.join(', ')}.`);
+        }
 
-        // 3. Assign User Role (remove any auto-created tourist role first if creating a staff user)
+        const roleMap = new Map<string, string>(roleRows.map((r: any) => [r.name, r.id]));
+        for (const r of targetRoles) {
+            if (!roleMap.has(r)) {
+                throw new Error(`Role '${r}' is missing from public.roles.`);
+            }
+        }
+
+        // 3. Assign User Roles (remove any auto-created tourist role first if creating a staff user)
         if (dto.role !== 'tourist') {
             await supabaseAdmin.from("user_roles").delete().eq("user_id", newUserId);
         }
+
+        const roleInserts = targetRoles.map(r => ({
+            user_id: newUserId,
+            role_id: roleMap.get(r)!
+        }));
+
         const { error: assignError } = await supabaseAdmin
             .from("user_roles")
-            .upsert([{ user_id: newUserId, role_id: roleData.id }], { onConflict: 'user_id, role_id' });
+            .upsert(roleInserts, { onConflict: 'user_id, role_id' });
 
         if (assignError) throw new Error(`Account created, but role assignment failed: ${assignError.message || JSON.stringify(assignError)}`);
 
-        // 4. Create Profile
-        const profileTable = getProfileTableForRole(dto.role);
-        const profilePayload: any = {
-            id: newUserId,
-            first_name: dto.first_name,
-            last_name: dto.last_name,
-            phone: dto.phone || null,
-            is_active: true
-        };
+        // 4. Create Profile(s) across all target role profile tables
+        const requiredTables = Array.from(new Set(targetRoles.map(r => getProfileTableForRole(r))));
+        for (const profileTable of requiredTables) {
+            const isHierarchyTable = profileTable === 'agent_profiles' || profileTable === 'agent_supervisor_profiles';
+            const profilePayload: any = {
+                id: newUserId,
+                first_name: dto.first_name,
+                last_name: dto.last_name,
+                phone: dto.phone || null,
+                is_active: true,
+                ...(isHierarchyTable && dto.supervisor_id ? { supervisor_id: dto.supervisor_id } : {})
+            };
 
-        if ((AGENT_ROLES.has(dto.role) || SUPERVISOR_ROLES.has(dto.role)) && dto.supervisor_id) {
-            profilePayload.supervisor_id = dto.supervisor_id;
+            let { error: profileError } = await supabaseAdmin
+                .from(profileTable)
+                .upsert([profilePayload], { onConflict: 'id' });
+
+            if (profileError && dto.supervisor_id && (profileError.code === '23503' || profileError.code === '42703' || profileError.message?.includes('supervisor_id'))) {
+                const { supervisor_id: _sup, ...baseProfilePayload } = profilePayload;
+                const retry = await supabaseAdmin.from(profileTable).upsert([baseProfilePayload], { onConflict: 'id' });
+                profileError = retry.error;
+            }
+
+            if (profileError) {
+                throw new Error(`Role assigned, but profile creation in ${profileTable} failed: ${profileError.message || JSON.stringify(profileError)}`);
+            }
         }
-
-        let { error: profileError } = await supabaseAdmin
-            .from(profileTable)
-            .upsert([profilePayload], { onConflict: 'id' });
-
-        if (profileError && dto.supervisor_id && (profileError.code === '23503' || profileError.code === '42703' || profileError.message?.includes('supervisor_id'))) {
-            const { supervisor_id: _sup, ...baseProfilePayload } = profilePayload;
-            const retry = await supabaseAdmin.from(profileTable).upsert([baseProfilePayload], { onConflict: 'id' });
-            profileError = retry.error;
-        }
-
-        if (profileError) throw new Error(`Role assigned, but ${dto.role} profile creation failed: ${profileError.message || JSON.stringify(profileError)}`);
 
         // Persist reporting relationship in app_states as a schema-safe fallback if migration hasn't been run yet
-        if (dto.supervisor_id) {
+        if (dto.supervisor_id && targetRoles.some(r => AGENT_ROLES.has(r) || SUPERVISOR_ROLES.has(r))) {
             await this.saveHierarchySupervisorFallback(newUserId, dto.supervisor_id);
         }
 
-        return { id: newUserId, ...dto };
+        // Auto-register eligible office employees (any user holding an operational/admin HR role, i.e. not pure finance/tourist)
+        const hrRole = targetRoles.find(r => r === 'admin')
+            || targetRoles.find(r => AGENT_ROLES.has(r) || SUPERVISOR_ROLES.has(r));
+        if (hrRole) {
+            try {
+                const { EmployeeHrService } = await import('./employee-hr.service');
+                await EmployeeHrService.ensureEmployeeForUser(newUserId, hrRole);
+            } catch (hrErr) {
+                console.warn('Auto-sync to employees HR table warning:', hrErr);
+            }
+        }
+
+        return { id: newUserId, ...dto, roles: targetRoles };
     }
 
     private static async getHierarchyMap(): Promise<Record<string, string | null>> {
@@ -476,8 +695,187 @@ export class AdminService {
 
     static async updateUser(userId: string, role: string, dto: UpdateUserDTO) {
         const supabaseAdmin = createAdminClient();
-        const profileTable = getProfileTableForRole(role);
-        const supportsHierarchy = AGENT_ROLES.has(role) || SUPERVISOR_ROLES.has(role);
+        const existingRoles = await UserService.resolveUserRoles(userId);
+        let finalRoles: UserRoleType[] = [...existingRoles];
+
+        const isRoleMutationRequested = dto.primary_role !== undefined || dto.secondary_role !== undefined;
+
+        if (isRoleMutationRequested) {
+            // Verify caller has Admin privileges before permitting any role mutation
+            const caller = await UserService.getCurrentUserProfile();
+            const callerRoles = caller?.roles || (caller?.role ? [caller.role] : []);
+            if (!callerRoles.includes('admin')) {
+                throw new Error("Only an Admin can change user roles.");
+            }
+
+            const isTargetAdminOrFinance = existingRoles.some(r => FLEXIBLE_ANCHOR_ROLES.has(r));
+            if (!isTargetAdminOrFinance) {
+                if (existingRoles.includes('tourist')) {
+                    throw new Error(
+                        "Tourist accounts only have access to the Tourist Portal and do not have staff role privileges."
+                    );
+                }
+                throw new Error(
+                    "Principal Supervisors, Executive Supervisors, Senior Supervisors, Supervisors, Executive Agents, Senior Agents, and Agents have a fixed single role and cannot switch roles or play multiple roles."
+                );
+            }
+
+            const defaultPrimary: UserRoleType = existingRoles.includes('admin') ? 'admin' : 'finance';
+            const nextPrimary: UserRoleType = dto.primary_role || defaultPrimary;
+
+            if (!FLEXIBLE_ANCHOR_ROLES.has(nextPrimary)) {
+                throw new Error("Primary role for flexible staff accounts must be Admin or Finance Staff.");
+            }
+
+            const rawSecondary = dto.secondary_role !== undefined
+                ? (dto.secondary_role || null)
+                : (existingRoles.find(r => r !== nextPrimary) || null);
+
+            const nextSecondary: UserRoleType | null = rawSecondary && rawSecondary !== nextPrimary
+                ? rawSecondary
+                : null;
+
+            if (nextSecondary) {
+                if (nextSecondary === 'tourist' || !ALL_STAFF_ROLES.has(nextSecondary)) {
+                    throw new Error(
+                        "Tourist role cannot be combined with Admin or Finance accounts."
+                    );
+                }
+            }
+
+            finalRoles = nextSecondary ? [nextPrimary, nextSecondary] : [nextPrimary];
+
+            // Safety check: prevent removing the 'admin' role from the last active Admin in the system
+            if (existingRoles.includes('admin') && !finalRoles.includes('admin')) {
+                const [{ data: activeAdmins }, { data: allRoles }, { data: allUserRoles }] = await Promise.all([
+                    supabaseAdmin.from('admin_profiles').select('id, is_active').neq('id', userId),
+                    supabaseAdmin.from('roles').select('id, name'),
+                    supabaseAdmin.from('user_roles').select('user_id, role_id').neq('user_id', userId)
+                ]);
+                const roleSetMap = buildUserIdToRoleSetMap(allRoles, allUserRoles);
+                const otherActiveAdmins = (activeAdmins || []).filter((ap: any) => {
+                    if (ap.is_active === false) return false;
+                    const rSet = roleSetMap.get(ap.id);
+                    return !rSet || rSet.has('admin');
+                });
+                if (otherActiveAdmins.length === 0) {
+                    throw new Error(
+                        "Cannot remove the Admin role from the last active Admin account. Ensure another active Admin exists first."
+                    );
+                }
+            }
+
+            // Look up existing profile values across staff profile tables so we preserve identity fields during table sync
+            const [
+                { data: adminRow },
+                { data: financeRow },
+                { data: supRow },
+                { data: agentRow }
+            ] = await Promise.all([
+                supabaseAdmin.from('admin_profiles').select('*').eq('id', userId).maybeSingle(),
+                supabaseAdmin.from('finance_profiles').select('*').eq('id', userId).maybeSingle(),
+                supabaseAdmin.from('agent_supervisor_profiles').select('*').eq('id', userId).maybeSingle(),
+                supabaseAdmin.from('agent_profiles').select('*').eq('id', userId).maybeSingle()
+            ]);
+            const sourceProfile = adminRow || financeRow || supRow || agentRow || {};
+
+            const mergedFirstName = dto.first_name !== undefined ? dto.first_name : (sourceProfile.first_name || '');
+            const mergedLastName = dto.last_name !== undefined ? dto.last_name : (sourceProfile.last_name || '');
+            const mergedPhone = dto.phone !== undefined ? dto.phone : (sourceProfile.phone ?? null);
+            const mergedIsActive = dto.is_active !== undefined ? dto.is_active : (sourceProfile.is_active !== false);
+            const mergedSupervisorId = dto.supervisor_id !== undefined
+                ? (dto.supervisor_id || null)
+                : (agentRow?.supervisor_id || supRow?.supervisor_id || null);
+
+            // Replace user_roles rows with exact finalRoles (never retaining 'tourist')
+            const { data: roleRows, error: roleLookupErr } = await supabaseAdmin
+                .from('roles')
+                .select('id, name')
+                .in('name', finalRoles);
+            if (roleLookupErr || !roleRows) {
+                throw new Error(`Failed to resolve role IDs: ${roleLookupErr?.message || 'Unknown error'}`);
+            }
+            const roleNameMap = new Map<string, string>(roleRows.map((r: any) => [r.name, r.id]));
+            for (const r of finalRoles) {
+                if (!roleNameMap.has(r)) {
+                    throw new Error(`Role '${r}' was not found in public.roles.`);
+                }
+            }
+
+            await supabaseAdmin.from('user_roles').delete().eq('user_id', userId);
+            const { error: insertUrErr } = await supabaseAdmin
+                .from('user_roles')
+                .insert(finalRoles.map(r => ({ user_id: userId, role_id: roleNameMap.get(r)! })));
+            if (insertUrErr) {
+                throw new Error(`Failed to save updated roles: ${insertUrErr.message}`);
+            }
+
+            // Upsert required staff profile tables and clean up unused staff profile tables
+            const requiredTables = new Set<string>(finalRoles.map(r => getProfileTableForRole(r)));
+            const allStaffTables = ['admin_profiles', 'finance_profiles', 'agent_supervisor_profiles', 'agent_profiles'];
+
+            for (const tbl of allStaffTables) {
+                if (requiredTables.has(tbl)) {
+                    const isHierarchyTbl = tbl === 'agent_profiles' || tbl === 'agent_supervisor_profiles';
+                    const upsertPayload: any = {
+                        id: userId,
+                        first_name: mergedFirstName,
+                        last_name: mergedLastName,
+                        phone: mergedPhone,
+                        is_active: mergedIsActive,
+                        ...(isHierarchyTbl ? { supervisor_id: mergedSupervisorId } : {})
+                    };
+                    let { error: upErr } = await supabaseAdmin.from(tbl).upsert([upsertPayload], { onConflict: 'id' });
+                    if (upErr && isHierarchyTbl && (upErr.code === '23503' || upErr.code === '42703' || upErr.message?.includes('supervisor_id'))) {
+                        const { supervisor_id: _s, ...fallbackPayload } = upsertPayload;
+                        const retry = await supabaseAdmin.from(tbl).upsert([fallbackPayload], { onConflict: 'id' });
+                        upErr = retry.error;
+                    }
+                    if (upErr) {
+                        throw new Error(`Failed to sync ${tbl}: ${upErr.message}`);
+                    }
+                } else {
+                    const { error: delErr } = await supabaseAdmin.from(tbl).delete().eq('id', userId);
+                    if (delErr) {
+                        await supabaseAdmin.from(tbl).update({ is_active: false }).eq('id', userId);
+                    }
+                }
+            }
+
+            if (finalRoles.some(r => AGENT_ROLES.has(r) || SUPERVISOR_ROLES.has(r))) {
+                await this.saveHierarchySupervisorFallback(userId, mergedSupervisorId);
+            } else {
+                await this.saveHierarchySupervisorFallback(userId, null);
+            }
+
+            await supabaseAdmin.auth.admin.updateUserById(userId, {
+                user_metadata: {
+                    first_name: mergedFirstName,
+                    last_name: mergedLastName,
+                    phone: mergedPhone || '',
+                    role: finalRoles[0],
+                    roles: finalRoles
+                }
+            });
+
+            const hrRole = finalRoles.find(r => r === 'admin')
+                || finalRoles.find(r => AGENT_ROLES.has(r) || SUPERVISOR_ROLES.has(r));
+            if (hrRole) {
+                try {
+                    const { EmployeeHrService } = await import('./employee-hr.service');
+                    await EmployeeHrService.ensureEmployeeForUser(userId, hrRole);
+                } catch (hrErr) {
+                    console.warn('Employee HR sync warning after role update:', hrErr);
+                }
+            }
+
+            return true;
+        }
+
+        // Standard profile field update (syncs across all profile tables held by this user)
+        const targetRolesToUpdate = finalRoles.length > 0 ? finalRoles : [role as UserRoleType];
+        const targetTables = Array.from(new Set(targetRolesToUpdate.map(r => getProfileTableForRole(r))));
+        const supportsHierarchy = targetRolesToUpdate.some(r => AGENT_ROLES.has(r) || SUPERVISOR_ROLES.has(r));
 
         const baseUpdate: any = {
             ...(dto.first_name !== undefined && { first_name: dto.first_name }),
@@ -486,28 +884,31 @@ export class AdminService {
             ...(dto.is_active !== undefined && { is_active: dto.is_active }),
         };
 
-        const fullUpdate: any = {
-            ...baseUpdate,
-            ...(supportsHierarchy && dto.supervisor_id !== undefined && { supervisor_id: dto.supervisor_id || null }),
-        };
+        for (const profileTable of targetTables) {
+            const tableSupportsSup = profileTable === 'agent_profiles' || profileTable === 'agent_supervisor_profiles';
+            const fullUpdate: any = {
+                ...baseUpdate,
+                ...(tableSupportsSup && dto.supervisor_id !== undefined && { supervisor_id: dto.supervisor_id || null }),
+            };
 
-        let { error } = await supabaseAdmin
-            .from(profileTable)
-            .update(fullUpdate)
-            .eq('id', userId);
+            if (Object.keys(fullUpdate).length === 0) continue;
 
-        // If the DB migration (add_multi_layer_user_hierarchy.sql) hasn't been executed yet,
-        // update the base fields and store the supervisor_id in the hierarchy map so it still works immediately.
-        if (error && dto.supervisor_id !== undefined && (error.code === '23503' || error.code === '42703' || error.message?.includes('supervisor_id'))) {
-            if (Object.keys(baseUpdate).length > 0) {
-                const retry = await supabaseAdmin.from(profileTable).update(baseUpdate).eq('id', userId);
-                error = retry.error;
-            } else {
-                error = null;
+            let { error } = await supabaseAdmin
+                .from(profileTable)
+                .update(fullUpdate)
+                .eq('id', userId);
+
+            if (error && dto.supervisor_id !== undefined && (error.code === '23503' || error.code === '42703' || error.message?.includes('supervisor_id'))) {
+                if (Object.keys(baseUpdate).length > 0) {
+                    const retry = await supabaseAdmin.from(profileTable).update(baseUpdate).eq('id', userId);
+                    error = retry.error;
+                } else {
+                    error = null;
+                }
             }
-        }
 
-        if (error) throw new Error(`Failed to update ${role} profile: ${error.message}`);
+            if (error) throw new Error(`Failed to update ${profileTable}: ${error.message}`);
+        }
 
         if (supportsHierarchy && dto.supervisor_id !== undefined) {
             await this.saveHierarchySupervisorFallback(userId, dto.supervisor_id || null);
@@ -540,20 +941,55 @@ export class AdminService {
         const supabaseAdmin = createAdminClient();
         const profileTable = getProfileTableForRole(role);
 
-        // Fetch all roles and user_roles to resolve exact hierarchy roles and superior profiles
-        const [{ data: allRoles }, { data: allUserRoles }, { data: allAgents }, { data: allSupervisors }, hierarchyMap] = await Promise.all([
+        // Fetch all roles and user_roles to resolve exact multi-role assignments and superior profiles
+        const [
+            { data: allRoles },
+            { data: allUserRoles },
+            { data: allAdmins },
+            { data: allFinance },
+            { data: allAgents },
+            { data: allSupervisors },
+            hierarchyMap
+        ] = await Promise.all([
             supabaseAdmin.from('roles').select('id, name'),
             supabaseAdmin.from('user_roles').select('user_id, role_id'),
-            supabaseAdmin.from('agent_profiles').select('id, first_name, last_name, is_active'),
-            supabaseAdmin.from('agent_supervisor_profiles').select('id, first_name, last_name, is_active'),
+            supabaseAdmin.from('admin_profiles').select('*'),
+            supabaseAdmin.from('finance_profiles').select('*'),
+            supabaseAdmin.from('agent_profiles').select('*'),
+            supabaseAdmin.from('agent_supervisor_profiles').select('*'),
             this.getHierarchyMap()
         ]);
 
-        const userIdToRoleName = buildUserIdToRoleMap(allRoles, allUserRoles);
+        const roleSetMap = buildUserIdToRoleSetMap(allRoles, allUserRoles);
+        const opRoleMap = buildUserIdToOperationalRoleMap(allRoles, allUserRoles);
+
+        const staffProfileIds = new Set<string>();
+        (allAdmins || []).forEach((p: any) => staffProfileIds.add(p.id));
+        (allFinance || []).forEach((p: any) => staffProfileIds.add(p.id));
+        (allAgents || []).forEach((p: any) => staffProfileIds.add(p.id));
+        (allSupervisors || []).forEach((p: any) => staffProfileIds.add(p.id));
+
+        const resolveRolesForUser = (uid: string, defaultTableRole: UserRoleType): UserRoleType[] => {
+            const explicitSet = roleSetMap.get(uid);
+            const explicitStaff = explicitSet ? Array.from(explicitSet).filter(r => r !== 'tourist') : [];
+            if (explicitStaff.length > 0) {
+                return normalizeAndOrderUserRoles(explicitStaff);
+            }
+            if (defaultTableRole === 'tourist') {
+                return ['tourist'];
+            }
+            // Legacy fallback when user_roles has no staff entry yet
+            const fb: UserRoleType[] = [];
+            if ((allAdmins || []).some((a: any) => a.id === uid)) fb.push('admin');
+            if ((allFinance || []).some((f: any) => f.id === uid)) fb.push('finance');
+            if ((allSupervisors || []).some((s: any) => s.id === uid)) fb.push('agent_supervisor');
+            if ((allAgents || []).some((a: any) => a.id === uid)) fb.push('agent');
+            return fb.length > 0 ? normalizeAndOrderUserRoles(fb) : [defaultTableRole];
+        };
 
         const personLookup = new Map<string, { first_name: string; last_name: string; role: string; role_label: string }>();
         (allAgents || []).forEach((a: any) => {
-            const rName = userIdToRoleName.get(a.id) || 'agent';
+            const rName = opRoleMap.get(a.id) || 'agent';
             personLookup.set(a.id, {
                 first_name: a.first_name || '',
                 last_name: a.last_name || '',
@@ -562,7 +998,7 @@ export class AdminService {
             });
         });
         (allSupervisors || []).forEach((s: any) => {
-            const rName = userIdToRoleName.get(s.id) || 'agent_supervisor';
+            const rName = opRoleMap.get(s.id) || 'agent_supervisor';
             personLookup.set(s.id, {
                 first_name: s.first_name || '',
                 last_name: s.last_name || '',
@@ -571,41 +1007,79 @@ export class AdminService {
             });
         });
 
-        const { data, error } = await supabaseAdmin
-            .from(profileTable)
-            .select('*')
-            .order('created_at', { ascending: false });
+        let tableRows: any[] = [];
+        if (profileTable === 'admin_profiles') tableRows = allAdmins || [];
+        else if (profileTable === 'finance_profiles') tableRows = allFinance || [];
+        else if (profileTable === 'agent_profiles') tableRows = allAgents || [];
+        else if (profileTable === 'agent_supervisor_profiles') tableRows = allSupervisors || [];
+        else {
+            const { data, error } = await supabaseAdmin
+                .from(profileTable)
+                .select('*')
+                .order('created_at', { ascending: false });
+            if (error) throw new Error(`Failed to fetch ${role}s: ${error.message}`);
+            tableRows = data || [];
+        }
 
-        if (error) throw new Error(`Failed to fetch ${role}s: ${error.message}`);
+        // Also include users assigned `role` in `user_roles` whose profile lives in another staff table
+        if (role !== 'tourist') {
+            const existingRowIds = new Set(tableRows.map((r: any) => r.id));
+            roleSetMap.forEach((rSet, uid) => {
+                if (rSet.has(role) && !existingRowIds.has(uid)) {
+                    const fallbackRow =
+                        (allAdmins || []).find((p: any) => p.id === uid) ||
+                        (allFinance || []).find((p: any) => p.id === uid) ||
+                        (allSupervisors || []).find((p: any) => p.id === uid) ||
+                        (allAgents || []).find((p: any) => p.id === uid);
+                    if (fallbackRow) {
+                        tableRows.push(fallbackRow);
+                        existingRowIds.add(uid);
+                    }
+                }
+            });
+        }
 
-        const isHierarchyRole = AGENT_ROLES.has(role) || SUPERVISOR_ROLES.has(role);
-        const filteredProfiles = (data || []).filter((profile: any) => {
-            if (!isHierarchyRole) return true;
-            const assignedRole = userIdToRoleName.get(profile.id);
-            if (role === 'agent') {
-                return !assignedRole || assignedRole === 'agent';
+        const sortedRows = [...tableRows].sort((a, b) =>
+            String(b.created_at || '').localeCompare(String(a.created_at || ''))
+        );
+
+        const filteredProfiles = sortedRows.filter((profile: any) => {
+            if (role === 'tourist') {
+                // Never list any staff user under Tourists
+                const explicitSet = roleSetMap.get(profile.id);
+                const hasStaffRole = explicitSet && Array.from(explicitSet).some(r => r !== 'tourist');
+                if (hasStaffRole || staffProfileIds.has(profile.id)) return false;
+                return true;
             }
-            if (role === 'agent_supervisor') {
-                return !assignedRole || assignedRole === 'agent_supervisor';
-            }
-            return assignedRole === role;
+            const resolvedRoles = resolveRolesForUser(profile.id, role);
+            return resolvedRoles.includes(role);
         });
 
         // Get emails from auth.users (requires service role)
         const { data: usersData, error: usersError } = await supabaseAdmin.auth.admin.listUsers();
         if (usersError) throw new Error(`Failed to fetch auth users: ${usersError.message}`);
 
-        // Merge profile with auth user email and resolved superior profile
+        // Merge profile with auth user email, resolved multi-role metadata, and superior profile
         return filteredProfiles.map((profile: any) => {
             const authUser = usersData.users.find(u => u.id === profile.id);
-            const effectiveSupervisorId = profile.supervisor_id || hierarchyMap[profile.id] || undefined;
+            const resolvedRoles = resolveRolesForUser(profile.id, role);
+            const roleMeta = deriveRoleMetadata(resolvedRoles, FLEXIBLE_ANCHOR_ROLES.has(role) ? role : undefined);
+            const agentRow = (allAgents || []).find((a: any) => a.id === profile.id);
+            const supRow = (allSupervisors || []).find((s: any) => s.id === profile.id);
+            const effectiveSupervisorId =
+                profile.supervisor_id ||
+                agentRow?.supervisor_id ||
+                supRow?.supervisor_id ||
+                hierarchyMap[profile.id] ||
+                undefined;
             const supInfo = effectiveSupervisorId ? personLookup.get(effectiveSupervisorId) : undefined;
             return {
                 ...profile,
                 supervisor_id: effectiveSupervisorId,
                 supervisor: supInfo,
                 email: authUser?.email || 'N/A',
-                role
+                role,
+                ...roleMeta
             };
         });
     }
@@ -625,12 +1099,12 @@ export class AdminService {
             supabaseAdmin.from('agent_supervisor_profiles').select('id, first_name, last_name, is_active').eq('is_active', true)
         ]);
 
-        const userIdToRoleName = buildUserIdToRoleMap(allRoles, allUserRoles);
+        const userIdToOpRole = buildUserIdToOperationalRoleMap(allRoles, allUserRoles);
 
         const candidates: Array<{ id: string; first_name: string; last_name: string; role: string; roleLabel: string; rank: number; name: string }> = [];
 
         (agents || []).forEach((item: any) => {
-            const rName = userIdToRoleName.get(item.id) || 'agent';
+            const rName = userIdToOpRole.get(item.id) || 'agent';
             const rank = HIERARCHY_ROLE_RANK[rName] || 1;
             if (rank > targetRank) {
                 const roleLabel = ROLE_LABELS[rName] || 'Agent';
@@ -648,7 +1122,7 @@ export class AdminService {
         });
 
         (supervisors || []).forEach((item: any) => {
-            const rName = userIdToRoleName.get(item.id) || 'agent_supervisor';
+            const rName = userIdToOpRole.get(item.id) || 'agent_supervisor';
             const rank = HIERARCHY_ROLE_RANK[rName] || 4;
             if (rank > targetRank) {
                 const roleLabel = ROLE_LABELS[rName] || 'Supervisor';

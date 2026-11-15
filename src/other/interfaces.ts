@@ -1070,6 +1070,160 @@ export interface IManagementCommissionDashboardData {
     }>;
 }
 
+// --- Office HR & Employee Management Interfaces ---
+export interface IEmployeeLeaveBalanceItem {
+    leaveType: 'Annual' | 'Casual' | 'Sick';
+    quota: number;
+    carriedForward: number;
+    openingUsed: number;
+    approvedUsed: number;
+    totalUsed: number;
+    pending: number;
+    remaining: number;
+}
+
+export interface IEmployeeCommissionSummary {
+    commissionEligible: boolean;
+    defaultRatingTier: 'below' | 'meets' | 'exceeds' | 'exceptional';
+    appliedMultiplier: number;
+    systemRoleCapUsd: number | null;
+    customCapUsd: number | null;
+    effectiveCapUsd: number | null;
+    annualGpTargetUsd: number | null;
+    toursContributedCount: number;
+    earnedApprovedAndPaidUsd: number;
+    earnedApprovedAndPaidLkr: number;
+    pendingCommissionUsd: number;
+    commissionNotes: string | null;
+}
+
+export interface IEmployeeRecord {
+    id: string;
+    userId: string;
+    employeeCode: string;
+    firstName: string;
+    lastName: string;
+    fullName: string;
+    email: string;
+    phone: string | null;
+    role: string;
+    roleLabel: string;
+    roleRank: number;
+    supervisorId: string | null;
+    supervisorName: string | null;
+    supervisorRoleLabel: string | null;
+    department: string;
+    designation: string;
+    employmentType: 'Full-Time' | 'Part-Time' | 'Probation' | 'Contract';
+    employmentStatus: 'Active' | 'Probation' | 'On Leave' | 'Suspended' | 'Resigned';
+    joinDate: string | null;
+    nicOrPassport: string | null;
+    address: string | null;
+    emergencyContactName: string | null;
+    emergencyContactPhone: string | null;
+    hrNotes: string | null;
+    salaryCurrency: string;
+    basicSalaryLkr: number | null;
+    fixedAllowancesLkr: number | null;
+    totalFixedMonthlyLkr: number | null;
+    epfEligible: boolean;
+    epfNumber: string | null;
+    bankName: string | null;
+    bankBranch: string | null;
+    bankAccountNumber: string | null;
+    bankAccountHolder: string | null;
+    annualLeaveQuota: number;
+    casualLeaveQuota: number;
+    sickLeaveQuota: number;
+    annualLeaveCarriedForward: number;
+    annualLeaveOpeningUsed: number;
+    casualLeaveOpeningUsed: number;
+    sickLeaveOpeningUsed: number;
+    leaveBalances: {
+        annual: IEmployeeLeaveBalanceItem;
+        casual: IEmployeeLeaveBalanceItem;
+        sick: IEmployeeLeaveBalanceItem;
+    };
+    commission: IEmployeeCommissionSummary;
+    isOnLeaveToday: boolean;
+    isActive: boolean;
+    canCallerViewCompensation: boolean;
+    canCallerEditHrMaster: boolean;
+    canCallerApproveLeave: boolean;
+    createdAt: string;
+    updatedAt: string;
+}
+
+export interface IEmployeeLeaveRequestRecord {
+    id: string;
+    employeeId: string;
+    userId: string;
+    employeeCode: string;
+    employeeName: string;
+    employeeRole: string;
+    employeeRoleLabel: string;
+    department: string;
+    leaveType: 'Annual' | 'Casual' | 'Sick';
+    startDate: string;
+    endDate: string;
+    daysCount: number;
+    isHalfDay: boolean;
+    halfDayPeriod: 'Morning' | 'Afternoon' | null;
+    reason: string;
+    handoverNotes: string | null;
+    coveringUserId: string | null;
+    coveringUserName: string | null;
+    status: 'Pending' | 'Approved' | 'Rejected' | 'Cancelled';
+    reviewedBy: string | null;
+    reviewedByName: string | null;
+    reviewedByRole: string | null;
+    reviewedAt: string | null;
+    reviewerNotes: string | null;
+    canCallerApproveOrReject: boolean;
+    canCallerCancel: boolean;
+    createdAt: string;
+    updatedAt: string;
+}
+
+export interface IEmployeeSalaryPaymentRecord {
+    id: string;
+    employeeId: string;
+    userId: string;
+    employeeCode: string;
+    employeeName: string;
+    employeeEmail: string;
+    employeeRole: string;
+    employeeRoleLabel: string;
+    department: string;
+    salaryMonth: string; // 'YYYY-MM'
+    paymentDate: string; // 'YYYY-MM-DD'
+    currency: string;
+    basicSalaryLkr: number;
+    fixedAllowancesLkr: number;
+    additionsLkr: number;
+    epfEmployeeDeductionLkr: number;
+    otherDeductionsLkr: number;
+    grossAmountLkr: number;
+    netPaidLkr: number;
+    paymentMethod: 'Bank Transfer' | 'Cash' | 'Cheque';
+    paymentReference: string | null;
+    bankAccountSnapshot: string | null;
+    slipStoragePath: string;
+    slipFileName: string | null;
+    notes: string | null;
+    emailSent: boolean;
+    emailSentTo: string | null;
+    emailSentAt: string | null;
+    emailError: string | null;
+    paidByUserId: string | null;
+    paidByName: string | null;
+    paidByRole: string | null;
+    createdAt: string;
+    updatedAt: string;
+}
+
+
+
 
 
 

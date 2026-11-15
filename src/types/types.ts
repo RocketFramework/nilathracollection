@@ -284,4 +284,19 @@ export type CommissionAdjustmentActionType =
     | 'CAP_OVERRIDE'
     | 'PAID';
 
+// --- Office HR & Employee Management Types ---
+export type EmployeeEmploymentType = 'Full-Time' | 'Part-Time' | 'Probation' | 'Contract';
+
+export type EmployeeEmploymentStatus = 'Active' | 'Probation' | 'On Leave' | 'Suspended' | 'Resigned';
+
+export type EmployeeLeaveType = 'Annual' | 'Casual' | 'Sick';
+
+export type EmployeeLeaveStatus = 'Pending' | 'Approved' | 'Rejected' | 'Cancelled';
+
+export type EmployeeHalfDayPeriod = 'Morning' | 'Afternoon';
+
+export type SalaryPaymentMethod = 'Bank Transfer' | 'Cash' | 'Cheque';
+
+
+
 

@@ -17,6 +17,7 @@ export interface CreateUserDTO {
     phone?: string;
     password?: string; // Only for initial creation
     role: UserRoleType;
+    secondary_role?: UserRoleType | null; // Optional 2nd role (ONLY allowed for 'admin' or 'finance' users)
     supervisor_id?: string; // Links agent to supervisor
 }
 
@@ -26,6 +27,8 @@ export interface UpdateUserDTO {
     phone?: string;
     is_active?: boolean;
     supervisor_id?: string; // Can change agent's supervisor
+    primary_role?: UserRoleType; // Role change (ONLY allowed for 'admin' or 'finance' users)
+    secondary_role?: UserRoleType | null; // Dual-role assignment (ONLY allowed for 'admin' or 'finance' users)
 }
 
 export interface ResetPasswordDTO {
@@ -42,6 +45,11 @@ export interface UserProfileDTO {
     photo_url?: string;
     country?: string;
     role?: UserRoleType;
+    roles?: UserRoleType[];
+    role_labels?: string[];
+    primary_role?: UserRoleType;
+    secondary_role?: UserRoleType | null;
+    can_edit_roles?: boolean;
     supervisor_id?: string; // Links user to their superior (Senior Agent, Executive Agent, Supervisor, etc.)
     is_active?: boolean;
     supervisor?: {

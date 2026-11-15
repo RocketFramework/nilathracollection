@@ -7,6 +7,7 @@ import { CreateUserDTO, UpdateUserDTO, ResetPasswordDTO, UserRoleType } from "@/
 export async function createUserAction(formData: FormData) {
     try {
         const role = formData.get("role") as UserRoleType;
+        const secondaryRaw = (formData.get("secondary_role") as string | null)?.trim() || "";
         const dto: CreateUserDTO = {
             first_name: formData.get("first_name") as string,
             last_name: formData.get("last_name") as string,
@@ -14,12 +15,14 @@ export async function createUserAction(formData: FormData) {
             phone: formData.get("phone") as string,
             password: formData.get("password") as string,
             supervisor_id: formData.get("supervisor_id") as string || undefined,
-            role
+            role,
+            secondary_role: secondaryRaw ? (secondaryRaw as UserRoleType) : null
         };
 
         await AdminService.createUser(dto);
         revalidatePath("/admin/user-management");
-        return { success: true, message: `Successfully created ${role} account for ${dto.first_name} ${dto.last_name}` };
+        revalidatePath("/admin");
+        return { success: true, message: `Successfully created account for ${dto.first_name} ${dto.last_name}` };
     } catch (error: any) {
         console.error("Error creating user:", error);
         return { error: error.message || "An unexpected error occurred while creating the user." };
@@ -30,6 +33,7 @@ export async function updateUserAction(userId: string, role: string, data: Updat
     try {
         await AdminService.updateUser(userId, role, data);
         revalidatePath("/admin/user-management");
+        revalidatePath("/admin");
         return { success: true, message: `User updated successfully.` };
     } catch (error: any) {
         console.error("Error updating user:", error);

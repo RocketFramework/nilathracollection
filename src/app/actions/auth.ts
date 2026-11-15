@@ -16,13 +16,21 @@ export async function loginAction(prevState: any, formData: FormData) {
 
     const supabase = await createClient()
 
-    const { error } = await supabase.auth.signInWithPassword({
+    const { data: signInData, error } = await supabase.auth.signInWithPassword({
         email,
         password,
     })
 
     if (error) {
         return { error: error.message };
+    }
+
+    if (signInData?.user) {
+        const { UserService } = await import('../../services/user.service');
+        const roles = await UserService.resolveUserRoles(signInData.user.id);
+        if (!roles.some(r => r !== 'tourist')) {
+            redirect('/tourist');
+        }
     }
 
     redirect('/admin');

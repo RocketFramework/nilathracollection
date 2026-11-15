@@ -161,6 +161,12 @@ export default function AdminDashboard() {
                                 <div className="bg-white rounded-2xl shadow-sm border border-[#E5E7EB] p-6">
                                     <h3 className="text-lg font-bold text-brand-charcoal mb-4">Quick Actions</h3>
                                     <div className="space-y-2">
+                                        <Link
+                                            href="/admin/hr"
+                                            className="block w-full text-left px-4 py-3 bg-neutral-50 hover:bg-brand-green/5 hover:text-brand-green rounded-xl text-sm font-medium transition-colors border border-transparent hover:border-brand-green/20"
+                                        >
+                                            Office HR &amp; Employee Management
+                                        </Link>
                                         <button className="w-full text-left px-4 py-3 bg-neutral-50 hover:bg-brand-green/5 hover:text-brand-green rounded-xl text-sm font-medium transition-colors border border-transparent hover:border-brand-green/20">
                                             Review Vendor Database
                                         </button>
@@ -179,15 +185,17 @@ export default function AdminDashboard() {
                                         <Link href="/admin/master-data" className="block w-full text-left px-4 py-3 bg-neutral-50 hover:bg-brand-green/5 hover:text-brand-green rounded-xl text-sm font-medium transition-colors border border-transparent hover:border-brand-green/20">
                                             Manage Hotels & Vendors
                                         </Link>
-                                        <button className="w-full text-left px-4 py-3 bg-neutral-50 hover:bg-brand-green/5 hover:text-brand-green rounded-xl text-sm font-medium transition-colors border border-transparent hover:border-brand-green/20">
-                                            Manage Staff Accounts
-                                        </button>
+                                        <Link
+                                            href="/admin/hr"
+                                            className="block w-full text-left px-4 py-3 bg-neutral-50 hover:bg-brand-green/5 hover:text-brand-green rounded-xl text-sm font-medium transition-colors border border-transparent hover:border-brand-green/20"
+                                        >
+                                            Office HR &amp; Employee Management
+                                        </Link>
                                     </div>
                                 </div>
                             )}
                         </div>
                     </div>
-
 
                     {/* Pending Requests / Leads - Full Width */}
                     <div className="bg-white rounded-2xl shadow-sm border border-[#E5E7EB] overflow-hidden mt-8">

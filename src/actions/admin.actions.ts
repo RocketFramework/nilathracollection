@@ -52,8 +52,9 @@ export async function getDashboardRequestsAction(filters: any, currentPage: numb
         if (!user) return { success: false, error: "Not authenticated" };
 
         const adminSupabase = createAdminClient();
+        const userRoles = await UserService.resolveUserRoles(user.id);
         const effectiveRole = await UserService.resolveUserEffectiveRole(user.id);
-        const isAdmin = effectiveRole === 'admin';
+        const isAdmin = userRoles.includes('admin') || effectiveRole === 'admin';
 
         let apiFilters = { ...filters };
 
@@ -69,6 +70,8 @@ export async function getDashboardRequestsAction(filters: any, currentPage: numb
             count,
             role: isAdmin ? 'admin' : 'agent',
             actualRole: effectiveRole,
+            roles: userRoles,
+            hasFinanceAccess: isAdmin || userRoles.includes('finance'),
             userId: user.id
         };
     } catch (error: any) {
@@ -81,18 +84,25 @@ export async function getUserRoleAction() {
     try {
         const supabase = await createClient();
         const { data: { user } } = await supabase.auth.getUser();
-        if (!user) return { success: true, role: 'guest', id: null };
+        if (!user) return { success: true, role: 'guest', roles: [] as string[], hasFinanceAccess: false, id: null };
 
+        const userRoles = await UserService.resolveUserRoles(user.id);
         const effectiveRole = await UserService.resolveUserEffectiveRole(user.id);
+        const isAdmin = userRoles.includes('admin') || effectiveRole === 'admin';
+        const hasFinanceAccess = isAdmin || userRoles.includes('finance');
 
-        if (effectiveRole === 'admin') {
-            return { success: true, role: 'admin', actualRole: effectiveRole, id: user.id };
+        if (isAdmin) {
+            return { success: true, role: 'admin', actualRole: effectiveRole, roles: userRoles, hasFinanceAccess, id: user.id };
         }
 
-        return { success: true, role: 'agent', actualRole: effectiveRole, id: user.id };
+        if (effectiveRole === 'tourist' && !userRoles.some(r => r !== 'tourist')) {
+            return { success: true, role: 'tourist', actualRole: 'tourist', roles: ['tourist'], hasFinanceAccess: false, id: user.id };
+        }
+
+        return { success: true, role: 'agent', actualRole: effectiveRole, roles: userRoles, hasFinanceAccess, id: user.id };
     } catch (error: any) {
         console.error("Error fetching user role:", error);
-        return { success: false, role: 'agent', id: null };
+        return { success: false, role: 'agent', roles: [] as string[], hasFinanceAccess: false, id: null };
     }
 }
 

@@ -82,15 +82,19 @@ export class AuthorizationEngine {
         resource: Resource,
         scope: string
     ): Promise<boolean> {
+        const callerRoles = context.userRoles && context.userRoles.length > 0
+            ? context.userRoles
+            : [context.userRole];
+
         switch (policy.type) {
             case 'ROLE': {
                 const allowedRoles = policy.configuration?.roles || [];
-                return allowedRoles.includes(context.userRole);
+                return callerRoles.some(r => allowedRoles.includes(r));
             }
             case 'FIELD_RESTRICTION': {
                 const bypassRoles = policy.configuration?.roles || [];
-                // If the user's role is in the bypass list, they are allowed to modify restricted fields
-                if (bypassRoles.includes(context.userRole)) {
+                // If any of the user's roles is in the bypass list, they are allowed to modify restricted fields
+                if (callerRoles.some(r => bypassRoles.includes(r))) {
                     return true;
                 }
 

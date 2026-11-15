@@ -7,6 +7,7 @@ export interface Resource {
 export interface AuthContext {
     userId: string;
     userRole: string;
+    userRoles?: string[];
     payload?: any;       // data payload for field-level validations
 }
 

@@ -1,6 +1,6 @@
 import { ReactNode } from "react";
 import Link from "next/link";
-import { LayoutDashboard, Users, Settings, LogOut, MapPin, Database, UserPlus, Mail, LayoutTemplate, Inbox as InboxIcon, Shield, BarChart3, ListChecks } from "lucide-react";
+import { LayoutDashboard, Users, Settings, LogOut, MapPin, Database, UserPlus, Mail, LayoutTemplate, Inbox as InboxIcon, Shield, BarChart3, ListChecks, Building2 } from "lucide-react";
 import { logoutAction } from "../../actions/auth";
 
 import { createClient } from "@/utils/supabase/server";
@@ -14,6 +14,8 @@ export default async function AdminLayout({ children }: { children: ReactNode })
     const { data: { user } } = await supabase.auth.getUser();
 
     let isAdmin = false;
+    let isFinance = false;
+    let canAccessHr = false;
     let userInitials = "NC";
     let displayRole = "Guest";
     let canViewTemplates = false;
@@ -28,18 +30,26 @@ export default async function AdminLayout({ children }: { children: ReactNode })
 
         const profile = await UserService.getCurrentUserProfile();
         const effectiveRole = profile?.role || user.user_metadata?.role;
+        const userRoles = profile?.roles && profile.roles.length > 0
+            ? profile.roles
+            : (effectiveRole ? [effectiveRole] : []);
 
-        if (effectiveRole === 'admin') {
-            isAdmin = true;
-            displayRole = "Admin";
-            userInitials = profile?.first_name ? profile.first_name.substring(0, 2).toUpperCase() : "AD";
-        } else if (effectiveRole && (AGENT_ROLES.has(effectiveRole) || SUPERVISOR_ROLES.has(effectiveRole) || effectiveRole === 'finance')) {
-            displayRole = ROLE_LABELS[effectiveRole] || "Agent";
+        isAdmin = userRoles.includes('admin');
+        isFinance = userRoles.includes('finance');
+        const hasOperationalRole = userRoles.some((r: string) => AGENT_ROLES.has(r) || SUPERVISOR_ROLES.has(r));
+        canAccessHr = isAdmin || isFinance || hasOperationalRole;
+
+        if (isAdmin || isFinance || hasOperationalRole) {
+            displayRole = profile?.role_labels && profile.role_labels.length > 0
+                ? profile.role_labels.join(' • ')
+                : (ROLE_LABELS[effectiveRole] || "Staff");
             if (profile?.first_name) {
                 userInitials = profile.first_name.substring(0, 2).toUpperCase();
+            } else if (isAdmin) {
+                userInitials = "AD";
             }
         } else {
-            // Tourist or unrecognized role
+            // Tourist or unrecognized role — strictly restrict to Tourist Portal
             const { redirect } = await import('next/navigation');
             redirect('/tourist');
         }
@@ -80,6 +90,13 @@ export default async function AdminLayout({ children }: { children: ReactNode })
                         </Link>
                     )}
 
+                    {canAccessHr && (
+                        <Link href="/admin/hr" className="flex items-center gap-4 px-6 py-3 text-[#4B5563] hover:bg-[#F5F3EF] hover:text-[#2B2B2B] transition-colors rounded-r-full mr-4 group">
+                            <Building2 size={20} className="text-[#6B7280] group-hover:text-[#D4AF37] transition-colors" />
+                            <span className="font-medium tracking-wide">Office HR</span>
+                        </Link>
+                    )}
+
                     {isAdmin && (
                         <>
                             <Link href="/admin/user-management" className="flex items-center gap-4 px-6 py-3 text-[#4B5563] hover:bg-[#F5F3EF] hover:text-[#2B2B2B] transition-colors rounded-r-full mr-4 group">
@@ -117,15 +134,18 @@ export default async function AdminLayout({ children }: { children: ReactNode })
                         <span className="font-medium tracking-wide">Commissions &amp; Career</span>
                     </Link>
 
+                    {(isAdmin || isFinance) && (
+                        <Link href="/admin/reports/financial" className="flex items-center gap-4 px-6 py-3 text-[#4B5563] hover:bg-[#F5F3EF] hover:text-[#2B2B2B] transition-colors rounded-r-full mr-4 group">
+                            <BarChart3 size={20} className="text-[#6B7280] group-hover:text-[#D4AF37] transition-colors" />
+                            <span className="font-medium tracking-wide">Financial Reports</span>
+                        </Link>
+                    )}
+
                     {isAdmin && (
                         <>
                             <Link href="/admin/task-templates" className="flex items-center gap-4 px-6 py-3 text-[#4B5563] hover:bg-[#F5F3EF] hover:text-[#2B2B2B] transition-colors rounded-r-full mr-4 group">
                                 <ListChecks size={20} className="text-[#6B7280] group-hover:text-[#D4AF37] transition-colors" />
                                 <span className="font-medium tracking-wide">Task Templates</span>
-                            </Link>
-                            <Link href="/admin/reports/financial" className="flex items-center gap-4 px-6 py-3 text-[#4B5563] hover:bg-[#F5F3EF] hover:text-[#2B2B2B] transition-colors rounded-r-full mr-4 group">
-                                <BarChart3 size={20} className="text-[#6B7280] group-hover:text-[#D4AF37] transition-colors" />
-                                <span className="font-medium tracking-wide">Financial Reports</span>
                             </Link>
                             <Link href="/admin/commission-simulator" className="flex items-center gap-4 px-6 py-3 text-[#4B5563] hover:bg-[#F5F3EF] hover:text-[#2B2B2B] transition-colors rounded-r-full mr-4 group">
                                 <BarChart3 size={20} className="text-[#6B7280] group-hover:text-[#D4AF37] transition-colors" />
