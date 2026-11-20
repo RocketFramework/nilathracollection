@@ -198,7 +198,8 @@ import {
   getNextPoNumberAction,
   getTourCodeAction,
   deleteTourExpenseAction,
-  getUserRoleAction
+  getUserRoleAction,
+  splitHotelStayRoomsAction
 } from '@/actions/admin.actions';
 import { SaveTourConciergeItemDTO } from '@/dtos/tour-concierge.dto';
 import { MasterDataService, SeamlessConciergeCostItem } from '@/services/master-data.service';
@@ -225,6 +226,7 @@ import { GeoLocation } from '@/lib/route-engine-new';
 import { AIRule } from '@/types/ai';
 import { ItineraryPdfTemplateNew } from './components/ItineraryPdfTemplateNew';
 import { ItineraryPdfTemplateSimple } from './components/ItineraryPdfTemplateSimple';
+import { ItineraryPdfTemplateHotelsInvoice } from './components/ItineraryPdfTemplateHotelsInvoice';
 import { generateHotelRfqPdf } from '@/utils/rfq-pdf';
 import { generateHotelPoPdf, generateTransportPoPdf, generateDriverPoPdf } from '@/utils/po-pdf';
 import { generateSettlementVoucherPdf, generateExpenseVoucherPdf } from '@/utils/settlement-voucher-pdf';
@@ -248,6 +250,197 @@ const generateUUID = () => {
     const v = c === 'x' ? r : (r & 0x3 | 0x8);
     return v.toString(16);
   });
+};
+
+const escapeHotelRegex = (s: string) => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+
+const replaceHotelNameInText = (
+  text: string | undefined,
+  oldNames: string[],
+  newName: string
+): string | undefined => {
+  if (!text || !newName || oldNames.length === 0) return text;
+  let result = text;
+  for (const oldName of oldNames) {
+    const regex = new RegExp(`(?<![A-Za-z0-9])${escapeHotelRegex(oldName)}(?![A-Za-z0-9])`, 'gi');
+    result = result.replace(regex, () => newName);
+  }
+  return result;
+};
+
+const collectOldHotelNames = (
+  block: InternalItineraryBlock,
+  masterHotels: any[],
+  accommodations: any[] | undefined,
+  newHotelName: string
+): string[] => {
+  const candidates = new Set<string>();
+  const normalizedNew = (newHotelName || '').trim().toLowerCase();
+  const addCandidate = (name?: string | null) => {
+    const trimmed = (name || '').trim();
+    if (trimmed.length >= 3 && trimmed.toLowerCase() !== normalizedNew) {
+      candidates.add(trimmed);
+    }
+  };
+  if (block.hotelId) {
+    const oldMasterHotel = (masterHotels || []).find((h: any) => h.id === block.hotelId);
+    addCandidate(oldMasterHotel?.name);
+  }
+  addCandidate(block.hotelName);
+  const existingAcc = (accommodations || []).find(
+    (a: any) => Number(a.nightIndex) === Number(block.dayNumber)
+  );
+  addCandidate(existingAcc?.hotelName);
+  return Array.from(candidates).sort((a, b) => b.length - a.length);
+};
+
+const propagateHotelNameWithinDay = (
+  blocks: InternalItineraryBlock[],
+  dayNumber: number,
+  targetBlockId: string,
+  oldHotelId: string | undefined,
+  oldHotelNames: string[],
+  newHotelId: string,
+  newHotelName: string
+): InternalItineraryBlock[] => {
+  if (!newHotelName) return blocks;
+  return blocks.map((b) => {
+    if (Number(b.dayNumber) !== Number(dayNumber)) return b;
+
+    const updatedName = replaceHotelNameInText(b.name, oldHotelNames, newHotelName) ?? b.name;
+    const updatedNotes =
+      replaceHotelNameInText(b.internalNotes, oldHotelNames, newHotelName) ?? b.internalNotes;
+    const updatedHotelName =
+      b.id === targetBlockId
+        ? newHotelName
+        : b.hotelName
+          ? replaceHotelNameInText(b.hotelName, oldHotelNames, newHotelName)
+          : b.hotelName;
+    const updatedLocationName = b.locationName
+      ? replaceHotelNameInText(b.locationName, oldHotelNames, newHotelName)
+      : b.locationName;
+    const updatedServiceProvider = b.serviceProvider
+      ? replaceHotelNameInText(b.serviceProvider, oldHotelNames, newHotelName)
+      : b.serviceProvider;
+    const updatedTouristNotes = b.touristNotes
+      ? replaceHotelNameInText(b.touristNotes, oldHotelNames, newHotelName)
+      : b.touristNotes;
+
+    const isBoundToOldHotel = Boolean(oldHotelId && b.id !== targetBlockId && b.hotelId === oldHotelId);
+
+    const changed =
+      updatedName !== b.name ||
+      updatedNotes !== b.internalNotes ||
+      updatedHotelName !== b.hotelName ||
+      updatedLocationName !== b.locationName ||
+      updatedServiceProvider !== b.serviceProvider ||
+      updatedTouristNotes !== b.touristNotes ||
+      isBoundToOldHotel;
+
+    if (!changed) return b;
+
+    return {
+      ...b,
+      name: updatedName,
+      internalNotes: updatedNotes,
+      ...(updatedHotelName !== undefined ? { hotelName: updatedHotelName } : {}),
+      ...(updatedLocationName !== undefined ? { locationName: updatedLocationName } : {}),
+      ...(updatedServiceProvider !== undefined ? { serviceProvider: updatedServiceProvider } : {}),
+      ...(updatedTouristNotes !== undefined ? { touristNotes: updatedTouristNotes } : {}),
+      ...(isBoundToOldHotel ? { hotelId: newHotelId, hotelName: newHotelName } : {})
+    };
+  });
+};
+
+const ROOM_TYPE_SORT_ORDER: Record<string, number> = {
+  Single: 1,
+  Double: 2,
+  Twin: 3,
+  Triple: 4,
+  Family: 5
+};
+
+const getActiveRoomTypesForStay = (stay: any): Array<{ type: string; count: number; roomId: string | null }> => {
+  if (!stay) return [];
+  const specs = [
+    { key: 'single_room', type: 'Single' },
+    { key: 'double_room', type: 'Double' },
+    { key: 'twin_room', type: 'Twin' },
+    { key: 'triple_room', type: 'Triple' },
+    { key: 'family_room', type: 'Family' }
+  ];
+  return specs
+    .map((s) => ({
+      type: s.type,
+      count: Number(stay[`${s.key}_count`] || 0),
+      roomId: stay[`${s.key}_id`] || null
+    }))
+    .filter((r) => r.count > 0);
+};
+
+const getSingleRoomTypeForStay = (stay: any): string | null => {
+  const active = getActiveRoomTypesForStay(stay);
+  return active.length === 1 ? active[0].type : null;
+};
+
+const inferRoomBookingType = (text: string | undefined | null): string | null => {
+  const s = String(text || '').toLowerCase();
+  if (!s) return null;
+  if (/\bsingle\b/.test(s)) return 'Single';
+  if (/\bdou?ble\b|\bdoouble\b/.test(s)) return 'Double';
+  if (/\btwin\b/.test(s)) return 'Twin';
+  if (/\btriple\b|\btripple\b/.test(s)) return 'Triple';
+  if (/\bfamily\b/.test(s)) return 'Family';
+  return null;
+};
+
+const resolveBookingTypeForStay = (stay: any, matchedSelRoom?: any): string | null => {
+  const singleType = getSingleRoomTypeForStay(stay);
+  if (singleType) return singleType;
+  return (
+    inferRoomBookingType(matchedSelRoom?.reqId) ||
+    inferRoomBookingType(matchedSelRoom?.roomName || matchedSelRoom?.room_name) ||
+    inferRoomBookingType(stay?.title)
+  );
+};
+
+const resolveStaySelectedRoom = (stay: any, acc: any, itinBlock: any): any | null => {
+  const selRooms: any[] =
+    (stay as any)?.selectedRooms ||
+    (stay as any)?.selected_rooms ||
+    acc?.selectedRooms ||
+    itinBlock?.selectedRooms ||
+    [];
+  if (!Array.isArray(selRooms) || selRooms.length === 0) return null;
+
+  if (stay?.id) {
+    const byActId = selRooms.find((r: any) => r.dailyActivityId === stay.id);
+    if (byActId) return byActId;
+  }
+
+  const singleType = getSingleRoomTypeForStay(stay);
+  if (singleType) {
+    const byType = selRooms.find(
+      (r: any) => String(r.reqId || '').split('-')[0].toLowerCase() === singleType.toLowerCase()
+    );
+    if (byType) return byType;
+  }
+
+  if (stay?.title) {
+    const titleLower = String(stay.title).toLowerCase();
+    const byTitle = selRooms.find((r: any) => {
+      const candidates = [r.roomName, r.room_name, r.reqId].filter(Boolean).map((s: any) => String(s).trim().toLowerCase());
+      return candidates.some((c: string) => c.length >= 3 && titleLower.includes(`(${c})`));
+    });
+    if (byTitle) return byTitle;
+  }
+
+  if (stay?.hotel_room_id) {
+    const byRoomId = selRooms.filter((r: any) => r.roomId === stay.hotel_room_id);
+    if (byRoomId.length === 1) return byRoomId[0];
+  }
+
+  return selRooms.length === 1 ? selRooms[0] : null;
 };
 
 const computeHotelRateForBlock = (hotel: any, mealPlan: string = 'BB', roomName?: string): number => {
@@ -1349,23 +1542,35 @@ function PlannerWizardWorkspace() {
         const baseRate = computedRate > 0 ? computedRate : (block.baseRoomRate || 0);
 
         const oldHotelId = block.hotelId;
+        const oldHotelNames = collectOldHotelNames(block, masterData.hotels || [], tripData?.accommodations, hotel.name);
 
         if (track === 'final' && oldHotelId) {
           const newLocationName = hotel.closest_city || hotel.location_address || '';
           const currentDay = Number(block.dayNumber);
 
-          // 1. Update ONLY this block in itinerary
-          setItinerary(prev => prev.map(b => b.id === blockId ? {
-            ...b,
-            hotelId: value,
-            hotelName: hotel.name,
-            imageUrl: autoImageUrl,
-            locationName: newLocationName,
-            roomName: '',
-            mealPlan: 'BB',
-            baseRoomRate: baseRate > 0 ? baseRate : b.baseRoomRate,
-            agreedPrice: baseRate > 0 ? baseRate : b.agreedPrice
-          } : b));
+          // 1. Update this block in itinerary and propagate hotel name across the same day
+          setItinerary(prev => {
+            const updatedTarget = prev.map(b => b.id === blockId ? {
+              ...b,
+              hotelId: value,
+              hotelName: hotel.name,
+              imageUrl: autoImageUrl,
+              locationName: newLocationName,
+              roomName: '',
+              mealPlan: 'BB',
+              baseRoomRate: baseRate > 0 ? baseRate : b.baseRoomRate,
+              agreedPrice: baseRate > 0 ? baseRate : b.agreedPrice
+            } : b);
+            return propagateHotelNameWithinDay(
+              updatedTarget,
+              block.dayNumber,
+              blockId,
+              oldHotelId,
+              oldHotelNames,
+              value,
+              hotel.name
+            );
+          });
 
           // 2. Update ONLY this activity in dbActivities
           setDbActivities(prev => prev.map(act => {
@@ -1413,16 +1618,27 @@ function PlannerWizardWorkspace() {
             });
           }
         } else {
-          setItinerary(prev => prev.map(b => b.id === blockId ? {
-            ...b,
-            hotelId: value,
-            hotelName: hotel.name,
-            imageUrl: autoImageUrl,
-            baseRoomRate: baseRate > 0 ? baseRate : b.baseRoomRate,
-            agreedPrice: baseRate > 0 ? baseRate : b.agreedPrice,
-            // reset room specific selections if switching to a different hotel (do NOT reset agreedPrice)
-            ...(b.hotelId !== value ? { roomName: '', mealPlan: 'BB' } : {})
-          } : b));
+          setItinerary(prev => {
+            const updatedTarget = prev.map(b => b.id === blockId ? {
+              ...b,
+              hotelId: value,
+              hotelName: hotel.name,
+              imageUrl: autoImageUrl,
+              baseRoomRate: baseRate > 0 ? baseRate : b.baseRoomRate,
+              agreedPrice: baseRate > 0 ? baseRate : b.agreedPrice,
+              // reset room specific selections if switching to a different hotel (do NOT reset agreedPrice)
+              ...(b.hotelId !== value ? { roomName: '', mealPlan: 'BB' } : {})
+            } : b);
+            return propagateHotelNameWithinDay(
+              updatedTarget,
+              block.dayNumber,
+              blockId,
+              oldHotelId,
+              oldHotelNames,
+              value,
+              hotel.name
+            );
+          });
 
           if (tripData) {
             let newAccs = [...(tripData.accommodations || [])];
@@ -1967,19 +2183,50 @@ function PlannerWizardWorkspace() {
       ).filter(Boolean)
       : [Number(dayNum)];
 
+    const editingRoomType = getSingleRoomTypeForStay(editingCustomRateAct);
     setTripData({
       ...tripData,
       accommodations: tripData.accommodations.map(a => {
         const isMatch = targetDayNums.some(d => Number(d) === Number(a.nightIndex)) && a.hotelId === editingCustomRateAct.hotel_id;
-        if (isMatch) {
+        if (!isMatch) return a;
+        const isCurrentNight = Number(a.nightIndex) === Number(dayNum);
+        const hasMultiRooms = Array.isArray(a.selectedRooms) && a.selectedRooms.length > 1;
+        if (isCurrentNight && Array.isArray(a.selectedRooms) && a.selectedRooms.length > 0) {
+          const updatedSelectedRooms = a.selectedRooms.map((r: any) => {
+            const matchesThisRoom =
+              r.dailyActivityId === actId ||
+              (editingRoomType && String(r.reqId || '').split('-')[0].toLowerCase() === editingRoomType.toLowerCase()) ||
+              (!hasMultiRooms);
+            if (!matchesThisRoom) return r;
+            return {
+              ...r,
+              dailyActivityId: actId,
+              contractedPrice: unitPrice,
+              contractedNegotiated: unitPrice !== undefined
+            };
+          });
           return {
             ...a,
-            customContractedUnitPrice: Number(a.nightIndex) === Number(dayNum) ? unitPrice : a.customContractedUnitPrice,
-            customContractedTotalPrice: Number(a.nightIndex) === Number(dayNum) ? totalPrice : a.customContractedTotalPrice,
-            customRateNote: note,
+            selectedRooms: updatedSelectedRooms,
+            ...(!hasMultiRooms
+              ? {
+                  customContractedUnitPrice: unitPrice,
+                  customContractedTotalPrice: totalPrice,
+                  customRateNote: note
+                }
+              : {})
           };
         }
-        return a;
+        return {
+          ...a,
+          ...(!hasMultiRooms
+            ? {
+                customContractedUnitPrice: isCurrentNight ? unitPrice : a.customContractedUnitPrice,
+                customContractedTotalPrice: isCurrentNight ? totalPrice : a.customContractedTotalPrice,
+                customRateNote: note
+              }
+            : {})
+        };
       })
     });
 
@@ -2290,14 +2537,19 @@ function PlannerWizardWorkspace() {
 
     setCustomRateFx(act.contracted_fx_rate != null ? String(act.contracted_fx_rate) : '');
 
-    if (acc) {
-      setCustomRateUnit(acc.customContractedUnitPrice !== undefined ? String(acc.customContractedUnitPrice) : String(act.contracted_price ?? ''));
-      setCustomRateTotal(acc.customContractedTotalPrice !== undefined ? String(acc.customContractedTotalPrice) : String(act.contracted_total_price ?? ''));
+    const hasMultiRooms = Array.isArray(acc?.selectedRooms) && acc.selectedRooms.length > 1;
+    if (act.contracted_price !== undefined && act.contracted_price !== null) {
+      setCustomRateUnit(String(act.contracted_price));
+      setCustomRateTotal(String(act.contracted_total_price ?? (Number(act.contracted_price) * Number(act.quantity || 1))));
+      setCustomRateNote(act.description || (!hasMultiRooms ? (acc?.customRateNote || '') : ''));
+    } else if (acc && !hasMultiRooms) {
+      setCustomRateUnit(acc.customContractedUnitPrice !== undefined ? String(acc.customContractedUnitPrice) : '');
+      setCustomRateTotal(acc.customContractedTotalPrice !== undefined ? String(acc.customContractedTotalPrice) : '');
       setCustomRateNote(acc.customRateNote || '');
     } else {
-      setCustomRateUnit(String(act.contracted_price ?? ''));
-      setCustomRateTotal(String(act.contracted_total_price ?? ''));
-      setCustomRateNote('');
+      setCustomRateUnit('');
+      setCustomRateTotal('');
+      setCustomRateNote(act.description || '');
     }
   };
 
@@ -5450,7 +5702,11 @@ function PlannerWizardWorkspace() {
           const lastSleep = sleepStaysOnly[sleepStaysOnly.length - 1];
           checkInDate = firstSleep?.service_date || firstSleep?.tour_itineraries?.date || '';
           lastSleepDate = lastSleep?.service_date || lastSleep?.tour_itineraries?.date || checkInDate;
-          nightsCount = sleepStaysOnly.length;
+          nightsCount = new Set(
+            sleepStaysOnly.map(s =>
+              String(s.service_date || s.tour_itineraries?.date || s.tour_itineraries?.day_number || s.day_number || s.dayNumber || s.id)
+            )
+          ).size;
         } else {
           const serviceDates = sortedStays.map(s => s.service_date || s.tour_itineraries?.date).filter(Boolean);
           if (serviceDates.length > 0) {
@@ -5920,19 +6176,37 @@ function PlannerWizardWorkspace() {
 
             let reqStr = '';
 
-            // 1. Check selectedRooms array (multi-room category selection)
-            const selRooms = act.selectedRooms || act.selected_rooms || accObj?.selectedRooms || itinBlockObj?.selectedRooms;
-            if (Array.isArray(selRooms) && selRooms.length > 0) {
-              const roomStrings = selRooms.map((r: any) => {
-                const qty = r.quantity || 1;
-                const rName = r.roomName || r.room_name || r.name || r.roomStandard || r.room_standard || 'Room';
-                const rStd = r.roomStandard && r.roomStandard !== rName ? ` (${r.roomStandard})` : '';
-                const mp = r.mealPlan || r.meal_plan || act.mealPlan || act.meal_plan || accObj?.mealPlan || itinBlockObj?.mealPlan || '';
-                const mpStr = mp ? ` [${mp}]` : '';
-                return `${qty} x ${rName}${rStd}${mpStr}`;
-              });
-              if (roomStrings.length > 0) {
-                reqStr = roomStrings.join(', ');
+            // 1. Check if this stay row maps to a single room entry (split per-room row)
+            const activeTypes = getActiveRoomTypesForStay(act);
+            const matchedSelRoom = activeTypes.length <= 1 ? resolveStaySelectedRoom(act, accObj, itinBlockObj) : null;
+            const bookingType = resolveBookingTypeForStay(act, matchedSelRoom);
+            if (matchedSelRoom) {
+              const qty = Number(act.quantity || matchedSelRoom.quantity || 1);
+              const rName = matchedSelRoom.roomName || matchedSelRoom.room_name || matchedSelRoom.name || bookingType || matchedSelRoom.roomStandard || 'Room';
+              const rStd = matchedSelRoom.roomStandard && matchedSelRoom.roomStandard !== rName ? ` (${matchedSelRoom.roomStandard})` : '';
+              const bookingTypePart = bookingType ? ` — ${bookingType} Booking` : '';
+              const mp = matchedSelRoom.mealPlan || matchedSelRoom.meal_plan || act.mealPlan || act.meal_plan || accObj?.mealPlan || itinBlockObj?.mealPlan || '';
+              const mpStr = mp ? ` [${mp}]` : '';
+              reqStr = `${qty} x ${rName}${bookingTypePart}${rStd}${mpStr}`;
+            }
+
+            // 1b. Legacy combined row with multiple rooms in selectedRooms array
+            if (!reqStr && activeTypes.length > 1) {
+              const selRooms = act.selectedRooms || act.selected_rooms || accObj?.selectedRooms || itinBlockObj?.selectedRooms;
+              if (Array.isArray(selRooms) && selRooms.length > 0) {
+                const roomStrings = selRooms.map((r: any) => {
+                  const qty = r.quantity || 1;
+                  const rName = r.roomName || r.room_name || r.name || r.roomStandard || r.room_standard || 'Room';
+                  const rBookingType = inferRoomBookingType(r.reqId) || inferRoomBookingType(rName);
+                  const rBookingTypePart = rBookingType ? ` — ${rBookingType} Booking` : '';
+                  const rStd = r.roomStandard && r.roomStandard !== rName ? ` (${r.roomStandard})` : '';
+                  const mp = r.mealPlan || r.meal_plan || act.mealPlan || act.meal_plan || accObj?.mealPlan || itinBlockObj?.mealPlan || '';
+                  const mpStr = mp ? ` [${mp}]` : '';
+                  return `${qty} x ${rName}${rBookingTypePart}${rStd}${mpStr}`;
+                });
+                if (roomStrings.length > 0) {
+                  reqStr = roomStrings.join(', ');
+                }
               }
             }
 
@@ -5944,8 +6218,9 @@ function PlannerWizardWorkspace() {
               const mpStr = mp ? ` [${mp}]` : '';
 
               if (explicitRoomName) {
+                const bookingTypePart = bookingType ? ` — ${bookingType} Booking` : '';
                 const stdPart = explicitRoomStd && explicitRoomStd !== explicitRoomName ? ` (${explicitRoomStd})` : '';
-                reqStr = `${act.quantity || 1} x ${explicitRoomName}${stdPart}${mpStr}`;
+                reqStr = `${act.quantity || 1} x ${explicitRoomName}${bookingTypePart}${stdPart}${mpStr}`;
               }
             }
 
@@ -5954,10 +6229,11 @@ function PlannerWizardWorkspace() {
               const allHotelRooms = hotel?.hotel_rooms || hotel?.rooms || masterData?.hotelRooms || masterData?.rooms || [];
               const foundRoom = allHotelRooms.find((r: any) => r.id === act.hotel_room_id);
               if (foundRoom) {
+                const bookingTypePart = bookingType ? ` — ${bookingType} Booking` : '';
                 const stdPart = foundRoom.room_standard ? ` (${foundRoom.room_standard})` : '';
                 const mp = act.mealPlan || act.meal_plan || accObj?.mealPlan || itinBlockObj?.mealPlan || '';
                 const mpStr = mp ? ` [${mp}]` : '';
-                reqStr = `${act.quantity || 1} x ${foundRoom.room_name || foundRoom.name || 'Room'}${stdPart}${mpStr}`;
+                reqStr = `${act.quantity || 1} x ${foundRoom.room_name || foundRoom.name || 'Room'}${bookingTypePart}${stdPart}${mpStr}`;
               }
             }
 
@@ -5991,13 +6267,62 @@ function PlannerWizardWorkspace() {
             return { displayDate, reqStr };
           });
 
+          // Summarize Single / Double / Twin / Triple / Family room counts for this stay
+          const roomTypeOrder = ['Single', 'Double', 'Twin', 'Triple', 'Family'] as const;
+          const countsByDay = new Map<string, Record<string, number>>();
+          sleepStays.forEach(act => {
+            const dayNum = Number(act.tour_itineraries?.day_number || act.day_number || act.dayNumber || 0);
+            const dateKey = String(act.tour_itineraries?.date || act.service_date || act.date || `day-${dayNum}`);
+            const accObj = tripData?.accommodations?.find((a: any) => Number(a.nightIndex) === dayNum);
+            const itinBlockObj = itinerary.find((b: any) => b.type === 'sleep' && Number(b.dayNumber) === dayNum);
+            const dayCounts = countsByDay.get(dateKey) || {};
+            const activeTypes = getActiveRoomTypesForStay(act);
+            if (activeTypes.length > 0) {
+              activeTypes.forEach(r => {
+                dayCounts[r.type] = (dayCounts[r.type] || 0) + r.count;
+              });
+            } else {
+              const matched = resolveStaySelectedRoom(act, accObj, itinBlockObj);
+              const inferred = resolveBookingTypeForStay(act, matched);
+              if (inferred) {
+                const qty = Number(act.quantity || matched?.quantity || 1);
+                dayCounts[inferred] = (dayCounts[inferred] || 0) + qty;
+              }
+            }
+            countsByDay.set(dateKey, dayCounts);
+          });
+
+          const formatRoomTypeCounts = (counts: Record<string, number>) =>
+            roomTypeOrder
+              .filter(t => (counts[t] || 0) > 0)
+              .map(t => `${counts[t]} ${t}`)
+              .join(', ');
+
+          const dayCountStrings = Array.from(new Set(
+            Array.from(countsByDay.values()).map(formatRoomTypeCounts).filter(Boolean)
+          ));
+
+          let roomCountSummary = dayCountStrings.length === 1 ? dayCountStrings[0] : '';
+          if (!roomCountSummary && dayCountStrings.length === 0) {
+            const fallbackCounts: Record<string, number> = {
+              Single: Number(tripData?.manualSingle || 0),
+              Double: Number(tripData?.manualDouble || 0),
+              Triple: Number(tripData?.manualTriple || 0),
+              Family: Number(tripData?.manualFamily || 0)
+            };
+            roomCountSummary = formatRoomTypeCounts(fallbackCounts);
+          }
+
           let roomsRequiredText = '';
           if (roomsByDate.length === 0) {
             roomsRequiredText = 'No overnight accommodations requested.';
           } else if (roomsByDate.length === 1) {
-            roomsRequiredText = `${roomsByDate[0].displayDate} (${roomsByDate[0].reqStr})`;
+            roomsRequiredText = roomCountSummary
+              ? `${roomCountSummary} — ${roomsByDate[0].displayDate} (${roomsByDate[0].reqStr})`
+              : `${roomsByDate[0].displayDate} (${roomsByDate[0].reqStr})`;
           } else {
-            roomsRequiredText = roomsByDate.map(item => `<br />• ${item.displayDate}: ${item.reqStr}`).join('');
+            const summaryPrefix = roomCountSummary ? `<strong>${roomCountSummary}</strong>` : '';
+            roomsRequiredText = summaryPrefix + roomsByDate.map(item => `<br />• ${item.displayDate}: ${item.reqStr}`).join('');
           }
 
           let customServicesText = '';
@@ -6326,7 +6651,8 @@ function PlannerWizardWorkspace() {
           driverMeal: rfqDriverMeal,
           driverAcc: rfqDriverAcc,
           parking: rfqParking,
-          guideRoomDiscount: rfqGuideRoomDiscount
+          guideRoomDiscount: rfqGuideRoomDiscount,
+          roomNames: buildPoRoomNames(stays, hotel)
         }
       );
 
@@ -6394,7 +6720,8 @@ function PlannerWizardWorkspace() {
             driverMeal: rfqDriverMeal,
             driverAcc: rfqDriverAcc,
             parking: rfqParking,
-            guideRoomDiscount: rfqGuideRoomDiscount
+            guideRoomDiscount: rfqGuideRoomDiscount,
+            roomNames: buildPoRoomNames(selectedRfqStays, selectedRfqHotel)
           }
         );
         pdfBase64 = doc.output('datauristring').split(',')[1];
@@ -6567,7 +6894,11 @@ function PlannerWizardWorkspace() {
       const lastSleep = sleepStaysOnly[sleepStaysOnly.length - 1];
       checkInDate = firstSleep?.service_date || firstSleep?.tour_itineraries?.date || '';
       lastSleepDate = lastSleep?.service_date || lastSleep?.tour_itineraries?.date || checkInDate;
-      nightsCount = sleepStaysOnly.length;
+      nightsCount = new Set(
+        sleepStaysOnly.map(s =>
+          String(s.service_date || s.tour_itineraries?.date || s.tour_itineraries?.day_number || s.day_number || s.dayNumber || s.id)
+        )
+      ).size;
     } else {
       const serviceDates = sortedStays.map(s => s.service_date || s.tour_itineraries?.date).filter(Boolean);
       if (serviceDates.length > 0) {
@@ -7383,6 +7714,21 @@ ${chauffeurHtml}
     const dayNum = stay.tour_itineraries?.day_number || stay.day_number || stay.dayNumber || 0;
     const acc: any = tripData?.accommodations?.find((a: any) => Number(a.nightIndex) === Number(dayNum));
     const itinBlock: any = itinerary.find((b: any) => b.type === 'sleep' && Number(b.dayNumber) === Number(dayNum));
+    const activeTypes = getActiveRoomTypesForStay(stay);
+    const matchedSelRoom = activeTypes.length <= 1 ? resolveStaySelectedRoom(stay, acc, itinBlock) : null;
+    const bookingType = activeTypes.length <= 1 ? resolveBookingTypeForStay(stay, matchedSelRoom) : null;
+    if (matchedSelRoom || bookingType) {
+      const specificName =
+        matchedSelRoom?.roomName ||
+        matchedSelRoom?.room_name ||
+        matchedSelRoom?.roomStandard ||
+        room?.room_name ||
+        '';
+      if (bookingType && specificName) {
+        return `${specificName} (${bookingType})`;
+      }
+      return specificName || bookingType || '';
+    }
     const selRooms = stay.selectedRooms || stay.selected_rooms || acc?.selectedRooms || itinBlock?.selectedRooms;
     const selNames = Array.isArray(selRooms)
       ? selRooms.map((r: any) => r.roomName || r.room_name || r.name || r.roomStandard || r.room_standard).filter(Boolean).join(', ')
@@ -11775,7 +12121,7 @@ ${chauffeurHtml}
                           }
                         });
 
-                        // Resolve the exact AI Builder charged unit & total for a stay (matches AI Builder's selectedRooms[].pricePerNight table)
+                        // Resolve the exact AI Builder charged unit & total for a stay (supports both split per-room rows and legacy combined rows)
                         const resolveAiBuilderStayCharged = (stay: any): { unit: number | null; total: number | null } => {
                           if (stay?.activity_type !== 'sleep') {
                             const u = stay?.charged_unit_price != null ? Number(stay.charged_unit_price) : null;
@@ -11785,6 +12131,22 @@ ${chauffeurHtml}
                           const dayNum = Number(stay.tour_itineraries?.day_number || stay.day_number || stay.dayNumber || 0);
                           const acc = accByNight.get(dayNum);
                           const itinBlock = sleepBlockByDay.get(dayNum);
+                          const activeTypes = getActiveRoomTypesForStay(stay);
+
+                          if (activeTypes.length <= 1) {
+                            const matchedRoom = resolveStaySelectedRoom(stay, acc, itinBlock);
+                            const qty = Number(stay.quantity || activeTypes[0]?.count || matchedRoom?.quantity || 1);
+                            if (matchedRoom && matchedRoom.pricePerNight !== undefined && matchedRoom.pricePerNight !== null) {
+                              const u = Number(matchedRoom.pricePerNight);
+                              return { unit: u, total: u * qty };
+                            }
+                            if (activeTypes.length === 1 || stay.charged_unit_price != null) {
+                              const u = stay.charged_unit_price != null ? Number(stay.charged_unit_price) : null;
+                              const t = stay.charged_total_price != null ? Number(stay.charged_total_price) : (u != null ? u * qty : null);
+                              return { unit: u, total: t };
+                            }
+                          }
+
                           const selRooms: any[] = acc?.selectedRooms || itinBlock?.selectedRooms || (stay as any).selectedRooms || (stay as any).selected_rooms || [];
                           if (Array.isArray(selRooms) && selRooms.length > 0 && selRooms.some((r: any) => r.pricePerNight !== undefined && r.pricePerNight !== null)) {
                             const totalQty = selRooms.reduce((s: number, r: any) => s + (Number(r.quantity) || 1), 0);
@@ -11836,7 +12198,16 @@ ${chauffeurHtml}
 
                         return sortedBlocks.map((block: any) => {
                           const blockActivities = block.daily_activities || [];
-                          const standardStays = blockActivities.filter((a: any) => a.activity_type === 'sleep');
+                          const standardStays = blockActivities
+                            .filter((a: any) => a.activity_type === 'sleep')
+                            .sort((a: any, b: any) => {
+                              const dayA = Number(a.tour_itineraries?.day_number || a.day_number || a.dayNumber || 0);
+                              const dayB = Number(b.tour_itineraries?.day_number || b.day_number || b.dayNumber || 0);
+                              if (dayA !== dayB) return dayA - dayB;
+                              const typeA = getSingleRoomTypeForStay(a);
+                              const typeB = getSingleRoomTypeForStay(b);
+                              return (ROOM_TYPE_SORT_ORDER[typeA || ''] || 99) - (ROOM_TYPE_SORT_ORDER[typeB || ''] || 99);
+                            });
                           const customPOs = blockActivities.filter((a: any) => a.activity_type !== 'sleep');
 
                           const selectedHotelId = blockActivities.find((a: any) => a.hotel_id)?.hotel_id;
@@ -12067,7 +12438,16 @@ ${chauffeurHtml}
                                       </div>
                                       <div className="space-y-0.5">
                                         <span className="text-[9px] font-bold text-neutral-450 uppercase tracking-tight block">Stay Duration</span>
-                                        <span className="font-bold text-neutral-800">{standardStays.length} Night{standardStays.length > 1 ? 's' : ''}</span>
+                                        <span className="font-bold text-neutral-800">
+                                          {(() => {
+                                            const uniqueNights = new Set(
+                                              standardStays.map((s: any) =>
+                                                Number(s.tour_itineraries?.day_number || s.day_number || s.dayNumber || 0)
+                                              )
+                                            ).size || standardStays.length;
+                                            return `${uniqueNights} Night${uniqueNights > 1 ? 's' : ''}`;
+                                          })()}
+                                        </span>
                                       </div>
                                     </div>
 
@@ -12115,14 +12495,26 @@ ${chauffeurHtml}
                                         }
 
                                         const aiCharged = resolveAiBuilderStayCharged(stay);
-                                        const displayRooms = (Array.isArray(selRooms) && selRooms.length > 0)
-                                          ? selRooms.map((sr: any) => ({
-                                              category: sr.roomName || sr.room_name || sr.reqId || sr.roomStandard || 'Room',
-                                              mealPlan: sr.mealPlan || stay.meal_plan || itinBlock?.mealPlan || 'BB',
-                                              qty: Number(sr.quantity) || 1,
-                                              rate: sr.pricePerNight != null ? Number(sr.pricePerNight) : aiCharged.unit
-                                            }))
-                                          : fallbackRooms;
+                                        const activeTypesForSpec = getActiveRoomTypesForStay(stay);
+                                        const singleRoomTypeForSpec = activeTypesForSpec.length === 1 ? activeTypesForSpec[0].type : null;
+                                        const matchedSelRoomForSpec = activeTypesForSpec.length <= 1
+                                          ? resolveStaySelectedRoom(stay, acc, itinBlock)
+                                          : null;
+                                        const displayRooms = matchedSelRoomForSpec
+                                          ? [{
+                                              category: matchedSelRoomForSpec.roomName || matchedSelRoomForSpec.room_name || singleRoomTypeForSpec || matchedSelRoomForSpec.roomStandard || 'Room',
+                                              mealPlan: matchedSelRoomForSpec.mealPlan || stay.meal_plan || itinBlock?.mealPlan || 'BB',
+                                              qty: Number(stay.quantity || matchedSelRoomForSpec.quantity || 1),
+                                              rate: matchedSelRoomForSpec.pricePerNight != null ? Number(matchedSelRoomForSpec.pricePerNight) : aiCharged.unit
+                                            }]
+                                          : (activeTypesForSpec.length > 1 && Array.isArray(selRooms) && selRooms.length > 0)
+                                            ? selRooms.map((sr: any) => ({
+                                                category: sr.roomName || sr.room_name || sr.reqId || sr.roomStandard || 'Room',
+                                                mealPlan: sr.mealPlan || stay.meal_plan || itinBlock?.mealPlan || 'BB',
+                                                qty: Number(sr.quantity) || 1,
+                                                rate: sr.pricePerNight != null ? Number(sr.pricePerNight) : aiCharged.unit
+                                              }))
+                                            : fallbackRooms;
 
                                         return (
                                           <div key={`ai-spec-${stay.id}`} className="bg-white rounded-xl border border-amber-200/60 px-3 py-2 flex flex-col sm:flex-row sm:items-center justify-between gap-2 text-[11px]">
@@ -12171,7 +12563,13 @@ ${chauffeurHtml}
                                     const dateVal = stay.tour_itineraries?.date;
                                     const acc = accByNight.get(dayNum);
                                     const itinBlock = sleepBlockByDay.get(dayNum);
-                                    const hasCustomRate = acc && (acc.customContractedUnitPrice !== undefined || acc.customContractedTotalPrice !== undefined);
+                                    const activeRooms = getActiveRoomTypesForStay(stay);
+                                    const singleRoomType = activeRooms.length === 1 ? activeRooms[0].type : null;
+                                    const matchedSelRoom = activeRooms.length <= 1 ? resolveStaySelectedRoom(stay, acc, itinBlock) : null;
+                                    const isIndividualRoomRow = Boolean(singleRoomType || matchedSelRoom);
+                                    const hasCustomRate = Boolean(
+                                      stay.contracted_price !== undefined && stay.contracted_price !== null
+                                    ) || Boolean(acc && !isIndividualRoomRow && (acc.customContractedUnitPrice !== undefined || acc.customContractedTotalPrice !== undefined));
                                     return (
                                       <div key={stay.id} className="flex flex-col sm:flex-row sm:items-center justify-between py-3 gap-3">
                                         <div className="flex items-start gap-3">
@@ -12181,6 +12579,19 @@ ${chauffeurHtml}
                                           <div>
                                             <span className="text-xs font-bold text-neutral-800 block">
                                               {(() => {
+                                                if (isIndividualRoomRow) {
+                                                  const specificName =
+                                                    matchedSelRoom?.roomName ||
+                                                    matchedSelRoom?.room_name ||
+                                                    matchedSelRoom?.roomStandard ||
+                                                    room?.room_name ||
+                                                    (stay as any).roomName ||
+                                                    (stay as any).room_name;
+                                                  if (singleRoomType && specificName && !specificName.toLowerCase().includes(singleRoomType.toLowerCase())) {
+                                                    return `${specificName} — ${singleRoomType}`;
+                                                  }
+                                                  return specificName || (singleRoomType ? `${singleRoomType} Room` : 'Room Name Not Specified');
+                                                }
                                                 const selRooms = (stay as any).selectedRooms || (stay as any).selected_rooms || (acc as any)?.selectedRooms || (itinBlock as any)?.selectedRooms;
                                                 const selNames = Array.isArray(selRooms)
                                                   ? selRooms.map((r: any) => r.roomName || r.room_name || r.name || r.roomStandard || r.room_standard).filter(Boolean).join(', ')
@@ -12198,22 +12609,22 @@ ${chauffeurHtml}
                                                 {stay.title}
                                               </span>
                                             )}
-                                            {(acc?.customRateNote || stay.description || itinBlock?.internalNotes) && (
+                                            {(stay.description || (!singleRoomType && acc?.customRateNote) || itinBlock?.internalNotes) && (
                                               <span className="text-[10px] text-amber-600 italic block mt-0.5 font-medium">
-                                                Note: {acc?.customRateNote || stay.description || itinBlock?.internalNotes}
+                                                Note: {stay.description || (!singleRoomType ? acc?.customRateNote : '') || itinBlock?.internalNotes}
                                               </span>
                                             )}
                                             <div className="flex flex-wrap items-center gap-2 mt-1">
                                               {(() => {
-                                                const sizes: any[] = ['single_room', 'double_room', 'twin_room', 'triple_room', 'family_room'];
-                                                const activeRooms = sizes.map(size => {
-                                                  const count = (stay as any)[`${size}_count`] || 0;
-                                                  const label = size.split('_')[0];
-                                                  const displayType = label.charAt(0).toUpperCase() + label.slice(1);
-                                                  return { type: displayType, count };
-                                                }).filter(r => r.count > 0);
-
                                                 if (activeRooms.length === 0) {
+                                                  const inferredType = resolveBookingTypeForStay(stay, matchedSelRoom);
+                                                  if (inferredType) {
+                                                    return (
+                                                      <span className="px-2 py-0.5 bg-amber-50 border border-amber-150 text-amber-700 font-bold rounded text-[9px] uppercase tracking-wider">
+                                                        {stay.quantity || matchedSelRoom?.quantity || 1} x {inferredType}
+                                                      </span>
+                                                    );
+                                                  }
                                                   return room?.room_standard ? (
                                                     <span className="px-2 py-0.5 bg-amber-50 border border-amber-150 text-amber-700 font-bold rounded text-[9px] uppercase tracking-wider">
                                                       {room.room_standard}
@@ -12227,6 +12638,42 @@ ${chauffeurHtml}
                                                   </span>
                                                 ));
                                               })()}
+                                              {activeRooms.length > 1 && (
+                                                <button
+                                                  type="button"
+                                                  disabled={isLockedByOther}
+                                                  onClick={async () => {
+                                                    if (!tourId) return;
+                                                    const ok = window.confirm(
+                                                      `Split ${activeRooms.map(r => `${r.count} x ${r.type}`).join(' + ')} on Day ${dayNum} into separate room line items so you can enter separate negotiated rates for each room type?`
+                                                    );
+                                                    if (!ok) return;
+                                                    const res = await splitHotelStayRoomsAction(tourId, stay.id);
+                                                    if (!res.success) {
+                                                      alert(res.error || 'Failed to split rooms.');
+                                                      return;
+                                                    }
+                                                    const [blocksRes, actsRes, tourRes] = await Promise.all([
+                                                      getPOBlocksAction(tourId),
+                                                      getDailyActivitiesAction(tourId),
+                                                      getTourDataAction(tourId)
+                                                    ]);
+                                                    if (blocksRes.success && blocksRes.blocks) {
+                                                      setPoBlocks(blocksRes.blocks);
+                                                    }
+                                                    if (actsRes.success && actsRes.activities) {
+                                                      setDbActivities(actsRes.activities);
+                                                    }
+                                                    if (tourRes.success && (tourRes as any).tour?.planner_data) {
+                                                      setTripData((tourRes as any).tour.planner_data);
+                                                    }
+                                                  }}
+                                                  className="px-2 py-0.5 bg-amber-100 hover:bg-amber-200 border border-amber-300 text-amber-900 font-bold rounded text-[9px] uppercase tracking-wider cursor-pointer transition-colors disabled:opacity-40"
+                                                  title="Split this combined night into separate Single / Double / Triple line items for individual pricing and PO lines"
+                                                >
+                                                  Split into Separate Lines
+                                                </button>
+                                              )}
                                               {(stay.meal_plan || itinBlock?.mealPlan || acc?.mealPlan) && (
                                                 <span className="px-2 py-0.5 bg-indigo-50 border border-indigo-150 text-indigo-700 font-bold rounded text-[9px] uppercase tracking-wider">
                                                   {stay.meal_plan || itinBlock?.mealPlan || acc?.mealPlan}
@@ -21598,23 +22045,40 @@ ${chauffeurHtml}
                                                               }));
                                                             }
 
-                                                            // 2. Update only this block in itinerary (runs on all tracks including basic/ai-builder)
-                                                            setItinerary(prev => prev.map(b => {
-                                                              if (b.id === activeAssignment.blockId) {
-                                                                return {
-                                                                  ...b,
-                                                                  hotelId: h.id,
-                                                                  hotelName: h.name,
-                                                                  roomName: room.room_name,
-                                                                  mealPlan: currentMealPlan,
-                                                                  agreedPrice: totalAgreedVal > 0 ? Math.round(totalAgreedVal * 100) / 100 : b.agreedPrice,
-                                                                  baseRoomRate: avgContracted > 0 ? avgContracted : b.baseRoomRate,
-                                                                  priceFinalized: true,
-                                                                  locationName: h.location_address || h.closest_city || ''
-                                                                };
-                                                              }
-                                                              return b;
-                                                            }));
+                                                            // 2. Update this block in itinerary and propagate hotel name across the same day
+                                                            const roomOldHotelId = activeBlock?.hotelId;
+                                                            const roomOldHotelNames = activeBlock
+                                                              ? collectOldHotelNames(activeBlock, masterData.hotels || [], tripData?.accommodations, h.name)
+                                                              : [];
+                                                            setItinerary(prev => {
+                                                              const updatedTarget = prev.map(b => {
+                                                                if (b.id === activeAssignment.blockId) {
+                                                                  return {
+                                                                    ...b,
+                                                                    hotelId: h.id,
+                                                                    hotelName: h.name,
+                                                                    roomName: room.room_name,
+                                                                    mealPlan: currentMealPlan,
+                                                                    agreedPrice: totalAgreedVal > 0 ? Math.round(totalAgreedVal * 100) / 100 : b.agreedPrice,
+                                                                    baseRoomRate: avgContracted > 0 ? avgContracted : b.baseRoomRate,
+                                                                    priceFinalized: true,
+                                                                    locationName: h.location_address || h.closest_city || ''
+                                                                  };
+                                                                }
+                                                                return b;
+                                                              });
+                                                              return activeBlock
+                                                                ? propagateHotelNameWithinDay(
+                                                                    updatedTarget,
+                                                                    activeBlock.dayNumber,
+                                                                    activeAssignment.blockId,
+                                                                    roomOldHotelId,
+                                                                    roomOldHotelNames,
+                                                                    h.id,
+                                                                    h.name
+                                                                  )
+                                                                : updatedTarget;
+                                                            });
 
                                                             // 3. Update only this accommodation in tripData
                                                             if (tripData) {
@@ -25618,16 +26082,30 @@ function AIItineraryBuilder({
         }
         const roundedPrice = Math.round(sleepPrice * 100) / 100;
 
-        setItinerary(prev => prev.map(b => b.id === blockId ? {
-          ...b,
-          hotelId: value,
-          hotelName: hotel.name,
-          imageUrl: autoImageUrl,
-          baseRoomRate: baseRate > 0 ? baseRate : b.baseRoomRate,
-          agreedPrice: roundedPrice > 0 ? roundedPrice : b.agreedPrice,
-          // reset room specific selections if switching to a different hotel (do NOT reset agreedPrice)
-          ...(b.hotelId !== value ? { roomName: '', mealPlan: 'BB' } : {})
-        } : b));
+        const oldHotelId = block.hotelId;
+        const oldHotelNames = collectOldHotelNames(block, masterData.hotels || [], tripData?.accommodations, hotel.name);
+
+        setItinerary(prev => {
+          const updatedTarget = prev.map(b => b.id === blockId ? {
+            ...b,
+            hotelId: value,
+            hotelName: hotel.name,
+            imageUrl: autoImageUrl,
+            baseRoomRate: baseRate > 0 ? baseRate : b.baseRoomRate,
+            agreedPrice: roundedPrice > 0 ? roundedPrice : b.agreedPrice,
+            // reset room specific selections if switching to a different hotel (do NOT reset agreedPrice)
+            ...(b.hotelId !== value ? { roomName: '', mealPlan: 'BB' } : {})
+          } : b);
+          return propagateHotelNameWithinDay(
+            updatedTarget,
+            block.dayNumber,
+            blockId,
+            oldHotelId,
+            oldHotelNames,
+            value,
+            hotel.name
+          );
+        });
 
         if (tripData) {
           let newAccs = [...(tripData.accommodations || [])];
@@ -25850,7 +26328,7 @@ function AIItineraryBuilder({
   };
 
   const printRef = React.useRef<HTMLDivElement>(null);
-  const [pdfTemplateType, setPdfTemplateType] = useState<'detailed' | 'simple'>('detailed');
+  const [pdfTemplateType, setPdfTemplateType] = useState<'detailed' | 'simple' | 'hotels-invoice'>('detailed');
 
   const clientName = touristData.profile
     ? `${touristData.profile.first_name || ''} ${touristData.profile.last_name || ''}`.trim() || 'Valued Guest'
@@ -27328,12 +27806,13 @@ function AIItineraryBuilder({
           {/* Download PDF */}
           <select
             value={pdfTemplateType}
-            onChange={(e) => setPdfTemplateType(e.target.value as 'detailed' | 'simple')}
+            onChange={(e) => setPdfTemplateType(e.target.value as 'detailed' | 'simple' | 'hotels-invoice')}
             className="text-xs border border-neutral-200/80 rounded-xl px-3.5 py-2.5 bg-white text-neutral-800 font-bold hover:border-neutral-300 focus:outline-none focus:ring-4 focus:ring-emerald-800/10 focus:border-emerald-800 transition-all cursor-pointer shadow-sm"
             title="PDF template"
           >
             <option value="detailed">PDF: Detailed</option>
             <option value="simple">PDF: Simple</option>
+            <option value="hotels-invoice">PDF: Hotels &amp; Invoice</option>
           </select>
           <button
             onClick={handleDownloadPdf}
@@ -29327,7 +29806,35 @@ function AIItineraryBuilder({
 
       {/* Hidden PDF template container for printing */}
       <div style={{ position: 'absolute', left: '-9999px', top: '-9999px', overflow: 'hidden' }}>
-        {pdfTemplateType === 'simple' ? (
+        {pdfTemplateType === 'hotels-invoice' ? (
+          <ItineraryPdfTemplateHotelsInvoice
+            ref={printRef}
+            itinerary={itinerary}
+            touristData={touristData}
+            travelStyle={travelStyle}
+            singleRoomsCount={singleRoomsCount}
+            doubleRoomsCount={doubleRoomsCount}
+            tripleRoomsCount={tripleRoomsCount}
+            familyRoomsCount={familyRoomsCount}
+            guideNeeded={guideNeeded}
+            chauffeurNeeded={chauffeurNeeded}
+            appSettings={appSettings}
+            masterData={masterData}
+            dayCostOverrides={tripData?.dayCostOverrides}
+            dailyDriverAssignments={dailyDriverAssignments}
+            dailyVehicleAssignments={dailyVehicleAssignments}
+            accommodations={tripData?.accommodations}
+            conciergeTotal={computeConciergeDisplayTotal(selectedTourConcierges, availableConciergeCostItems, touristData, itinerary)}
+            tourConcierges={Array.from(selectedTourConcierges.values()).filter(v => v.selected).map((v: any) => {
+              const costObj = availableConciergeCostItems.find(c => c.id === v.concierge_cost_item_id);
+              return {
+                ...v,
+                costing_basis: v.costing_basis || costObj?.costing_basis || '',
+                cost_item: v.cost_item || costObj
+              };
+            })}
+          />
+        ) : pdfTemplateType === 'simple' ? (
           <ItineraryPdfTemplateSimple
             ref={printRef}
             itinerary={itinerary}

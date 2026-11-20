@@ -167,19 +167,31 @@ export const generateHotelPoPdf = async (
 
     const standardStaysOnly = sortedStays.filter(s => s && !s.isCustomPO && (s.activity_type === 'sleep' || s.type === 'sleep'));
     let checkInDate = '';
+    let lastSleepDate = '';
     let nightsCount = 0;
     if (standardStaysOnly.length > 0) {
-        checkInDate = standardStaysOnly[0]?.tour_itineraries?.date || '';
-        nightsCount = standardStaysOnly.length;
+        checkInDate = standardStaysOnly[0]?.service_date || standardStaysOnly[0]?.tour_itineraries?.date || '';
+        const lastStay = standardStaysOnly[standardStaysOnly.length - 1];
+        lastSleepDate = lastStay?.service_date || lastStay?.tour_itineraries?.date || checkInDate;
+        nightsCount = new Set(
+            standardStaysOnly.map(s =>
+                String(s.service_date || s.tour_itineraries?.date || s.tour_itineraries?.day_number || s.day_number || s.dayNumber || s.id)
+            )
+        ).size;
     } else {
-        const serviceDates = sortedStays.map(s => s.service_date || s.tour_itineraries?.date).filter(Boolean);
+        const serviceDates = Array.from(new Set(sortedStays.map(s => s.service_date || s.tour_itineraries?.date).filter(Boolean)));
         if (serviceDates.length > 0) {
             checkInDate = serviceDates[0];
+            lastSleepDate = serviceDates[serviceDates.length - 1];
             nightsCount = serviceDates.length;
         }
     }
     let checkOutDate = '';
-    if (checkInDate && nightsCount > 0) {
+    if (lastSleepDate) {
+        const d = new Date(lastSleepDate);
+        d.setDate(d.getDate() + 1);
+        checkOutDate = d.toISOString().split('T')[0];
+    } else if (checkInDate && nightsCount > 0) {
         const d = new Date(checkInDate);
         d.setDate(d.getDate() + nightsCount);
         checkOutDate = d.toISOString().split('T')[0];

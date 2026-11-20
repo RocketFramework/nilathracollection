@@ -172,11 +172,13 @@ export interface AccommodationBooking {
     // Next-Gen Multi-Room Schema Sync
     selectedRooms?: {
         reqId?: string; // e.g. Single-0
+        dailyActivityId?: string; // Stable daily_activities.id for this specific room line item
         roomId: string; // The physical database UUID for the room category
         roomName: string;
         roomStandard: string;
         quantity: number;
-        contractedPrice?: number; // The actual room rate from room_rates table
+        contractedPrice?: number; // The actual room rate from room_rates table or negotiated final-track rate
+        contractedNegotiated?: boolean; // True only when explicitly negotiated in final track / rate-card replacement
         pricePerNight: number; // Agreed unit price (Contracted * Markup)
         agreedTotal?: number; // The dynamically negotiated total rate for this exact room category
         mealPlan: 'BB' | 'HB' | 'FB' | 'AI' | string;

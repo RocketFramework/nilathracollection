@@ -60,6 +60,7 @@ export const generateHotelRfqPdf = async (
         driverAcc?: boolean;
         parking?: boolean;
         guideRoomDiscount?: string | null;
+        roomNames?: Record<string, string>;
     }
 ): Promise<any> => {
     const jspdfModule = await loadJsPDF();
@@ -135,10 +136,20 @@ export const generateHotelRfqPdf = async (
     });
 
     const standardStaysOnly = sortedStays.filter(s => s && !s.isCustomPO && (s.activity_type === 'sleep' || s.type === 'sleep'));
-    const checkInDate = standardStaysOnly[0]?.tour_itineraries?.date || sortedStays.find(s => s?.tour_itineraries?.date)?.tour_itineraries?.date || '';
-    const nightsCount = standardStaysOnly.length;
+    const checkInDate = standardStaysOnly[0]?.service_date || standardStaysOnly[0]?.tour_itineraries?.date || sortedStays.find(s => s?.tour_itineraries?.date)?.tour_itineraries?.date || '';
+    const lastStay = standardStaysOnly[standardStaysOnly.length - 1];
+    const lastSleepDate = lastStay?.service_date || lastStay?.tour_itineraries?.date || checkInDate;
+    const nightsCount = new Set(
+        standardStaysOnly.map(s =>
+            String(s.service_date || s.tour_itineraries?.date || s.tour_itineraries?.day_number || s.day_number || s.dayNumber || s.id)
+        )
+    ).size;
     let checkOutDate = '';
-    if (checkInDate && nightsCount > 0) {
+    if (lastSleepDate) {
+        const d = new Date(lastSleepDate);
+        d.setDate(d.getDate() + 1);
+        checkOutDate = d.toISOString().split('T')[0];
+    } else if (checkInDate && nightsCount > 0) {
         const d = new Date(checkInDate);
         d.setDate(d.getDate() + nightsCount);
         checkOutDate = d.toISOString().split('T')[0];
@@ -266,12 +277,16 @@ export const generateHotelRfqPdf = async (
             const dateVal = act.tour_itineraries?.date || act.service_date || act.date;
             const displayDate = dateVal ? formatDate(dateVal) : `Day ${dayNum}`;
 
+            const resolvedRoomName = act?.id ? specialRequests.roomNames?.[act.id] : '';
             const selRooms = act.selectedRooms || act.selected_rooms;
             let roomDesc = '';
             let totalQty = 0;
             let mealPlanText = act.meal_plan || act.mealPlan || 'BB';
 
-            if (Array.isArray(selRooms) && selRooms.length > 0) {
+            if (resolvedRoomName) {
+                roomDesc = resolvedRoomName;
+                totalQty = act.quantity || 1;
+            } else if (Array.isArray(selRooms) && selRooms.length > 0) {
                 roomDesc = selRooms.map((r: any) => {
                     const rName = r.roomName || r.room_name || r.name || r.roomStandard || 'Room';
                     const rStd = r.roomStandard && r.roomStandard !== rName ? ` (${r.roomStandard})` : '';

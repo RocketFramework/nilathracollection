@@ -1050,117 +1050,138 @@ export class TourService {
                 if (b.type === 'sleep') {
                     const acc = tripData.accommodations?.find(a => a.nightIndex === day);
                     if (acc && acc.selectedRooms && acc.selectedRooms.length > 0) {
-                        let totalAgreedPrice = 0;
-                        let totalContractedPrice = 0;
-                        let totalRooms = 0;
-                        let mealPlan = null;
+                        const activeSelectedRooms = acc.selectedRooms.filter((r: any) => Number(r.quantity || 0) > 0);
+                        const roomsToPersist = activeSelectedRooms.length > 0 ? activeSelectedRooms : acc.selectedRooms;
+                        const isMultiRoomDay = roomsToPersist.length > 1;
+
+                        let dayTotalCharged = 0;
+                        let dayTotalRooms = 0;
+                        let firstMealPlan: string | null = null;
 
                         if (!basePayload.hotel_id && isUuid(acc.hotelId)) {
                             basePayload.hotel_id = acc.hotelId;
                         }
 
-                        for (const room of acc.selectedRooms) {
-                            const reqType = (room as any).reqId?.split('-')[0]; // Extract 'Single', 'Double', 'Family' etc.
+                        roomsToPersist.forEach((room: any, roomIdx: number) => {
+                            const rawTypeStr = `${room.reqId || ''} ${room.roomName || ''}`.toLowerCase();
+                            const reqTypePrefix = room.reqId?.split('-')[0];
+                            const reqType =
+                                reqTypePrefix === 'Single' || /\bsingle\b/.test(rawTypeStr)
+                                    ? 'Single'
+                                    : reqTypePrefix === 'Double' || /\bdou?ble\b|\bdoouble\b/.test(rawTypeStr)
+                                      ? 'Double'
+                                      : reqTypePrefix === 'Twin' || /\btwin\b/.test(rawTypeStr)
+                                        ? 'Twin'
+                                        : reqTypePrefix === 'Triple' || /\btriple\b|\btripple\b/.test(rawTypeStr)
+                                          ? 'Triple'
+                                          : reqTypePrefix === 'Family' || /\bfamily\b/.test(rawTypeStr)
+                                            ? 'Family'
+                                            : reqTypePrefix;
                             const validRoomId = isUuid(room.roomId) ? room.roomId : null;
-                            totalRooms += room.quantity;
+                            const roomQty = Number(room.quantity || 1);
+                            dayTotalRooms += roomQty;
+
+                            // Stable daily_activities.id per room type so PO blocks, POs, and negotiated rates persist across saves
+                            const existingRoomActId = room.dailyActivityId && isUuid(room.dailyActivityId) ? room.dailyActivityId : null;
+                            const rowId = existingRoomActId || (roomIdx === 0 ? b.id : crypto.randomUUID());
+                            room.dailyActivityId = rowId;
+
+                            const roomPayload: any = {
+                                ...basePayload,
+                                id: rowId,
+                                hotel_room_id: (basePayload.hotel_id && validRoomId) ? validRoomId : null,
+                                single_room_id: null,
+                                single_room_count: null,
+                                double_room_id: null,
+                                double_room_count: null,
+                                twin_room_id: null,
+                                twin_room_count: null,
+                                triple_room_id: null,
+                                triple_room_count: null,
+                                family_room_id: null,
+                                family_room_count: null,
+                                quantity: roomQty
+                            };
 
                             if (reqType === 'Single') {
-                                basePayload.single_room_id = validRoomId;
-                                basePayload.single_room_count = room.quantity;
+                                roomPayload.single_room_id = validRoomId;
+                                roomPayload.single_room_count = roomQty;
                             } else if (reqType === 'Double') {
-                                basePayload.double_room_id = validRoomId;
-                                basePayload.double_room_count = room.quantity;
+                                roomPayload.double_room_id = validRoomId;
+                                roomPayload.double_room_count = roomQty;
                             } else if (reqType === 'Twin') {
-                                basePayload.twin_room_id = validRoomId;
-                                basePayload.twin_room_count = room.quantity;
+                                roomPayload.twin_room_id = validRoomId;
+                                roomPayload.twin_room_count = roomQty;
                             } else if (reqType === 'Triple') {
-                                basePayload.triple_room_id = validRoomId;
-                                basePayload.triple_room_count = room.quantity;
+                                roomPayload.triple_room_id = validRoomId;
+                                roomPayload.triple_room_count = roomQty;
                             } else if (reqType === 'Family') {
-                                basePayload.family_room_id = validRoomId;
-                                basePayload.family_room_count = room.quantity;
+                                roomPayload.family_room_id = validRoomId;
+                                roomPayload.family_room_count = roomQty;
                             }
 
-                            const baseContractedUnit = (room as any).contractedPrice !== undefined ? (room as any).contractedPrice : room.pricePerNight;
-                            // Only an explicitly negotiated room rate counts as contracted (set by final track / rate-card hotel change).
-                            // The builder's pricePerNight is a CHARGED value and must never become contracted.
-                            if ((room as any).contractedNegotiated === true && (room as any).contractedPrice > 0) {
-                                totalContractedPrice += (room as any).contractedPrice * room.quantity;
+                            // CHARGED (AI Builder): strictly per-room pricePerNight, never derived from contracted
+                            const explicitRoomRate = (room.pricePerNight !== undefined && room.pricePerNight !== null)
+                                ? Number(room.pricePerNight)
+                                : null;
+                            const roomChargedUnit = explicitRoomRate !== null
+                                ? explicitRoomRate
+                                : (room.agreedTotal !== undefined && roomQty > 0
+                                    ? Number(room.agreedTotal) / roomQty
+                                    : (!isMultiRoomDay && b.agreedPrice !== undefined && b.agreedPrice !== null && roomQty > 0
+                                        ? Number(b.agreedPrice) / roomQty
+                                        : null));
+                            const roomChargedTotal = roomChargedUnit !== null ? roomChargedUnit * roomQty : null;
+
+                            roomPayload.charged_unit_price = roomChargedUnit;
+                            roomPayload.charged_total_price = roomChargedTotal;
+                            if (roomChargedTotal !== null) {
+                                room.agreedTotal = roomChargedTotal;
+                                dayTotalCharged += roomChargedTotal;
                             }
 
-                            // Calculate agreed price: explicit AI-builder room rate (pricePerNight, including 0) is authoritative
-                            const explicitRoomRate = (room.pricePerNight !== undefined && room.pricePerNight !== null) ? Number(room.pricePerNight) : null;
-                            const dynamicAgreedUnit = baseContractedUnit * (1 + (roomMarkup / 100));
-                            const roomAgreedTotal = explicitRoomRate !== null
-                                ? (explicitRoomRate * Number(room.quantity || 1))
-                                : ((room as any).agreedTotal !== undefined ? Number((room as any).agreedTotal) : (dynamicAgreedUnit * room.quantity));
-                            totalAgreedPrice += roomAgreedTotal;
-                            
-                            // Mutate the original room object so it persists to JSON for the Negotiation UI
-                            (room as any).agreedTotal = roomAgreedTotal;
-
-                            if (room.mealPlan && !mealPlan) mealPlan = room.mealPlan;
-                        }
-
-                        let primaryRoomId = (acc.roomId && isUuid(acc.roomId)) ? acc.roomId : null;
-                        if (!primaryRoomId) {
-                            const firstRoom = acc.selectedRooms.find(r => isUuid(r.roomId));
-                            if (firstRoom) {
-                                primaryRoomId = firstRoom.roomId;
+                            // CONTRACTED (Final Track): strictly per-room negotiated rate; never fall back to charged
+                            if (room.contractedNegotiated === true && room.contractedPrice !== undefined && room.contractedPrice !== null) {
+                                const cUnit = Number(room.contractedPrice);
+                                roomPayload.contracted_price = cUnit;
+                                roomPayload.contracted_total_price = cUnit * roomQty;
+                            } else if (!isMultiRoomDay && (acc.customContractedUnitPrice !== undefined || acc.customContractedTotalPrice !== undefined)) {
+                                const overriddenUnit = acc.customContractedUnitPrice ?? (acc.customContractedTotalPrice != null ? acc.customContractedTotalPrice / (roomQty || 1) : null);
+                                const overriddenTotal = acc.customContractedTotalPrice ?? (acc.customContractedUnitPrice != null ? acc.customContractedUnitPrice * (roomQty || 1) : null);
+                                roomPayload.contracted_price = overriddenUnit;
+                                roomPayload.contracted_total_price = overriddenTotal;
+                            } else {
+                                roomPayload.contracted_price = null;
+                                roomPayload.contracted_total_price = null;
                             }
-                        }
-                        if (basePayload.hotel_id && primaryRoomId) {
-                            basePayload.hotel_room_id = primaryRoomId;
+
+                            const effectiveMealPlan = room.mealPlan || b.mealPlan || acc.mealPlan || null;
+                            roomPayload.meal_plan = effectiveMealPlan;
+                            if (effectiveMealPlan && !firstMealPlan) firstMealPlan = effectiveMealPlan;
+
+                            if (room.roomName && isMultiRoomDay) {
+                                roomPayload.title = `${b.name || 'Overnight Stay'} (${reqType || room.roomName})`;
+                            }
+
+                            if (!isMultiRoomDay && acc.customRateNote) {
+                                roomPayload.description = acc.customRateNote;
+                            }
+
+                            activitiesToInsert.push(roomPayload);
+                        });
+
+                        if (firstMealPlan) {
+                            acc.mealPlan = firstMealPlan;
+                            b.mealPlan = firstMealPlan;
                         }
 
-                        basePayload.quantity = totalRooms > 0 ? totalRooms : 1;
-                        // SINGLE SOURCE OF TRUTH (charged): the AI-builder room rate (selectedRooms[].pricePerNight), including when explicitly 0.
-                        // block.agreedPrice is only a derived mirror and must never override it.
-                        const hasExplicitBuilderRate = acc.selectedRooms.some((r: any) => r.pricePerNight !== undefined && r.pricePerNight !== null);
-                        const builderChargedTotal = acc.selectedRooms.reduce((sum: number, r: any) => {
-                            const rate = r.pricePerNight !== undefined && r.pricePerNight !== null ? Number(r.pricePerNight) : 0;
-                            return sum + rate * Number(r.quantity || 1);
-                        }, 0);
-                        if (hasExplicitBuilderRate) {
-                            basePayload.charged_total_price = builderChargedTotal;
-                            basePayload.charged_unit_price = basePayload.quantity > 0 ? builderChargedTotal / basePayload.quantity : builderChargedTotal;
-                        } else if (b.agreedPrice !== undefined && b.agreedPrice !== null) {
-                            basePayload.charged_total_price = Number(b.agreedPrice);
-                            basePayload.charged_unit_price = basePayload.quantity > 0 ? Number(b.agreedPrice) / basePayload.quantity : Number(b.agreedPrice);
-                        } else {
-                            basePayload.charged_total_price = totalAgreedPrice > 0 ? totalAgreedPrice : null;
-                            basePayload.charged_unit_price = totalAgreedPrice > 0 && totalRooms > 0 ? totalAgreedPrice / totalRooms : null;
+                        const hasExplicitBuilderRate = roomsToPersist.some((r: any) => r.pricePerNight !== undefined && r.pricePerNight !== null);
+                        b.agreedPrice = dayTotalCharged > 0 || hasExplicitBuilderRate ? dayTotalCharged : b.agreedPrice;
+                        if (hasExplicitBuilderRate && dayTotalRooms > 0) {
+                            const avgUnit = dayTotalCharged / dayTotalRooms;
+                            b.baseRoomRate = avgUnit;
+                            acc.pricePerNight = avgUnit;
                         }
-
-                        // Apply custom contracted overrides if present (e.g. special buying rates)
-                        if (acc.customContractedUnitPrice !== undefined || acc.customContractedTotalPrice !== undefined) {
-                            const overriddenUnit = acc.customContractedUnitPrice ?? (acc.customContractedTotalPrice ? acc.customContractedTotalPrice / (totalRooms || 1) : null);
-                            const overriddenTotal = acc.customContractedTotalPrice ?? (acc.customContractedUnitPrice ? acc.customContractedUnitPrice * (totalRooms || 1) : null);
-                            
-                            basePayload.contracted_price = overriddenUnit;
-                            basePayload.contracted_total_price = overriddenTotal;
-                        } else {
-                            basePayload.contracted_price = totalContractedPrice > 0 && totalRooms > 0 ? totalContractedPrice / totalRooms : null;
-                            basePayload.contracted_total_price = totalContractedPrice > 0 ? totalContractedPrice : null;
-                        }
-
-                        const effectiveMealPlan = mealPlan || b.mealPlan || acc.mealPlan || null;
-                        basePayload.meal_plan = effectiveMealPlan;
-                        if (effectiveMealPlan) {
-                            acc.mealPlan = effectiveMealPlan;
-                            b.mealPlan = effectiveMealPlan;
-                        }
-
-                        if (acc.customRateNote) {
-                            basePayload.description = acc.customRateNote;
-                        }
-                        
-                        b.agreedPrice = basePayload.charged_total_price ?? undefined;
-                        if (hasExplicitBuilderRate && basePayload.charged_unit_price !== null) {
-                            b.baseRoomRate = basePayload.charged_unit_price;
-                            acc.pricePerNight = basePayload.charged_unit_price;
-                        }
-                        activitiesToInsert.push(basePayload);
                     } else if (acc) {
                         // Legacy single-room fallback mapping targeting standard double default
                         const assumedRoomId = acc.roomId && isUuid(acc.roomId) ? acc.roomId : null;
@@ -1389,7 +1410,7 @@ export class TourService {
         });
 
         allInsertedActivities.forEach(act => {
-            if (act.hotel_id && act.activity_type !== 'sleep' && !mappedActivityIds.has(act.id)) {
+            if (act.hotel_id && !mappedActivityIds.has(act.id)) {
                 const poBlockId = hotelBlockMap.get(act.hotel_id);
                 if (poBlockId) {
                     poMappingsToReinsert.push({
@@ -2972,6 +2993,184 @@ export class TourService {
         if (finalWrites.length > 0) {
             await Promise.all(finalWrites);
         }
+    }
+
+    /**
+     * Splits a legacy combined hotel `daily_activities` row (containing multiple room types
+     * such as 1 Single + 1 Double on the same day) into separate `daily_activities` rows —
+     * one per room type — linked to the same PO block(s) so each room type can have its own
+     * negotiated contracted rate and appear as a separate PO line item.
+     */
+    static async splitCombinedHotelStay(
+        tourId: string,
+        stayId: string
+    ): Promise<{ split: boolean; createdIds: string[] }> {
+        const supabaseAdmin = createAdminClient();
+
+        const [stayRes, mappingsRes, tourRes] = await Promise.all([
+            supabaseAdmin
+                .from('daily_activities')
+                .select('*, tour_itineraries(day_number, date)')
+                .eq('id', stayId)
+                .single(),
+            supabaseAdmin
+                .from('po_block_daily_activities')
+                .select('po_block_id')
+                .eq('daily_activity_id', stayId),
+            supabaseAdmin
+                .from('tours')
+                .select('planner_data')
+                .eq('id', tourId)
+                .single()
+        ]);
+
+        if (stayRes.error || !stayRes.data) {
+            throw new Error(`Hotel stay record not found: ${stayRes.error?.message || stayId}`);
+        }
+
+        const stay: any = stayRes.data;
+        const dayNum = Number(stay.tour_itineraries?.day_number || 0);
+        const poBlockIds = (mappingsRes.data || []).map((m: any) => m.po_block_id).filter(Boolean);
+
+        const roomSpecs: Array<{
+            key: 'single_room' | 'double_room' | 'twin_room' | 'triple_room' | 'family_room';
+            label: 'Single' | 'Double' | 'Twin' | 'Triple' | 'Family';
+            count: number;
+            roomId: string | null;
+        }> = (
+            [
+                { key: 'single_room', label: 'Single' },
+                { key: 'double_room', label: 'Double' },
+                { key: 'twin_room', label: 'Twin' },
+                { key: 'triple_room', label: 'Triple' },
+                { key: 'family_room', label: 'Family' }
+            ] as const
+        )
+            .map((spec) => ({
+                ...spec,
+                count: Number(stay[`${spec.key}_count`] || 0),
+                roomId: stay[`${spec.key}_id`] || stay.hotel_room_id || null
+            }))
+            .filter((spec) => spec.count > 0);
+
+        if (roomSpecs.length <= 1) {
+            return { split: false, createdIds: [] };
+        }
+
+        const pData: any = tourRes.data?.planner_data ? JSON.parse(JSON.stringify(tourRes.data.planner_data)) : null;
+        const acc = pData?.accommodations?.find((a: any) => Number(a.nightIndex) === dayNum);
+        const selectedRooms: any[] = Array.isArray(acc?.selectedRooms) ? acc.selectedRooms : [];
+
+        // Strip joined relation field before cloning for insert
+        const { tour_itineraries: _omitItin, ...baseColumns } = stay;
+        const baseTitle = String(stay.title || 'Overnight Stay').replace(/\s*\((Single|Double|Twin|Triple|Family)\)\s*$/i, '');
+
+        const newRowsToInsert: any[] = [];
+        const newMappingsToInsert: Array<{ po_block_id: string; daily_activity_id: string }> = [];
+        const createdIds: string[] = [];
+
+        for (let idx = 0; idx < roomSpecs.length; idx++) {
+            const spec = roomSpecs[idx];
+            const matchedSelRoom = selectedRooms.find((r: any) =>
+                String(r.reqId || '').split('-')[0].toLowerCase() === spec.label.toLowerCase()
+            );
+
+            const roomQty = spec.count;
+            const roomId = matchedSelRoom?.roomId || spec.roomId || null;
+
+            // Charged rate: strictly from AI Builder selectedRooms[].pricePerNight or existing charged_unit_price
+            const chargedUnit =
+                matchedSelRoom && matchedSelRoom.pricePerNight !== undefined && matchedSelRoom.pricePerNight !== null
+                    ? Number(matchedSelRoom.pricePerNight)
+                    : (stay.charged_unit_price !== undefined && stay.charged_unit_price !== null
+                        ? Number(stay.charged_unit_price)
+                        : null);
+            const chargedTotal = chargedUnit !== null ? chargedUnit * roomQty : null;
+
+            // Contracted rate: strictly from explicitly negotiated per-room rate; never derived from charged
+            const hasNegotiatedRoomRate =
+                matchedSelRoom?.contractedNegotiated === true &&
+                matchedSelRoom?.contractedPrice !== undefined &&
+                matchedSelRoom?.contractedPrice !== null;
+            const contractedUnit = hasNegotiatedRoomRate ? Number(matchedSelRoom.contractedPrice) : null;
+            const contractedTotal = contractedUnit !== null ? contractedUnit * roomQty : null;
+
+            const roomCols: any = {
+                title: `${baseTitle} (${spec.label})`,
+                hotel_room_id: roomId,
+                quantity: roomQty,
+                meal_plan: matchedSelRoom?.mealPlan || stay.meal_plan || null,
+                single_room_id: spec.key === 'single_room' ? roomId : null,
+                single_room_count: spec.key === 'single_room' ? roomQty : null,
+                double_room_id: spec.key === 'double_room' ? roomId : null,
+                double_room_count: spec.key === 'double_room' ? roomQty : null,
+                twin_room_id: spec.key === 'twin_room' ? roomId : null,
+                twin_room_count: spec.key === 'twin_room' ? roomQty : null,
+                triple_room_id: spec.key === 'triple_room' ? roomId : null,
+                triple_room_count: spec.key === 'triple_room' ? roomQty : null,
+                family_room_id: spec.key === 'family_room' ? roomId : null,
+                family_room_count: spec.key === 'family_room' ? roomQty : null,
+                charged_unit_price: chargedUnit,
+                charged_total_price: chargedTotal,
+                contracted_price: contractedUnit,
+                contracted_total_price: contractedTotal,
+                contracted_fx_rate: null,
+                contracted_unit_price_lkr: null,
+                contracted_total_price_lkr: null
+            };
+
+            if (idx === 0) {
+                const { error: updErr } = await supabaseAdmin
+                    .from('daily_activities')
+                    .update(roomCols)
+                    .eq('id', stayId);
+                if (updErr) throw new Error(`Failed updating primary split room row: ${updErr.message}`);
+                if (matchedSelRoom) matchedSelRoom.dailyActivityId = stayId;
+            } else {
+                const newId = crypto.randomUUID();
+                createdIds.push(newId);
+                newRowsToInsert.push({
+                    ...baseColumns,
+                    ...roomCols,
+                    id: newId,
+                    created_at: new Date().toISOString(),
+                    updated_at: new Date().toISOString()
+                });
+                poBlockIds.forEach((poBlockId: string) => {
+                    newMappingsToInsert.push({
+                        po_block_id: poBlockId,
+                        daily_activity_id: newId
+                    });
+                });
+                if (matchedSelRoom) matchedSelRoom.dailyActivityId = newId;
+            }
+        }
+
+        if (newRowsToInsert.length > 0) {
+            const { error: insErr } = await supabaseAdmin
+                .from('daily_activities')
+                .insert(newRowsToInsert);
+            if (insErr) throw new Error(`Failed inserting split room rows: ${insErr.message}`);
+        }
+
+        if (newMappingsToInsert.length > 0) {
+            const { error: mapErr } = await supabaseAdmin
+                .from('po_block_daily_activities')
+                .insert(newMappingsToInsert);
+            if (mapErr) throw new Error(`Failed linking split room rows to PO block: ${mapErr.message}`);
+        }
+
+        if (pData && acc) {
+            // Clear day-level custom contracted overrides since rooms are now negotiated individually
+            delete acc.customContractedUnitPrice;
+            delete acc.customContractedTotalPrice;
+            await supabaseAdmin
+                .from('tours')
+                .update({ planner_data: pData })
+                .eq('id', tourId);
+        }
+
+        return { split: true, createdIds };
     }
 }
 

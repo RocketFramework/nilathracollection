@@ -1509,6 +1509,32 @@ export async function finalizeActivityPricesAction(
                             return b;
                         });
 
+                        // Also sync per-room negotiated contracted rates into accommodations[].selectedRooms[]
+                        // so split hotel room rows preserve their independent contracted rates across saveTour
+                        if (Array.isArray(pData.accommodations)) {
+                            pData.accommodations = pData.accommodations.map((acc: any) => {
+                                if (!Array.isArray(acc.selectedRooms)) return acc;
+                                let accChanged = false;
+                                const nextRooms = acc.selectedRooms.map((r: any) => {
+                                    const u = r.dailyActivityId ? updateMap.get(r.dailyActivityId) : undefined;
+                                    if (u && u.contracted_price !== undefined) {
+                                        accChanged = true;
+                                        return {
+                                            ...r,
+                                            contractedPrice: u.contracted_price ?? undefined,
+                                            contractedNegotiated: u.contracted_price !== null
+                                        };
+                                    }
+                                    return r;
+                                });
+                                if (accChanged) {
+                                    plannerModified = true;
+                                    return { ...acc, selectedRooms: nextRooms };
+                                }
+                                return acc;
+                            });
+                        }
+
                         if (plannerModified) {
                             await adminSupabase
                                 .from('tours')
@@ -3725,6 +3751,16 @@ export async function getTourItineraryCountAction(tourId: string) {
     } catch (error: any) {
         console.error("Error fetching tour itinerary count:", error);
         return { success: false, error: error.message || "Failed to load tour itinerary count." };
+    }
+}
+
+export async function splitHotelStayRoomsAction(tourId: string, stayId: string) {
+    try {
+        const result = await TourService.splitCombinedHotelStay(tourId, stayId);
+        return { success: true, ...result };
+    } catch (error: any) {
+        console.error("Error splitting combined hotel stay rooms:", error);
+        return { success: false, error: error.message || "Failed to split hotel rooms into separate lines." };
     }
 }
 
