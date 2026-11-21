@@ -5,23 +5,62 @@ import type {
 } from '@/dtos/task.dto';
 import type { TaskStatus } from '@/types/types';
 
-const TASK_SELECT = `*, tour:tours(tour_code, title, start_date)`;
+const TASK_SELECT = `*, tour:tours(tour_code, title, status, start_date, end_date, request_id)`;
 
 export class TaskService {
     private static db() { return createAdminClient(); }
+
+    private static todayIsoDate(): string {
+        return new Date().toLocaleDateString('en-CA');
+    }
+
+    private static isCancelledStatus(status?: string | null): boolean {
+        const st = String(status || '').trim().toLowerCase();
+        return st === 'cancelled' || st === 'canceled';
+    }
+
+    private static isTourActiveOrFuture(
+        tour?: { status?: string | null; start_date?: string | null; end_date?: string | null; request_id?: string | null } | null,
+        requestStatusById?: Record<string, string | null>
+    ): boolean {
+        if (!tour) return false;
+        if (this.isCancelledStatus(tour.status)) return false;
+        if (tour.request_id && requestStatusById && this.isCancelledStatus(requestStatusById[tour.request_id])) {
+            return false;
+        }
+        const today = this.todayIsoDate();
+        if (tour.end_date) {
+            return String(tour.end_date).slice(0, 10) >= today;
+        }
+        if (tour.start_date) {
+            return String(tour.start_date).slice(0, 10) >= today;
+        }
+        return false;
+    }
+
+    private static async fetchRequestStatuses(requestIds: (string | null | undefined)[]): Promise<Record<string, string | null>> {
+        const uniq = Array.from(new Set(requestIds.filter((id): id is string => Boolean(id))));
+        if (!uniq.length) return {};
+        const { data } = await this.db().from('requests').select('id, status').in('id', uniq);
+        const map: Record<string, string | null> = {};
+        (data || []).forEach((r: any) => { map[r.id] = r.status ?? null; });
+        return map;
+    }
 
     private static async names(ids: string[]): Promise<Record<string, string>> {
         const uniq = Array.from(new Set(ids.filter(Boolean)));
         if (!uniq.length) return {};
         const db = this.db();
-        const [{ data: users }, { data: agents }, { data: admins }] = await Promise.all([
+        const [{ data: users }, { data: agents }, { data: admins }, { data: supervisors }, { data: finance }] = await Promise.all([
             db.from('users').select('id, email').in('id', uniq),
             db.from('agent_profiles').select('id, first_name, last_name').in('id', uniq),
             db.from('admin_profiles').select('id, first_name, last_name').in('id', uniq),
+            db.from('agent_supervisor_profiles').select('id, first_name, last_name').in('id', uniq),
+            db.from('finance_profiles').select('id, first_name, last_name').in('id', uniq),
         ]);
         const map: Record<string, string> = {};
         (users || []).forEach((u: any) => { map[u.id] = u.email; });
-        [...(agents || []), ...(admins || [])].forEach((p: any) => {
+        [...(agents || []), ...(admins || []), ...(supervisors || []), ...(finance || [])].forEach((p: any) => {
             const n = `${p.first_name || ''} ${p.last_name || ''}`.trim();
             if (n) map[p.id] = n;
         });
@@ -64,7 +103,13 @@ export class TaskService {
         if (f.statuses?.length) q = q.in('status', f.statuses);
         const { data, error } = await q;
         if (error) throw new Error(error.message);
-        return this.hydrate(data || []);
+        const rawRows = data || [];
+        let rows = rawRows;
+        if (f.excludePastTours && !f.tourId) {
+            const reqStatuses = await this.fetchRequestStatuses(rawRows.map((r: any) => r.tour?.request_id));
+            rows = rawRows.filter((r: any) => !r.tour_id || this.isTourActiveOrFuture(r.tour, reqStatuses));
+        }
+        return this.hydrate(rows);
     }
 
     static async createTask(input: CreateTaskDTO, actorId: string): Promise<TaskDTO> {
@@ -231,9 +276,18 @@ export class TaskService {
         return (await this.names([userId]))[userId] || 'User';
     }
 
-    static async listTourOptions(): Promise<TaskTourOptionDTO[]> {
-        const { data } = await this.db().from('tours').select('id, tour_code, title').order('created_at', { ascending: false });
-        return (data || []).map((t: any) => ({ id: t.id, label: [t.tour_code, t.title].filter(Boolean).join(' · ') || t.id }));
+    static async listTourOptions(activeOrFutureOnly = false): Promise<TaskTourOptionDTO[]> {
+        const { data } = await this.db()
+            .from('tours')
+            .select('id, tour_code, title, status, start_date, end_date, request_id')
+            .order('created_at', { ascending: false });
+        const rawRows = data || [];
+        let rows = rawRows;
+        if (activeOrFutureOnly) {
+            const reqStatuses = await this.fetchRequestStatuses(rawRows.map((t: any) => t.request_id));
+            rows = rawRows.filter((t: any) => this.isTourActiveOrFuture(t, reqStatuses));
+        }
+        return rows.map((t: any) => ({ id: t.id, label: [t.tour_code, t.title].filter(Boolean).join(' · ') || t.id }));
     }
 
     // ---------- Users ----------
@@ -242,11 +296,28 @@ export class TaskService {
         const { data: users } = await db.from('users').select('id, email');
         const names = await this.names((users || []).map((u: any) => u.id));
         const { data: ur } = await db.from('user_roles').select('user_id, roles(name)');
-        const roleOf: Record<string, string> = {};
-        (ur || []).forEach((r: any) => { roleOf[r.user_id] = r.roles?.name ?? null; });
+        const rolesByUser: Record<string, string[]> = {};
+        (ur || []).forEach((r: any) => {
+            const roleName = r.roles?.name;
+            if (!roleName) return;
+            if (!rolesByUser[r.user_id]) rolesByUser[r.user_id] = [];
+            if (!rolesByUser[r.user_id].includes(roleName)) rolesByUser[r.user_id].push(roleName);
+        });
         return (users || [])
-            .filter((u: any) => roleOf[u.id] !== 'tourist')
-            .map((u: any) => ({ id: u.id, name: names[u.id] || u.email, role: roleOf[u.id] ?? null }))
+            .filter((u: any) => {
+                const roles = rolesByUser[u.id] || [];
+                // Exclude pure tourist customers, but keep all staff users (including multi-role admin/agent users who also have a tourist role)
+                return !(roles.length > 0 && roles.every((role) => role === 'tourist'));
+            })
+            .map((u: any) => {
+                const staffRoles = (rolesByUser[u.id] || []).filter((role) => role !== 'tourist');
+                return {
+                    id: u.id,
+                    name: names[u.id] || u.email,
+                    email: u.email ?? null,
+                    role: staffRoles.length > 0 ? staffRoles.join(', ') : null,
+                };
+            })
             .sort((a, b) => a.name.localeCompare(b.name));
     }
 

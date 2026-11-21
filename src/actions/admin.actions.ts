@@ -155,6 +155,7 @@ export async function assignAgentAction(requestId: string, agentId: string) {
         await AdminService.assignAgentToRequest(requestId, agentId);
         revalidatePath(`/admin/requests/${requestId}`);
         revalidatePath(`/admin/requests`);
+        revalidatePath(`/admin/tasks`);
         return { success: true };
     } catch (error: any) {
         console.error("Error assigning agent:", error);
@@ -168,6 +169,7 @@ export async function updateRequestStatusAction(requestId: string, status: Updat
 
         revalidatePath(`/admin/requests/${requestId}`);
         revalidatePath(`/admin/requests`);
+        revalidatePath(`/admin/tasks`);
         return { success: true };
     } catch (error: any) {
         console.error("Error updating request status:", error);

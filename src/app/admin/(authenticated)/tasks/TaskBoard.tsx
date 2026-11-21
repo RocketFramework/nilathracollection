@@ -3,6 +3,7 @@
 import { useMemo, useState, useTransition } from 'react';
 import { deleteTaskAction, createTaskAction, listTasksAction, updateTaskStatusAction } from '@/actions/task.actions';
 import TaskDetailPanel from '@/components/tasks/TaskDetailPanel';
+import SearchableUserSelect from '@/components/tasks/SearchableUserSelect';
 import type { TaskDTO, TaskUserOptionDTO, TaskTemplateDTO, TaskTourOptionDTO } from '@/dtos/task.dto';
 import { TASK_STEPS, type TaskStatus } from '@/types/types';
 
@@ -29,7 +30,7 @@ export default function TaskBoard({ initialTasks, users, templates, tourOptions,
     const tours = useMemo(() => tourOptions.map(t => [t.id, t.label] as [string, string]), [tourOptions]);
 
     const visible = tasks.filter(t => (!tourFilter || t.tourId === tourFilter) && (!userFilter || t.assignedTo === userFilter) && t.status !== 'cancelled');
-    const reload = async () => setTasks(await listTasksAction(isAdmin ? {} : { assignedTo: currentUserId }));
+    const reload = async () => setTasks(await listTasksAction(isAdmin ? { excludePastTours: true } : { assignedTo: currentUserId, excludePastTours: true }));
 
     const move = (t: TaskDTO, status: TaskStatus) => {
         let note: string | undefined;
@@ -72,10 +73,15 @@ export default function TaskBoard({ initialTasks, users, templates, tourOptions,
                     {tours.map(([id, label]) => <option key={id} value={id}>{label}</option>)}
                 </select>
                 {isAdmin && (
-                    <select id="task-filter-user" className={inp + ' !w-48'} value={userFilter} onChange={e => setUserFilter(e.target.value)}>
-                        <option value="">Everyone</option>
-                        {users.map(u => <option key={u.id} value={u.id}>{u.name}</option>)}
-                    </select>
+                    <SearchableUserSelect
+                        id="task-filter-user"
+                        users={users}
+                        value={userFilter}
+                        onChange={setUserFilter}
+                        allowEmpty
+                        emptyLabel="Everyone"
+                        className="w-56"
+                    />
                 )}
                 <a href="/admin/tasks/standup" className="text-sm text-[#D4AF37]">Daily standup</a>
                 <button id="new-task-btn" onClick={() => setCreating(true)} className="bg-[#D4AF37] text-white px-4 py-2 rounded-lg text-sm font-medium">+ New task</button>
@@ -128,9 +134,13 @@ export default function TaskBoard({ initialTasks, users, templates, tourOptions,
                         <input id="new-task-title" className={inp} placeholder="Title" value={form.title} onChange={e => setForm({ ...form, title: e.target.value })} />
                         <textarea className={inp} placeholder="Description" value={form.description} onChange={e => setForm({ ...form, description: e.target.value })} />
                         <div className="grid grid-cols-2 gap-3">
-                            <select id="new-task-assignee" className={inp} value={form.assignedTo} onChange={e => setForm({ ...form, assignedTo: e.target.value })}>
-                                {users.map(u => <option key={u.id} value={u.id}>{u.name}</option>)}
-                            </select>
+                            <SearchableUserSelect
+                                id="new-task-assignee"
+                                users={users}
+                                value={form.assignedTo}
+                                onChange={v => setForm({ ...form, assignedTo: v })}
+                                placeholder="Assign to…"
+                            />
                             <select className={inp} value={form.priority} onChange={e => setForm({ ...form, priority: e.target.value })}>
                                 {['low', 'medium', 'high', 'urgent'].map(p => <option key={p}>{p}</option>)}
                             </select>

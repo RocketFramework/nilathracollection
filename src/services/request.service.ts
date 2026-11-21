@@ -63,6 +63,17 @@ export class RequestService {
 
         if (error) throw error;
 
+        // Keep linked tour status synchronized with the request status
+        if (dto.status) {
+            const { error: tourUpdateError } = await supabaseAdmin
+                .from('tours')
+                .update({ status: dto.status, updated_at: new Date().toISOString() })
+                .eq('request_id', requestId);
+            if (tourUpdateError) {
+                console.error('Failed to sync status to linked tour:', tourUpdateError);
+            }
+        }
+
         // Send email notification
         if (request && request.status !== dto.status) {
             try {

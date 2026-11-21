@@ -12,10 +12,10 @@ export default async function TasksPage() {
     const { data: role } = await supabase.rpc('get_user_role', { user_id: user.id });
     const isAdmin = role === 'admin';
     const [tasks, users, templates, tourOptions] = await Promise.all([
-        TaskService.listTasks(isAdmin ? {} : { assignedTo: user.id }),
+        TaskService.listTasks(isAdmin ? { excludePastTours: true } : { assignedTo: user.id, excludePastTours: true }),
         TaskService.listAssignableUsers(),
         TaskService.listTemplates(undefined, true),
-        TaskService.listTourOptions(),
+        TaskService.listTourOptions(true),
     ]);
     return <TaskBoard initialTasks={tasks} users={users} templates={templates} tourOptions={tourOptions} currentUserId={user.id} isAdmin={isAdmin} />;
 }

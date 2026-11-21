@@ -3,6 +3,7 @@
 import { useEffect, useState, useTransition } from 'react';
 import { ListChecks } from 'lucide-react';
 import { createTaskAction, ensureStepTasksAction, listAssignableUsersAction, listTaskTemplatesAction, listTasksAction } from '@/actions/task.actions';
+import SearchableUserSelect from '@/components/tasks/SearchableUserSelect';
 import type { TaskTemplateDTO, TaskUserOptionDTO, TaskDTO } from '@/dtos/task.dto';
 import { TASK_STEPS, PLANNER_STEP_TO_TASK_STEP } from '@/types/types';
 
@@ -84,10 +85,14 @@ export default function AssignTaskButton({ tourId, plannerStepId }: { tourId: st
                         </select>
                         <input id="assign-title" className={inp} placeholder="Title" value={form.title} onChange={e => setForm({ ...form, title: e.target.value })} />
                         <textarea className={inp} placeholder="Description" value={form.description} onChange={e => setForm({ ...form, description: e.target.value })} />
-                        <select id="assign-user" className={inp} value={form.assignedTo} onChange={e => setForm({ ...form, assignedTo: e.target.value })}>
-                            <option value="">Assign to…</option>
-                            {users.map(u => <option key={u.id} value={u.id}>{u.name}{u.role ? ` (${u.role})` : ''}</option>)}
-                        </select>
+                        <SearchableUserSelect
+                            id="assign-user"
+                            users={users}
+                            value={form.assignedTo}
+                            onChange={v => setForm({ ...form, assignedTo: v })}
+                            allowEmpty
+                            emptyLabel="Assign to…"
+                        />
                         <div className="grid grid-cols-2 gap-3">
                             <select className={inp} value={form.priority} onChange={e => setForm({ ...form, priority: e.target.value })}>
                                 {['low', 'medium', 'high', 'urgent'].map(p => <option key={p}>{p}</option>)}

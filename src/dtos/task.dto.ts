@@ -104,6 +104,7 @@ export interface TaskEventDTO {
 export interface TaskUserOptionDTO {
     id: string;
     name: string;
+    email?: string | null;
     role: string | null;
 }
 
@@ -112,6 +113,7 @@ export interface TaskFiltersDTO {
     assignedTo?: string;
     statuses?: TaskStatus[];
     stepKey?: string;
+    excludePastTours?: boolean;
 }
 
 export interface LeaderboardEntryDTO {
