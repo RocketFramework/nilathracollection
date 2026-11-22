@@ -64,30 +64,56 @@ export default function TaskTemplatesManager({ initialTemplates, categories }: {
             {editing && (
                 <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50">
                     <div className="bg-white rounded-2xl p-6 w-[520px] space-y-3 max-h-[90vh] overflow-auto">
-                        <h3 className="font-semibold">{editing.id ? 'Edit' : 'New'} template</h3>
-                        <input id="tpl-title" className={input} placeholder="Title" value={editing.title} onChange={e => setEditing({ ...editing, title: e.target.value })} />
-                        <textarea id="tpl-desc" className={input} placeholder="Description" value={editing.description || ''} onChange={e => setEditing({ ...editing, description: e.target.value })} />
-                        <div className="grid grid-cols-2 gap-3">
-                            <select id="tpl-step" className={input} value={editing.stepKey} onChange={e => setEditing({ ...editing, stepKey: e.target.value })}>
-                                {TASK_STEPS.map(s => <option key={s.key} value={s.key}>{s.label}</option>)}
-                            </select>
-                            <select id="tpl-category" className={input} value={editing.categoryId || ''} onChange={e => setEditing({ ...editing, categoryId: e.target.value || null })}>
-                                <option value="">No category</option>
-                                {categories.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
-                            </select>
-                            <select id="tpl-priority" className={input} value={editing.defaultPriority} onChange={e => setEditing({ ...editing, defaultPriority: e.target.value as any })}>
-                                {['low', 'medium', 'high', 'urgent'].map(p => <option key={p}>{p}</option>)}
-                            </select>
-                            <input id="tpl-points" type="number" className={input} value={editing.points} onChange={e => setEditing({ ...editing, points: Number(e.target.value) })} />
-                            <input id="tpl-offset" type="number" className={input} placeholder="Due offset (days, negative = before)" value={editing.dueOffsetDays ?? ''} onChange={e => setEditing({ ...editing, dueOffsetDays: e.target.value === '' ? null : Number(e.target.value) })} />
-                            <select id="tpl-basis" className={input} value={editing.dueOffsetBasis} onChange={e => setEditing({ ...editing, dueOffsetBasis: e.target.value as any })}>
-                                <option value="creation">From task creation</option>
-                                <option value="tour_start">From tour start</option>
-                            </select>
+                        <h3 className="font-semibold text-[#2B2B2B]">{editing.id ? 'Edit' : 'New'} template</h3>
+                        <div>
+                            <label htmlFor="tpl-title" className="block text-xs font-medium text-[#4B5563] mb-1">Title</label>
+                            <input id="tpl-title" className={input} placeholder="e.g. Confirm hotel allotment" value={editing.title} onChange={e => setEditing({ ...editing, title: e.target.value })} />
                         </div>
-                        <label className="flex gap-2 text-sm"><input type="checkbox" checked={editing.requiresReview} onChange={e => setEditing({ ...editing, requiresReview: e.target.checked })} /> Requires admin review</label>
-                        <label className="flex gap-2 text-sm"><input type="checkbox" checked={editing.autoCreateOnStep} onChange={e => setEditing({ ...editing, autoCreateOnStep: e.target.checked })} /> Auto-create for the tour SPOC when the tour reaches this step</label>
-                        <label className="flex gap-2 text-sm"><input type="checkbox" checked={editing.isActive} onChange={e => setEditing({ ...editing, isActive: e.target.checked })} /> Active</label>
+                        <div>
+                            <label htmlFor="tpl-desc" className="block text-xs font-medium text-[#4B5563] mb-1">Description</label>
+                            <textarea id="tpl-desc" className={input} placeholder="Instructions or details for the assignee" value={editing.description || ''} onChange={e => setEditing({ ...editing, description: e.target.value })} />
+                        </div>
+                        <div className="grid grid-cols-2 gap-3">
+                            <div>
+                                <label htmlFor="tpl-step" className="block text-xs font-medium text-[#4B5563] mb-1">Planning Step</label>
+                                <select id="tpl-step" className={input} value={editing.stepKey} onChange={e => setEditing({ ...editing, stepKey: e.target.value })}>
+                                    {TASK_STEPS.map(s => <option key={s.key} value={s.key}>{s.label}</option>)}
+                                </select>
+                            </div>
+                            <div>
+                                <label htmlFor="tpl-category" className="block text-xs font-medium text-[#4B5563] mb-1">Category</label>
+                                <select id="tpl-category" className={input} value={editing.categoryId || ''} onChange={e => setEditing({ ...editing, categoryId: e.target.value || null })}>
+                                    <option value="">No category</option>
+                                    {categories.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+                                </select>
+                            </div>
+                            <div>
+                                <label htmlFor="tpl-priority" className="block text-xs font-medium text-[#4B5563] mb-1">Default Priority</label>
+                                <select id="tpl-priority" className={input} value={editing.defaultPriority} onChange={e => setEditing({ ...editing, defaultPriority: e.target.value as any })}>
+                                    {['low', 'medium', 'high', 'urgent'].map(p => <option key={p} value={p}>{p.charAt(0).toUpperCase() + p.slice(1)}</option>)}
+                                </select>
+                            </div>
+                            <div>
+                                <label htmlFor="tpl-points" className="block text-xs font-medium text-[#4B5563] mb-1">Points</label>
+                                <input id="tpl-points" type="number" className={input} value={editing.points} onChange={e => setEditing({ ...editing, points: Number(e.target.value) })} />
+                            </div>
+                            <div>
+                                <label htmlFor="tpl-offset" className="block text-xs font-medium text-[#4B5563] mb-1">Due Offset (days)</label>
+                                <input id="tpl-offset" type="number" className={input} placeholder="Negative = before" value={editing.dueOffsetDays ?? ''} onChange={e => setEditing({ ...editing, dueOffsetDays: e.target.value === '' ? null : Number(e.target.value) })} />
+                            </div>
+                            <div>
+                                <label htmlFor="tpl-basis" className="block text-xs font-medium text-[#4B5563] mb-1">Due Offset Basis</label>
+                                <select id="tpl-basis" className={input} value={editing.dueOffsetBasis} onChange={e => setEditing({ ...editing, dueOffsetBasis: e.target.value as any })}>
+                                    <option value="creation">From task creation</option>
+                                    <option value="tour_start">From tour start</option>
+                                </select>
+                            </div>
+                        </div>
+                        <div className="space-y-2 pt-1">
+                            <label className="flex items-center gap-2 text-sm text-[#2B2B2B]"><input type="checkbox" checked={editing.requiresReview} onChange={e => setEditing({ ...editing, requiresReview: e.target.checked })} /> Requires admin review</label>
+                            <label className="flex items-center gap-2 text-sm text-[#2B2B2B]"><input type="checkbox" checked={editing.autoCreateOnStep} onChange={e => setEditing({ ...editing, autoCreateOnStep: e.target.checked })} /> Auto-create for the tour SPOC when the tour reaches this step</label>
+                            <label className="flex items-center gap-2 text-sm text-[#2B2B2B]"><input type="checkbox" checked={editing.isActive} onChange={e => setEditing({ ...editing, isActive: e.target.checked })} /> Active</label>
+                        </div>
                         {error && <p className="text-sm text-red-600">{error}</p>}
                         <div className="flex justify-end gap-2 pt-2">
                             <button onClick={() => setEditing(null)} className="px-4 py-2 text-sm">Cancel</button>

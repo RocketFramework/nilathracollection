@@ -24,11 +24,12 @@ Nilathra Collection evolved from a trusted local execution engine for internatio
 - [Bespoke Journey Architect](https://www.nilathra.com/custom-plan): Tailor-made Sri Lanka itinerary planner.
 
 ### Tiered Masterplans & Pricing
-- [Ultra VIP Collection](https://www.nilathra.com/plans/ultra-vip): Sovereign sanctuary tier ($10,000–$100,000+ floor) with full estate buyouts and private aviation.
-- [Luxury Collection](https://www.nilathra.com/plans/luxury): 5-star private luxury villa and resort journeys.
-- [Premium Collection](https://www.nilathra.com/plans/premium): High-end boutique Sri Lanka tours with personal chauffeur-guides.
-- [Regular Collection](https://www.nilathra.com/plans/regular): Essential private island tours.
-- [Masterplan Comparison](https://www.nilathra.com/plans/compare): Complete feature matrix across all 4 journey tiers.
+- [Sri Lanka Tour Plans & Luxury Packages](https://www.nilathra.com/plans): Overview of all four bespoke Sri Lanka journey tiers.
+- [Ultra VIP Collection — Sovereign Estate Buyouts & Private Aviation](https://www.nilathra.com/plans/ultra-vip): Sovereign sanctuary tier ($15,000+ floor) with full estate buyouts, tarmac clearance, armored transport, and private aviation.
+- [Ceylon Luxury Collection — 5-Star Private Villa & Resort Journeys](https://www.nilathra.com/plans/luxury): 5-star signature resorts, private luxury villas, premium SUVs, and dedicated concierge management.
+- [Premium Collection — Boutique Heritage & Highland Tours](https://www.nilathra.com/plans/premium): High-end boutique Sri Lanka tours with personal chauffeur-guides and curated highland and wildlife itineraries.
+- [Regular Collection — Essential Private Sri Lanka Tours](https://www.nilathra.com/plans/regular): Essential private island tours with vetted boutique stays and licensed chauffeur-guides.
+- [Compare Sri Lanka Travel Plans](https://www.nilathra.com/plans/compare): Side-by-side feature and inclusion matrix across Regular, Premium, Ceylon Luxury, and Ultra VIP tiers.
 
 ### Destination Guides
 - [All Destinations](https://www.nilathra.com/destinations): Overview of Sri Lanka's top luxury regions.
@@ -47,13 +48,34 @@ Nilathra Collection evolved from a trusted local execution engine for internatio
 - [Dr. Julian & Clara Von Berg Twin-Island Review](https://www.nilathra.com/testimonials/dr-julian-clara-von-berg): Ceylon tea highlands & Maldives overwater retreat.
 - [Jean-Luc & Camille Laurent Sanctuary Review](https://www.nilathra.com/testimonials/jean-luc-camille-laurent): Private villa buyouts in Galle and bespoke chef dining.
 
-### Partner & Chauffeur Network Onboarding
-- [Partner Registration Portal](https://www.nilathra.com/partner-registration): Vendor and luxury partner application hub.
-- [Transport Provider Onboarding](https://www.nilathra.com/partner-registration/transport-provider): Registration for SLTDA-authorized chauffeurs and luxury fleet owners.
-- [Tour Guide Onboarding](https://www.nilathra.com/partner-registration/tour-guide): Application for licensed tourist guides and specialist naturalists.
+### Partner, Vendor & Chauffeur Network Onboarding
+- [Partner Registration Portal](https://www.nilathra.com/partner-registration): Official vendor, fleet, chauffeur, and guide partner application hub.
+- [Transport Provider Registration & Fleet Onboarding](https://www.nilathra.com/partner-registration/transport-provider): Onboarding portal for SLTDA-compliant tourist transport providers and luxury fleet owners.
+- [Activity & Experience Vendor Registration](https://www.nilathra.com/partner-registration/activity-vendor): Onboarding portal for curated Sri Lankan excursion, safari, and cultural activity vendors.
+- [Chauffeur & Private Driver Registration](https://www.nilathra.com/partner-registration/chauffeur): Application portal for accredited private chauffeurs and luxury tourist drivers in Sri Lanka.
+- [Licensed Tour Guide Registration (SLTDA)](https://www.nilathra.com/partner-registration/tour-guide): Application portal for SLTDA-licensed national, lecturer, and specialist multilingual tour guides.
 
-### Editorial & Legal Governance
-- [Travel Journal & Blog](https://www.nilathra.com/blog): In-depth Sri Lanka luxury travel guides and advice.
+### Editorial, Culinary & Travel Journal Articles
+- [Travel Journal & Blog Index](https://www.nilathra.com/blog): In-depth Sri Lanka luxury travel, gastronomy, wildlife, and heritage guides.
+- [Full-Text Blog Corpus (llms-full.txt)](https://www.nilathra.com/llms-full.txt): Complete machine-readable markdown text of all Nilathra Journal articles.
+- [Blog RSS Feed](https://www.nilathra.com/blog/feed.xml): Syndicated XML feed for real-time indexing of new articles.
+- [What Local Sri Lankan Dishes Should I Try?](https://www.nilathra.com/blog/what-local-sri-lankan-dishes-should-i-try): Visual culinary guide to 19 authentic Sri Lankan dishes including Kottu Roti, Hoppers, String Hoppers, Kiribath, Diya Bath, Katta Sambol, Lunu Miris, Mango Chutney, Fish Ambul Thiyal, Chili Chicken, Boiled Jackfruit, Ala Kirata, Pittu, Pol Roti, Karawala Baduma, Dry Fish Curry, Sprats Curry, Polos Ambula, and Kola Malluma.
+- [Welcome to Taprobane: The Ultimate Ultra-VIP Sri Lankan Escape](https://www.nilathra.com/blog/taprobane-ultra-vip-sri-lanka-escape): Ultra-VIP Sri Lanka overview combining southern coasts, highlands, and safaris.
+- [10 Extraordinary Experiences That Make Sri Lanka a Dream Destination for Luxury Travelers](https://www.nilathra.com/blog/10-extraordinary-experiences-sri-lanka-luxury-travelers): Ten signature luxury experiences across Sri Lanka.
+- [Maldives vs Sri Lanka: The Honest Truth No Travel Agent Will Tell You](https://www.nilathra.com/blog/maldives-vs-sri-lanka): Side-by-side luxury travel comparison of Maldives and Sri Lanka.
+- [Culinary Odyssey: A Masterclass in Sri Lankan Spices](https://www.nilathra.com/blog/culinary-odyssey-sri-lankan-spices): Guide to Sri Lankan spices and heritage gastronomy.
+- [Weligama: The Premier Luxury Surf Sanctuary of Sri Lanka](https://www.nilathra.com/blog/weligama-luxury-surf-sanctuary): South coast luxury surf villas and ocean escapes.
+- [The Ultimate Guide to Ultra VIP Travel in Sri Lanka](https://www.nilathra.com/blog/ultra-vip-travel-sri-lanka): Private aviation, estates, and bespoke concierge protocols.
+- [Top 10 Must-Visit Luxury Locations in Sri Lanka for 2026](https://www.nilathra.com/blog/top-10-luxury-locations-sri-lanka-2026): Curated ranking of Sri Lanka's finest destinations.
+- [The Wild Heart of Sri Lanka: A Unique Collection of Nature's Wonders](https://www.nilathra.com/blog/wildlife-collection-sri-lanka): Leopards, elephants, and biodiversity safaris across Yala and Wilpattu.
+- [The Soul of Kandy: A Guide to the Sacred Hill Capital](https://www.nilathra.com/blog/soul-of-kandy-sacred-heritage-guide): Cultural and royal heritage of Kandy.
+- [The Sacred Legacy: A History of the Temple of the Tooth](https://www.nilathra.com/blog/history-temple-of-tooth-sri-lanka): Historical overview of Sri Dalada Maligawa.
+- [The Secrets of the South: Exploring Galle and Beyond](https://www.nilathra.com/blog/secrets-of-the-south-galle-sri-lanka): Galle Fort and southern coastal heritage.
+- [Beyond the Shores: Hidden Waterfalls of the Highlands](https://www.nilathra.com/blog/hidden-waterfalls-sri-lanka-highlands): Secret waterfalls and misty highland trails.
+- [Sri Lanka Holidays: A Tale of Two Cities – Galle and Kandy](https://www.nilathra.com/blog/sri-lanka-holidays-galle-and-kandy): Pairing coastal heritage with the hill country.
+- [Vietnam, Thailand, Maldives, Morocco, Portugal & Uganda vs Sri Lanka](https://www.nilathra.com/blog/vietnam-thailand-maldives-morocco-portugal-uganda-sri-lanka): Global destination comparison highlighting Sri Lanka's diversity.
+
+### Careers & Legal Governance
 - [Careers at Nilathra](https://www.nilathra.com/careers): Executive concierge and hospitality talent opportunities.
 - [Booking Conditions](https://www.nilathra.com/booking-conditions): Reservation terms, deposit schedules, and cancellation policies.
 - [Privacy Policy](https://www.nilathra.com/privacy): Data protection and NDA client privacy protocols.

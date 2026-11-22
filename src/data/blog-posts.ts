@@ -8,9 +8,333 @@ export interface BlogPost {
     image: string;
     category: string;
     readingTime: string;
+    keywords?: string[];
+    faq?: Array<{ question: string; answer: string }>;
 }
 
 export const blogPosts: BlogPost[] = [
+    {
+        title: "What Local Sri Lankan Dishes Should I Try?",
+        slug: "what-local-sri-lankan-dishes-should-i-try",
+        date: "November 22, 2026",
+        author: "Nilathra Editorial",
+        category: "Gastronomy",
+        readingTime: "14 min read",
+        image: "/images/sri-lanka/food/sri-lankan-feast-hero.webp",
+        keywords: [
+            "local Sri Lankan dishes",
+            "what to eat in Sri Lanka",
+            "traditional Sri Lankan food",
+            "Kottu Roti",
+            "Sri Lankan Hoppers",
+            "String Hoppers Idiyappam",
+            "Kiribath milk rice",
+            "Diya Bath",
+            "Katta Sambol",
+            "Lunu Miris",
+            "Sri Lankan Mango Chutney",
+            "Fish Ambul Thiyal sour fish curry",
+            "Sri Lankan Chili Chicken",
+            "Boiled Jackfruit Thambapu Kos",
+            "Ala Kirata potato curry",
+            "Sri Lankan Pittu",
+            "Pol Roti coconut flatbread",
+            "Karawala Baduma dry fish",
+            "Dry Fish Curry",
+            "Sprats Curry Haalmasso",
+            "Polos Ambula young jackfruit curry",
+            "Kola Malluma",
+        ],
+        faq: [
+            {
+                question: "What are the most famous local dishes to try in Sri Lanka?",
+                answer: "Must-try Sri Lankan dishes include Kottu Roti, crispy Hoppers (Appa), String Hoppers (Idiyappam), Kiribath (milk rice) with Lunu Miris, Fish Ambul Thiyal (sour black pepper fish curry), Polos Ambula (young green jackfruit curry), Ala Kirata, Pol Roti, Pittu, and vibrant Kola Malluma.",
+            },
+            {
+                question: "What is a traditional Sri Lankan breakfast?",
+                answer: "Traditional Sri Lankan breakfasts include Kiribath (coconut milk rice) with Lunu Miris, lacy Hoppers or String Hoppers served with Kiri Hodi and sambols, steamed Pittu, Pol Roti, and Diya Bath—a cooling, lightly fermented coconut-milk rice dish.",
+            },
+            {
+                question: "Are all Sri Lankan dishes very spicy?",
+                answer: "No. Sri Lankan meals are designed around balance: fiery sambols like Katta Sambol and Lunu Miris or spicy Sri Lankan Chili Chicken are always paired with mild, creamy coconut-milk dishes such as Ala Kirata, Kiribath, Diya Bath, Boiled Jackfruit, and sweet-sour Mango Chutney.",
+            },
+            {
+                question: "What are the best vegetarian local Sri Lankan dishes?",
+                answer: "Sri Lanka is exceptionally vegetarian-friendly. Top plant-based local dishes include Polos Ambula (slow-cooked young green jackfruit curry), Ala Kirata (creamy coconut potato curry), Boiled Jackfruit (Thambapu Kos), Kola Malluma (shredded greens with coconut), Pol Roti, Pittu, String Hoppers, and Sri Lankan Mango Chutney.",
+            },
+        ],
+        excerpt: "From smoky street-side Kottu Roti and lacy Hoppers to slow-simmered Polos Ambula, sour Fish Ambul Thiyal, fiery sambols, and cooling Diya Bath — your complete visual guide to 19 authentic Sri Lankan dishes every traveler must taste.",
+        content: `
+# What Local Sri Lankan Dishes Should I Try?
+
+Sri Lankan cuisine is one of Asia’s most vibrant and deeply layered culinary traditions. Shaped by centuries of spice trade, tropical abundance, and coastal heritage, every meal is a study in balance — creamy fresh coconut milk cooling down fiery roasted chilies, tangy *goraka* cutting through rich slow-cooked curries, and crisp herbal greens lifting warm steamed rice.
+
+Whether you are dining at a private estate villa, a bustling Colombo street stall, or a traditional village kitchen, here are **19 iconic local Sri Lankan dishes** you should not leave the island without trying — complete with what goes into each dish and how it tastes.
+
+---
+
+## Iconic Breakfasts, Breads & Street Classics
+
+### 1. Kottu Roti
+
+<figure class="my-6">
+  <img src="/images/sri-lanka/food/kottu.avif" alt="Sri Lankan Kottu Roti served hot with curry sauce" class="w-full h-[380px] object-cover rounded-2xl shadow-md" />
+  <figcaption class="text-xs text-neutral-400 mt-2 text-center italic">Kottu Roti — Sri Lanka’s rhythmic street-food icon chopped hot on a flat iron griddle.</figcaption>
+</figure>
+
+**What’s included:** Shredded *godamba roti* (flaky layered flatbread) rapidly chopped on a sizzling cast-iron griddle with eggs, leeks, carrots, red onions, garlic, ginger, curry leaves, chili flakes, and your choice of spiced chicken, beef, seafood, cheese, or vegetables — served with a side of rich meat or vegetable curry gravy.
+
+**Taste & Texture:** Smoky, savory, and deeply comforting. The shredded roti absorbs the spiced juices and curry gravy while retaining lightly crisped edges from the hot griddle. Every bite delivers a lively crunch of stir-fried vegetables, fragrant curry leaves, and a customizable kick of heat.
+
+---
+
+### 2. Hoppers (*Appa*)
+
+<figure class="my-6">
+  <img src="/images/sri-lanka/food/hopper.avif" alt="Crispy bowl-shaped Sri Lankan Hoppers with egg" class="w-full h-[380px] object-cover rounded-2xl shadow-md" />
+  <figcaption class="text-xs text-neutral-400 mt-2 text-center italic">Bowl-shaped Hoppers with lacy golden edges and a soft coconut-infused center.</figcaption>
+</figure>
+
+**What’s included:** A lightly fermented batter of rice flour, fresh coconut milk, a touch of toddy or yeast, and a pinch of salt swirled into a small round wok (*appachatti*). Enjoyed plain, topped with a soft-set egg (*Biththara Appa*), or sweetened with palm treacle (*Pani Appa*).
+
+**Taste & Texture:** A masterclass in contrast — paper-thin, wafer-crisp caramelized edges that snap delicately, giving way to a pillowy, slightly tangy, coconut-scented center. Best eaten piping hot with fiery *Lunu Miris* or *Katta Sambol*.
+
+---
+
+### 3. String Hoppers (*Idiyappam*)
+
+<figure class="my-6">
+  <img src="/images/sri-lanka/food/string-hoppers.webp" alt="Steamed Sri Lankan String Hoppers served with coconut gravy and sambol" class="w-full h-[380px] object-cover rounded-2xl shadow-md" />
+  <figcaption class="text-xs text-neutral-400 mt-2 text-center italic">Delicate steamed nests of red or white rice flour noodles, a staple breakfast and dinner favorite.</figcaption>
+</figure>
+
+**What’s included:** Roasted red or white rice flour mixed with hot water and salt, pressed through a traditional wooden or brass mold into fine vermicelli-like nests, and gently steamed on woven mats. Served with *Kiri Hodi* (mild spiced coconut gravy), *Pol Sambol*, and a fish or chicken curry.
+
+**Taste & Texture:** Light, airy, and subtly nutty (especially when made with red rice flour). On their own they are delicate and clean, acting as the ideal soft sponge to soak up fragrant coconut milk gravies and spicy curries.
+
+---
+
+### 4. Milk Rice (*Kiribath*)
+
+<figure class="my-6">
+  <img src="/images/sri-lanka/food/milk-rice-kiribath.webp" alt="Sri Lankan Kiribath diamond wedges on banana leaf with lunu miris" class="w-full h-[380px] object-cover rounded-2xl shadow-md" />
+  <figcaption class="text-xs text-neutral-400 mt-2 text-center italic">Kiribath cut into auspicious diamond wedges — the ceremonial heart of Sri Lankan mornings.</figcaption>
+</figure>
+
+**What’s included:** Short-grain white or red Sri Lankan rice slow-simmered until tender, then finished with thick, rich first-press coconut milk and a pinch of salt, pressed flat onto a platter, and cut into neat diamond wedges.
+
+**Taste & Texture:** Velvety, creamy, and mildly sweet from the natural richness of fresh coconut milk. Its soothing, mellow flavor is traditionally paired with sharp, fiery *Lunu Miris* or caramelized *Seeni Sambol* — creating one of the most beloved flavor contrasts in Sri Lanka.
+
+---
+
+### 5. Diya Bath
+
+<figure class="my-6">
+  <img src="/images/sri-lanka/food/diya-bath.webp" alt="Traditional Sri Lankan Diya Bath fermented rice breakfast in a clay bowl" class="w-full h-[380px] object-cover rounded-2xl shadow-md" />
+  <figcaption class="text-xs text-neutral-400 mt-2 text-center italic">Diya Bath — a traditional cooling probiotic breakfast cherished in Sri Lankan homes.</figcaption>
+</figure>
+
+**What’s included:** Overnight-soaked cooked rice (traditionally soaked in water in a clay pot for gentle natural fermentation), blended the next morning with thick fresh coconut milk, finely chopped red shallots, sliced green chilies, a squeeze of fresh lime, salt, and often a pinch of crushed Maldive fish.
+
+**Taste & Texture:** Refreshingly cool, creamy, and softly tangy with a crisp bite from raw shallots and green chilies. Celebrated in Sri Lankan Ayurveda for cooling the body and aiding digestion, *Diya Bath* feels light, nourishing, and wonderfully soothing on a warm tropical morning.
+
+---
+
+### 6. Pittu
+
+<figure class="my-6">
+  <img src="/images/sri-lanka/food/pittu.webp" alt="Steamed cylindrical Sri Lankan Pittu with coconut milk gravy" class="w-full h-[380px] object-cover rounded-2xl shadow-md" />
+  <figcaption class="text-xs text-neutral-400 mt-2 text-center italic">Steamed cylinders of roasted rice flour and freshly grated coconut.</figcaption>
+</figure>
+
+**What’s included:** Coarse roasted white or red rice flour rubbed with freshly grated coconut and salted water until crumbly, layered inside a bamboo or metal *pittu* tube, and steamed until fragrant. Served with warm *Kiri Hodi* (coconut milk gravy), spicy meat or fish curry, and *Lunu Miris*.
+
+**Taste & Texture:** Warm, crumbly, and richly aromatic with toasted rice and sweet fresh coconut. When doused in silky coconut milk gravy, the crumbly grains soften into a hearty, deeply satisfying spoonful.
+
+---
+
+### 7. Pol Roti (Sri Lankan Coconut Roti)
+
+<figure class="my-6">
+  <img src="/images/sri-lanka/food/pol-roti.webp" alt="Rustic Sri Lankan Pol Roti griddle-charred with grated coconut and herbs" class="w-full h-[380px] object-cover rounded-2xl shadow-md" />
+  <figcaption class="text-xs text-neutral-400 mt-2 text-center italic">Hand-pressed Pol Roti cooked on a dry griddle until golden and speckled with char.</figcaption>
+</figure>
+
+**What’s included:** Wheat flour kneaded with generous amounts of freshly grated coconut, finely diced red onions, green chilies, chopped curry leaves, salt, and water, hand-flattened into thick rounds and cooked on a dry hot skillet.
+
+**Taste & Texture:** Rustic, chewy, and delightfully toasty. The grated coconut gives the flatbread a subtle natural sweetness and tender crumb, while the charred spots and flecks of green chili and curry leaf add a savory, smoky aroma. Irresistible when torn hot and dipped into *Lunu Miris* or chicken curry.
+
+---
+
+### 8. Boiled Jackfruit (*Thambapu Kos*)
+
+<figure class="my-6">
+  <img src="/images/sri-lanka/food/boiled-jackfruit.webp" alt="Sri Lankan Boiled Jackfruit served on a banana leaf with grated coconut and lunu miris" class="w-full h-[380px] object-cover rounded-2xl shadow-md" />
+  <figcaption class="text-xs text-neutral-400 mt-2 text-center italic">Thambapu Kos — hearty village comfort food served with freshly grated coconut and spicy sambol.</figcaption>
+</figure>
+
+**What’s included:** Firm, mature (semi-ripe) jackfruit pods and their starchy seeds boiled gently in salted water with a touch of turmeric until tender, drained, and served warm alongside mounds of freshly grated white coconut and fiery *Lunu Miris* or *Katta Sambol*.
+
+**Taste & Texture:** Earthy, mildly sweet, and wonderfully filling — the jackfruit flesh has a tender, slightly fibrous bite while the boiled seeds taste like creamy chestnuts. Paired with sweet grated coconut and a sharp swipe of chili sambol, it is pure Sri Lankan countryside comfort.
+
+---
+
+## Signature Sambols & Chutneys
+
+### 9. Katta Sambol
+
+<figure class="my-6">
+  <img src="/images/sri-lanka/food/katta-sambol.webp" alt="Crimson Sri Lankan Katta Sambol with crushed red chilies and shallots" class="w-full h-[380px] object-cover rounded-2xl shadow-md" />
+  <figcaption class="text-xs text-neutral-400 mt-2 text-center italic">Katta Sambol — the bold, coarse crimson chili paste that wakes up every dish.</figcaption>
+</figure>
+
+**What’s included:** Dried red chilies (or coarse chili flakes), red shallots, Maldive fish (*umbalakada*), salt, and fresh lime juice ground coarsely on a traditional granite grinding stone (*miris gala*).
+
+**Taste & Texture:** Punchy, fiery, umami-rich, and bright with citrus. Unlike smooth sauces, *Katta Sambol* has a lively, chunky texture where the smoky heat of dried chilies meets the savory depth of Maldive fish and the zing of fresh lime.
+
+---
+
+### 10. Lunu Miris
+
+<figure class="my-6">
+  <img src="/images/sri-lanka/food/lunu-miris.webp" alt="Authentic Sri Lankan Lunu Miris in a terracotta clay bowl" class="w-full h-[380px] object-cover rounded-2xl shadow-md" />
+  <figcaption class="text-xs text-neutral-400 mt-2 text-center italic">Lunu Miris — literally “salt and chili,” the indispensable companion to Kiribath and Hoppers.</figcaption>
+</figure>
+
+**What’s included:** Crushed red shallots, fiery red chili flakes or ground dried chilies, Maldive fish flakes, sea salt, and freshly squeezed lime juice pounded together until juicy and vibrant scarlet.
+
+**Taste & Texture:** Sharp, spicy, tangy, and crisp. Compared to *Katta Sambol*, *Lunu Miris* is often slightly more onion-forward and juicy, delivering an electrifying burst of heat and acidity that cuts cleanly through rich coconut milk dishes like *Kiribath* and *Pol Roti*.
+
+---
+
+### 11. Sri Lankan Mango Chutney (*Amba Chutney*)
+
+<figure class="my-6">
+  <img src="/images/sri-lanka/food/mango-chutney.webp" alt="Golden amber Sri Lankan Mango Chutney with cinnamon and cloves" class="w-full h-[380px] object-cover rounded-2xl shadow-md" />
+  <figcaption class="text-xs text-neutral-400 mt-2 text-center italic">Amba Chutney — glossy, spiced sweet-and-sour mango preserve.</figcaption>
+</figure>
+
+**What’s included:** Semi-ripe local Sri Lankan mangoes simmered slowly with palm jaggery or sugar, coconut vinegar, Ceylon cinnamon, cloves, cardamom pods, mustard seeds, ginger, garlic, and red chili.
+
+**Taste & Texture:** Sticky, syrupy, and explosively aromatic. Every spoonful balances bright tropical tang, warm caramel sweetness, fragrant Ceylon spice, and a lingering whisper of chili heat — an essential sweet counterpoint on a traditional rice-and-curry plate.
+
+---
+
+## Iconic Curries, Meats & Seafood
+
+### 12. Sour Fish Curry (*Fish Ambul Thiyal*)
+
+<figure class="my-6">
+  <img src="/images/sri-lanka/food/sour-fish-curry-ambul-thiyal.webp" alt="Sri Lankan Fish Ambul Thiyal in a traditional black clay pot" class="w-full h-[380px] object-cover rounded-2xl shadow-md" />
+  <figcaption class="text-xs text-neutral-400 mt-2 text-center italic">Fish Ambul Thiyal — Southern Sri Lanka’s celebrated dry-braised black pepper and goraka tuna curry.</figcaption>
+</figure>
+
+**What’s included:** Firm ocean fish such as tuna (*kelawalla* or *balaya*) cut into neat cubes and slow-braised in a clay pot lined with pandan leaves (*rampe*) and curry leaves, coated in a dark paste of sun-dried *goraka* (Malabar tamarind), freshly cracked black pepper, cinnamon, garlic, and turmeric.
+
+**Taste & Texture:** Intense, tangy, peppery, and deeply savory with almost no liquid gravy — the dark spice paste clings tightly to each firm piece of fish. Originally developed in southern coastal towns to preserve fresh catch without refrigeration, its bold sour-peppery punch actually deepens in flavor over several days.
+
+---
+
+### 13. Sri Lankan Chili Chicken
+
+<figure class="my-6">
+  <img src="/images/sri-lanka/food/sri-lankan-chili-chicken.webp" alt="Glossy spicy Sri Lankan Chili Chicken with blistered capsicum and curry leaves" class="w-full h-[380px] object-cover rounded-2xl shadow-md" />
+  <figcaption class="text-xs text-neutral-400 mt-2 text-center italic">Sri Lankan Chili Chicken — glossy, fiery, and packed with crisp aromatics.</figcaption>
+</figure>
+
+**What’s included:** Bite-sized chicken marinated in spices and fried until lightly crisp, then wok-tossed at high heat with crushed red chili flakes, chili paste, tomato, garlic, ginger, sweet red onion petals, blistered green capsicum, fresh curry leaves, and a touch of soy and lime.
+
+**Taste & Texture:** Bold, glossy, sweet-spicy, and irresistibly smoky. Crisp-edged chicken is coated in a sticky, fiery glaze balanced by sweet caramelized onions and crunchy peppers — a crowd favorite alongside fried rice, *Kottu*, or chilled evening drinks.
+
+---
+
+### 14. Karawala Baduma (Tempered Dry Fish)
+
+<figure class="my-6">
+  <img src="/images/sri-lanka/food/karawala-baduma.webp" alt="Crispy Sri Lankan Karawala Baduma tempered dry fish with caramelized onions" class="w-full h-[380px] object-cover rounded-2xl shadow-md" />
+  <figcaption class="text-xs text-neutral-400 mt-2 text-center italic">Karawala Baduma — crispy fried salted dry fish tossed with sweet onions and chili flakes.</figcaption>
+</figure>
+
+**What’s included:** Sun-dried salted fish (*karawala*) soaked briefly to soften, sliced into strips, fried until golden and crunchy, and tempered in oil with generous rings of red onion, crispy curry leaves, garlic, turmeric, and crushed red chili flakes.
+
+**Taste & Texture:** Intensely umami, savory-salty, and wonderfully crunchy. The sweetness of the caramelized onions and fragrant fried curry leaves mellows the briny punch of the dry fish, making just a small spoonful enough to elevate an entire plate of steaming rice and dhal.
+
+---
+
+### 15. Dry Fish Curry (*Karawala Hodi*)
+
+<figure class="my-6">
+  <img src="/images/sri-lanka/food/dry-fish-curry.webp" alt="Sri Lankan Dry Fish Curry simmered in reddish-amber coconut milk gravy" class="w-full h-[380px] object-cover rounded-2xl shadow-md" />
+  <figcaption class="text-xs text-neutral-400 mt-2 text-center italic">Karawala Hodi — rich coconut milk gravy infused with deep coastal umami.</figcaption>
+</figure>
+
+**What’s included:** Chunks of dried salted fish simmered gently in thin and thick coconut milk with roasted curry powder, chili powder, turmeric, whole garlic cloves, green chilies, tomatoes, fenugreek seeds, curry leaves, and pandan leaves.
+
+**Taste & Texture:** Rich, silky, warming, and deeply flavorful. Unlike crispy *Karawala Baduma*, this curry turns the dried fish tender while infusing the velvety coconut gravy with a savory coastal depth that pairs effortlessly with red rice, *Pittu*, or *String Hoppers*.
+
+---
+
+### 16. Sprats Curry (*Haalmasso Curry*)
+
+<figure class="my-6">
+  <img src="/images/sri-lanka/food/sprats-curry.webp" alt="Sri Lankan Sprats Curry simmered with onions, curry leaves, and spices" class="w-full h-[380px] object-cover rounded-2xl shadow-md" />
+  <figcaption class="text-xs text-neutral-400 mt-2 text-center italic">Haalmasso Curry — tiny dried sprats bursting with spicy, savory coastal character.</figcaption>
+</figure>
+
+**What’s included:** Cleaned dried sprats (anchovies) cooked in a fragrant Sri Lankan spice base of red onions, garlic, ginger, curry leaves, pandan leaves, roasted curry powder, chili flakes, a hint of tamarind or *goraka*, and coconut milk (or cooked down into a thicker spiced glaze).
+
+**Taste & Texture:** Savory, spicy, slightly tangy, and packed with concentrated ocean umami. The tiny sprats stay pleasantly chewy and soak up every drop of the spiced masala — a nostalgic everyday staple in Sri Lankan households.
+
+---
+
+## Beloved Vegetarian & Plant-Based Classics
+
+### 17. Polos Ambula (Young Green Jackfruit Curry)
+
+<figure class="my-6">
+  <img src="/images/sri-lanka/food/polos-ambula.webp" alt="Dark slow-cooked Sri Lankan Polos Ambula young jackfruit curry in a clay pot" class="w-full h-[380px] object-cover rounded-2xl shadow-md" />
+  <figcaption class="text-xs text-neutral-400 mt-2 text-center italic">Polos Ambula — slow-simmered for hours until dark, tender, and remarkably meaty.</figcaption>
+</figure>
+
+**What’s included:** Tender wedges of young, unripe green jackfruit (*polos*) slow-simmered in a clay pot with dark roasted Sri Lankan curry powder, *goraka*, black pepper, Ceylon cinnamon, cardamom, cloves, pandan leaves, curry leaves, garlic, and coconut milk.
+
+**Taste & Texture:** Deeply spiced, earthy, smoky, and melt-in-the-mouth tender. Because young jackfruit pulls apart in soft, meaty fibers and absorbs dark roasted spices like a sponge, *Polos Ambula* is famous worldwide as one of the most satisfying plant-based curries ever created.
+
+---
+
+### 18. Ala Kirata (Creamy Coconut Milk Potato Curry)
+
+<figure class="my-6">
+  <img src="/images/sri-lanka/food/potato-curry.avif" alt="Creamy golden Sri Lankan Ala Kirata potato curry in coconut milk" class="w-full h-[380px] object-cover rounded-2xl shadow-md" />
+  <figcaption class="text-xs text-neutral-400 mt-2 text-center italic">Ala Kirata — a golden, velvety coconut-milk potato curry that cools the palate.</figcaption>
+</figure>
+
+**What’s included:** Soft cubed potatoes gently simmered in creamy coconut milk with turmeric, sliced red onions, split green chilies, fenugreek seeds, cinnamon, curry leaves, pandan leaves, and a finishing squeeze of lime.
+
+**Taste & Texture:** Mild, buttery, and soothingly aromatic. Often called a “white curry” (*kiri hodi* style), *Ala Kirata* provides a creamy golden cushion on the plate that balances spicier dishes like *Fish Ambul Thiyal*, *Katta Sambol*, and *Karawala Baduma*.
+
+---
+
+### 19. Kola Malluma (Shredded Greens with Coconut)
+
+<figure class="my-6">
+  <img src="/images/sri-lanka/food/kola-malluma.webp" alt="Vibrant green Sri Lankan Kola Malluma finely shredded with fresh coconut and lime" class="w-full h-[380px] object-cover rounded-2xl shadow-md" />
+  <figcaption class="text-xs text-neutral-400 mt-2 text-center italic">Kola Malluma — fresh, vibrant leafy greens tossed lightly with coconut, shallots, and lime.</figcaption>
+</figure>
+
+**What’s included:** Finely shredded local leafy greens — most famously *gotukola* (pennywort), *mukunuwenna*, or *kathurumurunga* — lightly tossed raw or flash-warmed for seconds with freshly grated white coconut, finely sliced red shallots, green chilies, a pinch of turmeric and salt, and fresh lime juice.
+
+**Taste & Texture:** Crisp, herbaceous, zesty, and refreshing. *Kola Malluma* brings bright green freshness and gentle crunch to every Sri Lankan rice-and-curry spread, cleansing the palate between rich coconut gravies and fiery sambols.
+
+---
+
+## How to Experience Authentic Sri Lankan Cuisine With Nilathra
+
+The magic of Sri Lankan food lies in how these dishes are brought together on a single plate — a spoonful of creamy *Ala Kirata* beside dark *Polos Ambula*, a crisp edge of *Karawala Baduma*, a bright mound of *Kola Malluma*, and a touch of sweet *Amba Chutney*.
+
+During your bespoke journey with **Nilathra Collection**, our concierges curate private culinary experiences across the island — from heritage village hearth lunches in the Cultural Triangle and southern coastal seafood feasts in [Galle](/destinations/galle) to private chef-hosted tastings at your villa. Ready to taste Sri Lanka at its most authentic? [Start designing your custom journey](/custom-plan).
+        `
+    },
     {
         title: "Welcome to Taprobane: The Ultimate Ultra-VIP Sri Lankan Escape",
         slug: "taprobane-ultra-vip-sri-lanka-escape",

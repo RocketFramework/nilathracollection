@@ -246,90 +246,127 @@ export default function TransportProviderOnboardingPage() {
 
                     {/* GATE STEP: Enter Code & NIC */}
                     {step === 'verify' && (
-                        <div className="bg-white rounded-3xl border border-neutral-200 shadow-md overflow-hidden animate-in fade-in duration-300">
-                            <div className="bg-brand-charcoal p-8 text-white flex items-center gap-4">
-                                <div className="p-3 bg-brand-gold/20 rounded-2xl text-brand-gold">
-                                    <Car size={32} />
-                                </div>
-                                <div>
-                                    <h1 className="text-2xl font-serif font-bold">Transport Provider Portal</h1>
-                                    <p className="text-xs text-neutral-300 mt-1">Please enter your Onboarding Campaign Code and National ID (NIC) to continue.</p>
-                                </div>
-                            </div>
-
-                            <form onSubmit={handleVerify} className="p-8 space-y-6">
-                                {verifyError && (
-                                    <div className="p-4 rounded-xl bg-red-50 border border-red-200 text-red-700 text-sm font-medium animate-in slide-in-from-top-2">
-                                        {verifyError}
+                        <div className="space-y-8 animate-in fade-in duration-300">
+                            <div className="bg-white rounded-3xl border border-neutral-200 shadow-md overflow-hidden">
+                                <div className="bg-brand-charcoal p-8 text-white flex items-center gap-4">
+                                    <div className="p-3 bg-brand-gold/20 rounded-2xl text-brand-gold">
+                                        <Car size={32} />
                                     </div>
-                                )}
-
-                                <div className="space-y-4">
                                     <div>
-                                        <div className="flex items-center justify-between mb-2">
-                                            <label className="block text-xs font-bold text-neutral-500 uppercase tracking-wider flex items-center gap-1.5">
-                                                <ShieldCheck size={14} className="text-brand-gold" /> Sri Lankan National ID (NIC) Number *
-                                            </label>
-                                            {nicValidationInfo && (
-                                                <span className={`text-[11px] font-bold flex items-center gap-1 ${nicValidationInfo.isValid ? 'text-green-600' : 'text-red-500'}`}>
-                                                    {nicValidationInfo.isValid ? (
-                                                        <>
-                                                            <CheckCircle2 size={12} />
-                                                            Valid NIC ({nicValidationInfo.format === 'old' ? 'Old Format' : 'New Format'})
-                                                        </>
-                                                    ) : (
-                                                        nicValidationInfo.error
-                                                    )}
-                                                </span>
-                                            )}
-                                        </div>
-                                        <input
-                                            type="text"
-                                            required
-                                            value={nic}
-                                            onChange={(e) => handleNicChange(e.target.value)}
-                                            placeholder="e.g. 923612573V or 199226125738"
-                                            className={`w-full bg-neutral-50 border ${nicValidationInfo ? (nicValidationInfo.isValid ? 'border-green-500 ring-1 ring-green-500/20' : 'border-red-400') : 'border-neutral-300'} rounded-xl p-3.5 focus:ring-2 focus:ring-brand-gold/30 focus:border-brand-gold outline-none font-mono text-sm uppercase`}
-                                        />
-                                        <p className="text-[11px] text-neutral-400 mt-1">Your NIC identifies your profile. If registered previously, this will load your existing record to edit.</p>
-                                    </div>
-
-                                    <div>
-                                        <label className="block text-xs font-bold text-neutral-500 uppercase tracking-wider mb-2 flex items-center gap-1.5">
-                                            <Lock size={14} className="text-brand-gold" /> Onboarding Campaign Code *
-                                        </label>
-                                        <input
-                                            type="text"
-                                            required
-                                            value={code}
-                                            onChange={(e) => setCode(e.target.value)}
-                                            placeholder="e.g. NILATHRA-TRANS-2026"
-                                            className="w-full bg-neutral-50 border border-neutral-300 rounded-xl p-3.5 focus:ring-2 focus:ring-brand-gold/30 focus:border-brand-gold outline-none font-mono text-sm uppercase tracking-wider"
-                                        />
-                                        <p className="text-[11px] text-neutral-400 mt-1">
-                                            {nicValidationInfo?.isValid ? "Auto-populated upon valid NIC verification. You can modify if using a custom code." : "Auto-populated upon valid NIC entry, or enter your official invitation code."}
+                                        <h1 className="text-2xl font-serif font-bold">Transport Provider &amp; Luxury Fleet Registration</h1>
+                                        <p className="text-xs text-neutral-300 mt-1">
+                                            Onboard your executive sedans, luxury SUVs, KDH high-roof vans, and tourist coaches to serve Nilathra Collection&apos;s private itineraries.
                                         </p>
                                     </div>
                                 </div>
 
-                                <button
-                                    type="submit"
-                                    disabled={verifying}
-                                    className="w-full py-4 bg-brand-charcoal text-white font-bold rounded-xl hover:bg-black transition-all flex items-center justify-center gap-2 shadow-lg disabled:opacity-50"
-                                >
-                                    {verifying ? (
-                                        <>
-                                            <Loader2 size={18} className="animate-spin text-brand-gold" />
-                                            Verifying Credentials...
-                                        </>
-                                    ) : (
-                                        <>
-                                            <CheckCircle2 size={18} className="text-brand-gold" />
-                                            Verify & Access Portal
-                                        </>
+                                <form onSubmit={handleVerify} className="p-8 space-y-6">
+                                    {verifyError && (
+                                        <div className="p-4 rounded-xl bg-red-50 border border-red-200 text-red-700 text-sm font-medium animate-in slide-in-from-top-2">
+                                            {verifyError}
+                                        </div>
                                     )}
-                                </button>
-                            </form>
+
+                                    <div className="space-y-4">
+                                        <div>
+                                            <div className="flex items-center justify-between mb-2">
+                                                <label className="block text-xs font-bold text-neutral-500 uppercase tracking-wider flex items-center gap-1.5">
+                                                    <ShieldCheck size={14} className="text-brand-gold" /> Fleet Owner / Operator NIC Number *
+                                                </label>
+                                                {nicValidationInfo && (
+                                                    <span className={`text-[11px] font-bold flex items-center gap-1 ${nicValidationInfo.isValid ? 'text-green-600' : 'text-red-500'}`}>
+                                                        {nicValidationInfo.isValid ? (
+                                                            <>
+                                                                <CheckCircle2 size={12} />
+                                                                Valid NIC ({nicValidationInfo.format === 'old' ? 'Old Format' : 'New Format'})
+                                                            </>
+                                                        ) : (
+                                                            nicValidationInfo.error
+                                                        )}
+                                                    </span>
+                                                )}
+                                            </div>
+                                            <input
+                                                type="text"
+                                                required
+                                                value={nic}
+                                                onChange={(e) => handleNicChange(e.target.value)}
+                                                placeholder="e.g. 923612573V or 199226125738"
+                                                className={`w-full bg-neutral-50 border ${nicValidationInfo ? (nicValidationInfo.isValid ? 'border-green-500 ring-1 ring-green-500/20' : 'border-red-400') : 'border-neutral-300'} rounded-xl p-3.5 focus:ring-2 focus:ring-brand-gold/30 focus:border-brand-gold outline-none font-mono text-sm uppercase`}
+                                            />
+                                            <p className="text-[11px] text-neutral-400 mt-1">
+                                                Your NIC links to your transport supplier account. Existing partners can sign in to add new vehicles, revise km/day rates, or update settlement details.
+                                            </p>
+                                        </div>
+
+                                        <div>
+                                            <label className="block text-xs font-bold text-neutral-500 uppercase tracking-wider mb-2 flex items-center gap-1.5">
+                                                <Lock size={14} className="text-brand-gold" /> Fleet Onboarding Campaign Code *
+                                            </label>
+                                            <input
+                                                type="text"
+                                                required
+                                                value={code}
+                                                onChange={(e) => setCode(e.target.value)}
+                                                placeholder="e.g. NILATHRA-TRANS-2026"
+                                                className="w-full bg-neutral-50 border border-neutral-300 rounded-xl p-3.5 focus:ring-2 focus:ring-brand-gold/30 focus:border-brand-gold outline-none font-mono text-sm uppercase tracking-wider"
+                                            />
+                                            <p className="text-[11px] text-neutral-400 mt-1">
+                                                {nicValidationInfo?.isValid ? "Auto-populated after NIC validation. Replace if you received a dedicated fleet invitation code." : "Auto-populated once a valid NIC is entered, or type your transport partner code."}
+                                            </p>
+                                        </div>
+                                    </div>
+
+                                    <button
+                                        type="submit"
+                                        disabled={verifying}
+                                        className="w-full py-4 bg-brand-charcoal text-white font-bold rounded-xl hover:bg-black transition-all flex items-center justify-center gap-2 shadow-lg disabled:opacity-50"
+                                    >
+                                        {verifying ? (
+                                            <>
+                                                <Loader2 size={18} className="animate-spin text-brand-gold" />
+                                                Verifying Fleet Credentials...
+                                            </>
+                                        ) : (
+                                            <>
+                                                <CheckCircle2 size={18} className="text-brand-gold" />
+                                                Verify &amp; Open Fleet Onboarding
+                                            </>
+                                        )}
+                                    </button>
+                                </form>
+                            </div>
+
+                            {/* Distinct Transport Fleet Information Section */}
+                            <section className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                <div className="bg-white rounded-2xl border border-neutral-200 p-6 space-y-3 shadow-sm">
+                                    <h2 className="text-base font-serif font-bold text-brand-charcoal flex items-center gap-2">
+                                        <Car size={18} className="text-brand-gold" /> Eligible Fleet &amp; Safety Standards
+                                    </h2>
+                                    <p className="text-sm text-neutral-600 leading-relaxed">
+                                        Nilathra Collection partners with Sri Lankan fleet operators supplying well-maintained, late-model executive sedans, luxury SUVs, high-roof KDH vans, mini-coaches, and safari-ready 4&times;4 vehicles for airport transfers and multi-day island tours.
+                                    </p>
+                                    <ul className="text-xs text-neutral-500 space-y-1.5 pt-1 list-disc list-inside">
+                                        <li>Comprehensive tourist passenger insurance and current fitness certification</li>
+                                        <li>SLTDA-compliant professional drivers available with vehicles</li>
+                                        <li>Clean air-conditioned cabins with luggage capacity for international guests</li>
+                                    </ul>
+                                </div>
+
+                                <div className="bg-white rounded-2xl border border-neutral-200 p-6 space-y-3 shadow-sm">
+                                    <h2 className="text-base font-serif font-bold text-brand-charcoal flex items-center gap-2">
+                                        <Building size={18} className="text-brand-gold" /> Fleet Details You&apos;ll Submit
+                                    </h2>
+                                    <p className="text-sm text-neutral-600 leading-relaxed">
+                                        After NIC verification, you can register one or multiple vehicles under your operator profile so our operations desk can issue direct dispatch purchase orders.
+                                    </p>
+                                    <ul className="text-xs text-neutral-500 space-y-1.5 pt-1 list-disc list-inside">
+                                        <li>Company or owner contact details and SLTDA driver registration status</li>
+                                        <li>Vehicle make, model, manufacture year, plate number, and seating capacity</li>
+                                        <li>Daily rate, included km/day allowance, excess-km rate, and bank payout details</li>
+                                    </ul>
+                                </div>
+                            </section>
                         </div>
                     )}
 

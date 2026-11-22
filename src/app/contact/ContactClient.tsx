@@ -143,7 +143,7 @@ export default function ContactClient() {
                                         <MapPin className="text-brand-gold shrink-0 mt-1" size={18} />
                                         <div>
                                             <p className="text-[10px] uppercase tracking-widest text-brand-charcoal/50 font-bold">{c.hq_address_title || "Headquarters Address"}</p>
-                                            <p className="text-sm font-serif">{c.hq_address || "145/1 Vajira Rd, Colombo 00500, Sri Lanka"}</p>
+                                            <p className="text-sm font-serif">{c.hq_address || "2nd Floor, No, Lotus Tower, 275 Nawala Rd, Sri Jayawardenepura Kotte 10250"}</p>
                                         </div>
                                     </div>
 
@@ -517,7 +517,7 @@ export default function ContactClient() {
                                     </div>
                                     <h3 className="font-serif text-xl font-bold text-white">Nilathra Collection — Sri Lanka</h3>
                                     <p className="text-sm text-white/80 font-light leading-relaxed">
-                                        {c.hq_address || "145/1 Vajira Rd, Colombo 00500, Sri Lanka"}
+                                        {c.hq_address || "2nd Floor, No, Lotus Tower, 275 Nawala Rd, Sri Jayawardenepura Kotte 10250"}
                                     </p>
                                     <p className="text-xs text-brand-gold font-serif pt-2 font-medium tracking-wide">
                                         {c.direct_line || "Direct Line"}: +94 77 727 8282

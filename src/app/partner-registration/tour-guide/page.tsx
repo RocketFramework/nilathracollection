@@ -191,90 +191,127 @@ export default function TourGuideOnboardingPage() {
 
                     {/* GATE STEP: Enter Code & NIC */}
                     {step === 'verify' && (
-                        <div className="bg-white rounded-3xl border border-neutral-200 shadow-md overflow-hidden animate-in fade-in duration-300">
-                            <div className="bg-brand-charcoal p-8 text-white flex items-center gap-4">
-                                <div className="p-3 bg-brand-gold/20 rounded-2xl text-brand-gold">
-                                    <UserCheck size={32} />
-                                </div>
-                                <div>
-                                    <h1 className="text-2xl font-serif font-bold">Tour Guide Portal</h1>
-                                    <p className="text-xs text-neutral-300 mt-1">Please enter your Onboarding Campaign Code and National ID (NIC) to continue.</p>
-                                </div>
-                            </div>
-
-                            <form onSubmit={handleVerify} className="p-8 space-y-6">
-                                {verifyError && (
-                                    <div className="p-4 rounded-xl bg-red-50 border border-red-200 text-red-700 text-sm font-medium animate-in slide-in-from-top-2">
-                                        {verifyError}
+                        <div className="space-y-8 animate-in fade-in duration-300">
+                            <div className="bg-white rounded-3xl border border-neutral-200 shadow-md overflow-hidden">
+                                <div className="bg-brand-charcoal p-8 text-white flex items-center gap-4">
+                                    <div className="p-3 bg-brand-gold/20 rounded-2xl text-brand-gold">
+                                        <UserCheck size={32} />
                                     </div>
-                                )}
-
-                                <div className="space-y-4">
                                     <div>
-                                        <div className="flex items-center justify-between mb-2">
-                                            <label className="block text-xs font-bold text-neutral-500 uppercase tracking-wider flex items-center gap-1.5">
-                                                <ShieldCheck size={14} className="text-brand-gold" /> Sri Lankan National ID (NIC) Number *
-                                            </label>
-                                            {nicValidationInfo && (
-                                                <span className={`text-[11px] font-bold flex items-center gap-1 ${nicValidationInfo.isValid ? 'text-green-600' : 'text-red-500'}`}>
-                                                    {nicValidationInfo.isValid ? (
-                                                        <>
-                                                            <CheckCircle2 size={12} />
-                                                            Valid NIC ({nicValidationInfo.format === 'old' ? 'Old Format' : 'New Format'})
-                                                        </>
-                                                    ) : (
-                                                        nicValidationInfo.error
-                                                    )}
-                                                </span>
-                                            )}
-                                        </div>
-                                        <input
-                                            type="text"
-                                            required
-                                            value={nic}
-                                            onChange={(e) => handleNicChange(e.target.value)}
-                                            placeholder="e.g. 923612573V or 199226125738"
-                                            className={`w-full bg-neutral-50 border ${nicValidationInfo ? (nicValidationInfo.isValid ? 'border-green-500 ring-1 ring-green-500/20' : 'border-red-400') : 'border-neutral-300'} rounded-xl p-3.5 focus:ring-2 focus:ring-brand-gold/30 focus:border-brand-gold outline-none font-mono text-sm uppercase`}
-                                        />
-                                        <p className="text-[11px] text-neutral-400 mt-1">Your NIC identifies your profile. If registered previously, this will load your existing record to edit.</p>
-                                    </div>
-
-                                    <div>
-                                        <label className="block text-xs font-bold text-neutral-500 uppercase tracking-wider mb-2 flex items-center gap-1.5">
-                                            <Lock size={14} className="text-brand-gold" /> Onboarding Campaign Code *
-                                        </label>
-                                        <input
-                                            type="text"
-                                            required
-                                            value={code}
-                                            onChange={(e) => setCode(e.target.value)}
-                                            placeholder="e.g. NILATHRA-GUIDE-2026"
-                                            className="w-full bg-neutral-50 border border-neutral-300 rounded-xl p-3.5 focus:ring-2 focus:ring-brand-gold/30 focus:border-brand-gold outline-none font-mono text-sm uppercase tracking-wider"
-                                        />
-                                        <p className="text-[11px] text-neutral-400 mt-1">
-                                            {nicValidationInfo?.isValid ? "Auto-populated upon valid NIC verification. You can modify if using a custom code." : "Auto-populated upon valid NIC entry, or enter your official invitation code."}
+                                        <h1 className="text-2xl font-serif font-bold">Licensed Tour Guide Registration (SLTDA)</h1>
+                                        <p className="text-xs text-neutral-300 mt-1">
+                                            Join Nilathra Collection&apos;s roster of national, lecturer, and multilingual specialist guides serving bespoke Sri Lanka journeys.
                                         </p>
                                     </div>
                                 </div>
 
-                                <button
-                                    type="submit"
-                                    disabled={verifying}
-                                    className="w-full py-4 bg-brand-charcoal text-white font-bold rounded-xl hover:bg-black transition-all flex items-center justify-center gap-2 shadow-lg disabled:opacity-50"
-                                >
-                                    {verifying ? (
-                                        <>
-                                            <Loader2 size={18} className="animate-spin text-brand-gold" />
-                                            Verifying Credentials...
-                                        </>
-                                    ) : (
-                                        <>
-                                            <CheckCircle2 size={18} className="text-brand-gold" />
-                                            Verify & Access Portal
-                                        </>
+                                <form onSubmit={handleVerify} className="p-8 space-y-6">
+                                    {verifyError && (
+                                        <div className="p-4 rounded-xl bg-red-50 border border-red-200 text-red-700 text-sm font-medium animate-in slide-in-from-top-2">
+                                            {verifyError}
+                                        </div>
                                     )}
-                                </button>
-                            </form>
+
+                                    <div className="space-y-4">
+                                        <div>
+                                            <div className="flex items-center justify-between mb-2">
+                                                <label className="block text-xs font-bold text-neutral-500 uppercase tracking-wider flex items-center gap-1.5">
+                                                    <ShieldCheck size={14} className="text-brand-gold" /> Guide National ID (NIC) Number *
+                                                </label>
+                                                {nicValidationInfo && (
+                                                    <span className={`text-[11px] font-bold flex items-center gap-1 ${nicValidationInfo.isValid ? 'text-green-600' : 'text-red-500'}`}>
+                                                        {nicValidationInfo.isValid ? (
+                                                            <>
+                                                                <CheckCircle2 size={12} />
+                                                                Valid NIC ({nicValidationInfo.format === 'old' ? 'Old Format' : 'New Format'})
+                                                            </>
+                                                        ) : (
+                                                            nicValidationInfo.error
+                                                        )}
+                                                    </span>
+                                                )}
+                                            </div>
+                                            <input
+                                                type="text"
+                                                required
+                                                value={nic}
+                                                onChange={(e) => handleNicChange(e.target.value)}
+                                                placeholder="e.g. 923612573V or 199226125738"
+                                                className={`w-full bg-neutral-50 border ${nicValidationInfo ? (nicValidationInfo.isValid ? 'border-green-500 ring-1 ring-green-500/20' : 'border-red-400') : 'border-neutral-300'} rounded-xl p-3.5 focus:ring-2 focus:ring-brand-gold/30 focus:border-brand-gold outline-none font-mono text-sm uppercase`}
+                                            />
+                                            <p className="text-[11px] text-neutral-400 mt-1">
+                                                Your NIC links directly to your tour guide record. Returning guides can sign in to update spoken languages, daily guiding rates, or bank details.
+                                            </p>
+                                        </div>
+
+                                        <div>
+                                            <label className="block text-xs font-bold text-neutral-500 uppercase tracking-wider mb-2 flex items-center gap-1.5">
+                                                <Lock size={14} className="text-brand-gold" /> Guide Invitation / Campaign Code *
+                                            </label>
+                                            <input
+                                                type="text"
+                                                required
+                                                value={code}
+                                                onChange={(e) => setCode(e.target.value)}
+                                                placeholder="e.g. NILATHRA-GUIDE-2026"
+                                                className="w-full bg-neutral-50 border border-neutral-300 rounded-xl p-3.5 focus:ring-2 focus:ring-brand-gold/30 focus:border-brand-gold outline-none font-mono text-sm uppercase tracking-wider"
+                                            />
+                                            <p className="text-[11px] text-neutral-400 mt-1">
+                                                {nicValidationInfo?.isValid ? "Auto-populated after NIC validation. Replace if you received a specialist guide invitation code." : "Auto-populated once a valid NIC is entered, or type your guide campaign code."}
+                                            </p>
+                                        </div>
+                                    </div>
+
+                                    <button
+                                        type="submit"
+                                        disabled={verifying}
+                                        className="w-full py-4 bg-brand-charcoal text-white font-bold rounded-xl hover:bg-black transition-all flex items-center justify-center gap-2 shadow-lg disabled:opacity-50"
+                                    >
+                                        {verifying ? (
+                                            <>
+                                                <Loader2 size={18} className="animate-spin text-brand-gold" />
+                                                Verifying Guide Credentials...
+                                            </>
+                                        ) : (
+                                            <>
+                                                <CheckCircle2 size={18} className="text-brand-gold" />
+                                                Verify &amp; Open Guide Registration
+                                            </>
+                                        )}
+                                    </button>
+                                </form>
+                            </div>
+
+                            {/* Distinct Tour Guide Information Section */}
+                            <section className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                <div className="bg-white rounded-2xl border border-neutral-200 p-6 space-y-3 shadow-sm">
+                                    <h2 className="text-base font-serif font-bold text-brand-charcoal flex items-center gap-2">
+                                        <Award size={18} className="text-brand-gold" /> Who Should Register
+                                    </h2>
+                                    <p className="text-sm text-neutral-600 leading-relaxed">
+                                        We welcome SLTDA-licensed National Tourist Guide Lecturers (NTGL), Chauffeur Tourist Guide Lecturers (CTGL), cultural historians, and certified wildlife naturalists passionate about storytelling across Sri Lanka&apos;s Cultural Triangle, tea highlands, and coastal heritage sites.
+                                    </p>
+                                    <ul className="text-xs text-neutral-500 space-y-1.5 pt-1 list-disc list-inside">
+                                        <li>Valid Sri Lanka Tourism Development Authority (SLTDA) guide license</li>
+                                        <li>Proven experience hosting private luxury and small-group itineraries</li>
+                                        <li>Strong demand for German, French, English, Italian, Japanese &amp; Spanish speakers</li>
+                                    </ul>
+                                </div>
+
+                                <div className="bg-white rounded-2xl border border-neutral-200 p-6 space-y-3 shadow-sm">
+                                    <h2 className="text-base font-serif font-bold text-brand-charcoal flex items-center gap-2">
+                                        <Globe size={18} className="text-brand-gold" /> What You&apos;ll Submit Next
+                                    </h2>
+                                    <p className="text-sm text-neutral-600 leading-relaxed">
+                                        Once your NIC is verified, you will complete your digital guide dossier so our tour architects can match you directly with upcoming bespoke journeys.
+                                    </p>
+                                    <ul className="text-xs text-neutral-500 space-y-1.5 pt-1 list-disc list-inside">
+                                        <li>SLTDA registration number, base city/district, and years of experience</li>
+                                        <li>Spoken languages and specialist German or French proficiency tags</li>
+                                        <li>Standard daily guiding rate and direct bank account details for prompt payouts</li>
+                                    </ul>
+                                </div>
+                            </section>
                         </div>
                     )}
 

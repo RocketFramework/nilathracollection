@@ -26,6 +26,8 @@ export default function sitemap(): MetadataRoute.Sitemap {
         { path: '/blog', priority: 0.80, changeFreq: 'weekly' },
         { path: '/partner-registration', priority: 0.80, changeFreq: 'monthly' },
         { path: '/partner-registration/transport-provider', priority: 0.75, changeFreq: 'monthly' },
+        { path: '/partner-registration/activity-vendor', priority: 0.75, changeFreq: 'monthly' },
+        { path: '/partner-registration/chauffeur', priority: 0.75, changeFreq: 'monthly' },
         { path: '/partner-registration/tour-guide', priority: 0.75, changeFreq: 'monthly' },
         { path: '/testimonials/david-montgomery', priority: 0.85, changeFreq: 'monthly' },
         { path: '/testimonials/dr-julian-clara-von-berg', priority: 0.85, changeFreq: 'monthly' },
@@ -88,18 +90,26 @@ export default function sitemap(): MetadataRoute.Sitemap {
         });
     });
 
-    // Dynamic blog routes (All 19+ Articles across all languages)
+    // Dynamic blog routes (All Articles across all languages, including embedded images for image indexing)
     const blogRoutes: MetadataRoute.Sitemap = [];
 
     blogPosts.forEach((post) => {
+        const parsedDate = new Date(post.date);
+        const safeDate = Number.isNaN(parsedDate.getTime()) ? new Date() : parsedDate;
+        const embeddedImages = [...post.content.matchAll(/(?:src=["']|\]\()(\/images\/[^"')\s]+)/g)].map(
+            (m) => `${baseUrl}${m[1]}`
+        );
+        const postImages = Array.from(new Set([`${baseUrl}${post.image}`, ...embeddedImages]));
+
         locales.forEach((lang) => {
             const relPath = `/blog/${post.slug}`;
             const pathWithLang = lang === 'en' ? relPath : `/${lang}${relPath}`;
             blogRoutes.push({
                 url: `${baseUrl}${pathWithLang}`,
-                lastModified: new Date(post.date),
-                changeFrequency: 'monthly',
-                priority: 0.70,
+                lastModified: safeDate,
+                changeFrequency: 'weekly',
+                priority: 0.80,
+                images: postImages,
                 alternates: {
                     languages: {
                         'x-default': `${baseUrl}${relPath}`,

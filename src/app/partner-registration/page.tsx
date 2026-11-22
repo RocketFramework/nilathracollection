@@ -1,15 +1,52 @@
+import type { Metadata } from "next";
 import Link from "next/link";
 import Image from "next/image";
 import MainLayout from "@/components/layout/MainLayout";
 import { Car, UserCheck, ShieldCheck, Award, ArrowRight, CheckCircle2 } from "lucide-react";
+import { getRequestLocale, languageAlternates, localizedUrl, ogLocale, SupportedLocale } from "@/utils/seo-i18n";
 
-export const metadata = {
-    title: "Partner Registration | Nilathra Collection",
-    description: "Join Sri Lanka's premier luxury travel partner network. Onboarding portals for Transport Service Providers and Luxury Tourist Guides.",
-    alternates: {
-        canonical: "https://www.nilathra.com/partner-registration",
+const PARTNER_HUB_COPY: Record<SupportedLocale, { title: string; description: string }> = {
+    en: {
+        title: "Partner Registration Portals | Nilathra Collection Sri Lanka",
+        description: "Join Sri Lanka's premier luxury travel partner network. Official onboarding portals for Transport Providers, Activity Vendors, Private Chauffeurs, and SLTDA-Licensed Tour Guides.",
+    },
+    de: {
+        title: "Partner-Registrierungsportale | Nilathra Collection Sri Lanka",
+        description: "Werden Sie Teil des exklusiven Luxusreise-Partnernetzwerks in Sri Lanka. Offizielle Onboarding-Portale für Transportanbieter, Aktivitätsanbieter, Privat-Chauffeure und SLTDA-lizenzierte Reiseleiter.",
+    },
+    fr: {
+        title: "Portails d'Inscription Partenaires | Nilathra Collection Sri Lanka",
+        description: "Rejoignez le réseau de partenaires de voyage de luxe de Nilathra Collection au Sri Lanka. Portails officiels pour prestataires de transport, opérateurs d'activités, chauffeurs privés et guides agréés SLTDA.",
     },
 };
+
+export async function generateMetadata(): Promise<Metadata> {
+    const locale = await getRequestLocale();
+    const copy = PARTNER_HUB_COPY[locale];
+    const canonical = localizedUrl("/partner-registration", locale);
+
+    return {
+        title: copy.title,
+        description: copy.description,
+        robots: {
+            index: true,
+            follow: true,
+            googleBot: { index: true, follow: true, "max-image-preview": "large", "max-snippet": -1 },
+        },
+        alternates: {
+            canonical,
+            languages: languageAlternates("/partner-registration"),
+        },
+        openGraph: {
+            title: copy.title,
+            description: copy.description,
+            url: canonical,
+            siteName: "Nilathra Collection",
+            locale: ogLocale(locale),
+            type: "website",
+        },
+    };
+}
 
 export default function PartnerRegistrationLandingPage() {
     return (

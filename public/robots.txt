@@ -1,4 +1,54 @@
 User-agent: *
 Allow: /
+Disallow: /admin/
+Disallow: /admin-new/
+Disallow: /tourist/
+Disallow: /api/
+
+User-agent: GPTBot
+Allow: /
+Allow: /blog/
+Allow: /llms.txt
+Allow: /llms-full.txt
+Allow: /blog/feed.xml
+Disallow: /admin/
+Disallow: /admin-new/
+Disallow: /tourist/
+Disallow: /api/
+
+User-agent: OAI-SearchBot
+Allow: /
+Disallow: /admin/
+Disallow: /admin-new/
+Disallow: /tourist/
+Disallow: /api/
+
+User-agent: ChatGPT-User
+Allow: /
+Disallow: /admin/
+Disallow: /admin-new/
+Disallow: /tourist/
+Disallow: /api/
+
+User-agent: ClaudeBot
+Allow: /
+Disallow: /admin/
+Disallow: /admin-new/
+Disallow: /tourist/
+Disallow: /api/
+
+User-agent: PerplexityBot
+Allow: /
+Disallow: /admin/
+Disallow: /admin-new/
+Disallow: /tourist/
+Disallow: /api/
+
+User-agent: Google-Extended
+Allow: /
+Disallow: /admin/
+Disallow: /admin-new/
+Disallow: /tourist/
+Disallow: /api/
 
 Sitemap: https://www.nilathra.com/sitemap.xml

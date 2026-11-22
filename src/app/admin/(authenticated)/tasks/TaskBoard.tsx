@@ -4,6 +4,7 @@ import { useMemo, useState, useTransition } from 'react';
 import { deleteTaskAction, createTaskAction, listTasksAction, updateTaskStatusAction } from '@/actions/task.actions';
 import TaskDetailPanel from '@/components/tasks/TaskDetailPanel';
 import SearchableUserSelect from '@/components/tasks/SearchableUserSelect';
+import SearchableTemplateSelect from '@/components/tasks/SearchableTemplateSelect';
 import type { TaskDTO, TaskUserOptionDTO, TaskTemplateDTO, TaskTourOptionDTO } from '@/dtos/task.dto';
 import { TASK_STEPS, type TaskStatus } from '@/types/types';
 
@@ -127,10 +128,12 @@ export default function TaskBoard({ initialTasks, users, templates, tourOptions,
                 <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50">
                     <div className="bg-white rounded-2xl p-6 w-[480px] space-y-3">
                         <h3 className="font-semibold">New task</h3>
-                        <select id="new-task-template" className={inp} value={form.templateId} onChange={e => pickTemplate(e.target.value)}>
-                            <option value="">Custom task…</option>
-                            {templates.map(t => <option key={t.id} value={t.id}>{TASK_STEPS.find(s => s.key === t.stepKey)?.label} — {t.title}</option>)}
-                        </select>
+                        <SearchableTemplateSelect
+                            id="new-task-template"
+                            templates={templates}
+                            value={form.templateId}
+                            onChange={pickTemplate}
+                        />
                         <input id="new-task-title" className={inp} placeholder="Title" value={form.title} onChange={e => setForm({ ...form, title: e.target.value })} />
                         <textarea className={inp} placeholder="Description" value={form.description} onChange={e => setForm({ ...form, description: e.target.value })} />
                         <div className="grid grid-cols-2 gap-3">
