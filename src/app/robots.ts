@@ -1,6 +1,14 @@
 import { MetadataRoute } from 'next';
 
-const DISALLOWED = ['/admin/', '/admin-new/', '/tourist/', '/api/'];
+const DISALLOWED = [
+    '/admin/',
+    '/admin-new/',
+    '/tourist/',
+    '/api/',
+    '/contact?*',
+    '/de/contact?*',
+    '/fr/contact?*',
+];
 
 export default function robots(): MetadataRoute.Robots {
     return {

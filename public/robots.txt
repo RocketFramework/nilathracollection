@@ -4,6 +4,9 @@ Disallow: /admin/
 Disallow: /admin-new/
 Disallow: /tourist/
 Disallow: /api/
+Disallow: /contact?*
+Disallow: /de/contact?*
+Disallow: /fr/contact?*
 
 User-agent: GPTBot
 Allow: /
@@ -15,6 +18,9 @@ Disallow: /admin/
 Disallow: /admin-new/
 Disallow: /tourist/
 Disallow: /api/
+Disallow: /contact?*
+Disallow: /de/contact?*
+Disallow: /fr/contact?*
 
 User-agent: OAI-SearchBot
 Allow: /
@@ -22,6 +28,9 @@ Disallow: /admin/
 Disallow: /admin-new/
 Disallow: /tourist/
 Disallow: /api/
+Disallow: /contact?*
+Disallow: /de/contact?*
+Disallow: /fr/contact?*
 
 User-agent: ChatGPT-User
 Allow: /
@@ -29,6 +38,9 @@ Disallow: /admin/
 Disallow: /admin-new/
 Disallow: /tourist/
 Disallow: /api/
+Disallow: /contact?*
+Disallow: /de/contact?*
+Disallow: /fr/contact?*
 
 User-agent: ClaudeBot
 Allow: /
@@ -36,6 +48,9 @@ Disallow: /admin/
 Disallow: /admin-new/
 Disallow: /tourist/
 Disallow: /api/
+Disallow: /contact?*
+Disallow: /de/contact?*
+Disallow: /fr/contact?*
 
 User-agent: PerplexityBot
 Allow: /
@@ -43,6 +58,9 @@ Disallow: /admin/
 Disallow: /admin-new/
 Disallow: /tourist/
 Disallow: /api/
+Disallow: /contact?*
+Disallow: /de/contact?*
+Disallow: /fr/contact?*
 
 User-agent: Google-Extended
 Allow: /
@@ -50,5 +68,8 @@ Disallow: /admin/
 Disallow: /admin-new/
 Disallow: /tourist/
 Disallow: /api/
+Disallow: /contact?*
+Disallow: /de/contact?*
+Disallow: /fr/contact?*
 
 Sitemap: https://www.nilathra.com/sitemap.xml
