@@ -1,3 +1,4 @@
+import { withLocalizedCanonical } from "@/utils/seo-i18n";
 import JeanLucCamilleClient from "./JeanLucCamilleClient";
 import { Metadata } from "next";
 import MainLayout from "@/components/layout/MainLayout";
@@ -5,7 +6,7 @@ import { headers } from "next/headers";
 import { getDictionary } from "@/dictionaries";
 import { I18nProvider } from "@/components/I18nProvider";
 
-export const metadata: Metadata = {
+const baseMetadata: Metadata = {
     title: "Jean-Luc & Camille Laurent's Ultra VIP Experience | Nilathra Collection",
     description: "Read Jean-Luc & Camille Laurent's authentic review of their private villa buyout in Galle, bespoke private chef dining, and rare gem curations managed by Nimali.",
     alternates: {
@@ -27,6 +28,10 @@ export const metadata: Metadata = {
         type: "article",
     },
 };
+
+export async function generateMetadata(): Promise<Metadata> {
+    return withLocalizedCanonical("/testimonials/jean-luc-camille-laurent", baseMetadata);
+}
 
 export default async function JeanLucCamillePage() {
     const headersList = await headers();

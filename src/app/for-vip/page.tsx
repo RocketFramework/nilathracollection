@@ -1,3 +1,4 @@
+import { withLocalizedCanonical } from "@/utils/seo-i18n";
 import VIPContent from "./VIPContent";
 import { Metadata } from "next";
 import MainLayout from "@/components/layout/MainLayout";
@@ -5,7 +6,7 @@ import { headers } from "next/headers";
 import { getDictionary } from "@/dictionaries";
 import { I18nProvider } from "@/components/I18nProvider";
 
-export const metadata: Metadata = {
+const baseMetadata: Metadata = {
     title: "VIP Experiences & Luxury Travel Sri Lanka | Nilathra Collection",
     description: "Discover curated VIP travel experiences in Sri Lanka. Tailor-made ultra-luxury itineraries, private aviation, elite wellness, and exclusive villa retreats.",
     alternates: {
@@ -19,6 +20,10 @@ export const metadata: Metadata = {
         type: "website",
     },
 };
+
+export async function generateMetadata(): Promise<Metadata> {
+    return withLocalizedCanonical("/for-vip", baseMetadata);
+}
 
 export default async function VIPPage() {
     const headersList = await headers();

@@ -110,7 +110,8 @@ export default async function BlogPostPage({ params }: Props) {
         notFound();
     }
 
-    const canonicalUrl = `${BASE_URL}/blog/${post.slug}`;
+    const locale = await getRequestLocale();
+    const canonicalUrl = localizedUrl(`/blog/${post.slug}`, locale);
     const publishedIso = toIsoDate(post.date);
     const heroImage = post.image.startsWith("http") ? post.image : `${BASE_URL}${post.image}`;
     const allImages = Array.from(new Set([heroImage, ...extractContentImages(post.content)]));

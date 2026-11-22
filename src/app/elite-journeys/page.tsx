@@ -1,8 +1,9 @@
+import { withLocalizedCanonical } from "@/utils/seo-i18n";
 import MainLayout from "@/components/layout/MainLayout";
 import EliteJourneysContent from "./EliteJourneysContent";
 import { Metadata } from "next";
 
-export const metadata: Metadata = {
+const baseMetadata: Metadata = {
     title: "Elite Journeys | Luxury Sri Lanka Itinerary | Nilathra Collection",
     description: "Discover our signature 7-night/8-day luxury Sri Lanka itinerary. Experience Colombo, the Cultural Triangle, Kandy, Nuwara Eliya, and Galle Fort in absolute comfort.",
     alternates: {
@@ -30,6 +31,10 @@ export const metadata: Metadata = {
         images: ["https://images.unsplash.com/photo-1583037189850-1921be2077e6"],
     },
 };
+
+export async function generateMetadata(): Promise<Metadata> {
+    return withLocalizedCanonical("/elite-journeys", baseMetadata);
+}
 
 export default function EliteJourneysPage() {
     return (

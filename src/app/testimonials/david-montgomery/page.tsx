@@ -1,3 +1,4 @@
+import { withLocalizedCanonical } from "@/utils/seo-i18n";
 import DavidMontgomeryClient from "./DavidMontgomeryClient";
 import { Metadata } from "next";
 import MainLayout from "@/components/layout/MainLayout";
@@ -5,7 +6,7 @@ import { headers } from "next/headers";
 import { getDictionary } from "@/dictionaries";
 import { I18nProvider } from "@/components/I18nProvider";
 
-export const metadata: Metadata = {
+const baseMetadata: Metadata = {
     title: "David Montgomery's Ultra VIP Experience | Nilathra Collection",
     description: "Read David Montgomery's authentic review of his 10-day Ceylon tea estate buyout, private helicopter safaris to Sigiriya and Yala, private chef, and Ayurvedic master, managed by Sonali.",
     alternates: {
@@ -27,6 +28,10 @@ export const metadata: Metadata = {
         type: "article",
     },
 };
+
+export async function generateMetadata(): Promise<Metadata> {
+    return withLocalizedCanonical("/testimonials/david-montgomery", baseMetadata);
+}
 
 export default async function DavidMontgomeryPage() {
     const headersList = await headers();

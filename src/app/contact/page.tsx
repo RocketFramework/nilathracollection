@@ -3,6 +3,7 @@ import { Metadata } from "next";
 import { headers } from "next/headers";
 import { getDictionary } from "@/dictionaries";
 import { I18nProvider } from "@/components/I18nProvider";
+import { getRequestLocale, languageAlternates, localizedUrl } from "@/utils/seo-i18n";
 
 type SearchParams = Promise<{ [key: string]: string | string[] | undefined }>;
 
@@ -29,12 +30,17 @@ export async function generateMetadata({
     const planStr = Array.isArray(plan) ? plan[0] : plan;
     const planName = planStr ? planNames[planStr] : null;
 
+    const locale = await getRequestLocale();
+    const canonical = localizedUrl("/contact", locale);
+    const languages = languageAlternates("/contact");
+
     if (planName) {
         return {
             title: `Contact Concierge - ${planName}`,
             description: `Design your bespoke ${planName.toLowerCase()} in Sri Lanka. Reach out to our 24/7 concierge team for discrete and personalized luxury travel planning.`,
             alternates: {
-                canonical: "https://www.nilathra.com/contact",
+                canonical,
+                languages,
             },
             robots: {
                 index: !hasParams,
@@ -47,7 +53,8 @@ export async function generateMetadata({
         title: "Contact Concierge | Personalized Luxury Travel Assistance",
         description: "Reach out to our 24/7 concierge team to design your legacy journey in Sri Lanka. Discrete and elegant service for discerning travelers.",
         alternates: {
-            canonical: "https://www.nilathra.com/contact",
+            canonical,
+            languages,
         },
         robots: {
             index: !hasParams,

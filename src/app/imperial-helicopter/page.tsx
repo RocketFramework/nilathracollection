@@ -1,3 +1,4 @@
+import { withLocalizedCanonical } from "@/utils/seo-i18n";
 import MainLayout from "@/components/layout/MainLayout";
 import ImperialHelicopterContent from "./ImperialHelicopterContent";
 import { Metadata } from "next";
@@ -5,7 +6,7 @@ import { headers } from "next/headers";
 import { getDictionary } from "@/dictionaries";
 import { I18nProvider } from "@/components/I18nProvider";
 
-export const metadata: Metadata = {
+const baseMetadata: Metadata = {
     title: "Imperial Helicopter Tour | Luxury Sri Lanka Itinerary | Nilathra Collection",
     description: "Experience Sri Lanka from above with our exclusive 5-night/6-day Imperial Helicopter Tour. Travel seamlessly between Colombo, Kandy, Tea Country, and Weligama.",
     alternates: {
@@ -33,6 +34,10 @@ export const metadata: Metadata = {
         images: ["https://images.unsplash.com/photo-1580915411954-282cb1b0d780?q=80"],
     },
 };
+
+export async function generateMetadata(): Promise<Metadata> {
+    return withLocalizedCanonical("/imperial-helicopter", baseMetadata);
+}
 
 export default async function ImperialHelicopterPage() {
     const headersList = await headers();

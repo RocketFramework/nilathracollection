@@ -1,3 +1,4 @@
+import { withLocalizedCanonical } from "@/utils/seo-i18n";
 import DrJulianClaraClient from "./DrJulianClaraClient";
 import { Metadata } from "next";
 import MainLayout from "@/components/layout/MainLayout";
@@ -5,7 +6,7 @@ import { headers } from "next/headers";
 import { getDictionary } from "@/dictionaries";
 import { I18nProvider } from "@/components/I18nProvider";
 
-export const metadata: Metadata = {
+const baseMetadata: Metadata = {
     title: "Dr. Julian & Clara Von Berg Twin-Island Review | Nilathra Collection",
     description: "Read Dr. Julian & Clara Von Berg's review of their twin-island luxury escape: 5 days at Hatton Ceylon Tea Trails with Nimali, private Ella train, morning kayaking, and 3 nights in Maldives with Ashee.",
     alternates: {
@@ -27,6 +28,10 @@ export const metadata: Metadata = {
         type: "article",
     },
 };
+
+export async function generateMetadata(): Promise<Metadata> {
+    return withLocalizedCanonical("/testimonials/dr-julian-clara-von-berg", baseMetadata);
+}
 
 export default async function DrJulianClaraPage() {
     const headersList = await headers();

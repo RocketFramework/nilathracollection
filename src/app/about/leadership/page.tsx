@@ -1,3 +1,4 @@
+import { withLocalizedCanonical } from "@/utils/seo-i18n";
 import MainLayout from "@/components/layout/MainLayout";
 import Image from "next/image";
 import { CheckCircle2, Shield, Crown, Building2, Globe, Sparkles, ArrowRight } from "lucide-react";
@@ -7,7 +8,7 @@ import { getDictionary } from "@/dictionaries";
 import { I18nProvider } from "@/components/I18nProvider";
 import Link from "next/link";
 
-export const metadata: Metadata = {
+const baseMetadata: Metadata = {
     title: "Executive Leadership | Nilathra Collection Sri Lanka",
     description: "Meet the executive steering committee and leadership team guiding Nilathra Collection's sovereign standards across luxury island operations and VIP travel curation.",
     alternates: {
@@ -29,6 +30,10 @@ export const metadata: Metadata = {
         type: "website",
     },
 };
+
+export async function generateMetadata(): Promise<Metadata> {
+    return withLocalizedCanonical("/about/leadership", baseMetadata);
+}
 
 const staticTeamDetails: Record<string, { image: string; highlightsExtra?: any[] }> = {
     "Nirosh Li": {

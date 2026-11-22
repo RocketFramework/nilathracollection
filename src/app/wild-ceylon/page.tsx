@@ -1,3 +1,4 @@
+import { withLocalizedCanonical } from "@/utils/seo-i18n";
 import MainLayout from "@/components/layout/MainLayout";
 import WildCeylonContent from "./WildCeylonContent";
 import { Metadata } from "next";
@@ -5,7 +6,7 @@ import { headers } from "next/headers";
 import { getDictionary } from "@/dictionaries";
 import { I18nProvider } from "@/components/I18nProvider";
 
-export const metadata: Metadata = {
+const baseMetadata: Metadata = {
     title: "Wild Ceylon Tour | Luxury Sri Lanka Wilderness & Wildlife | Nilathra Collection",
     description: "Explore the wild side of Sri Lanka on our 10-night/11-day luxury tour. From Sigiriya and hot air ballooning to leopards in Yala and a secluded beach villa.",
     alternates: {
@@ -33,6 +34,10 @@ export const metadata: Metadata = {
         images: ["https://images.unsplash.com/photo-1544644181-1484b3fdfc62?q=80"],
     },
 };
+
+export async function generateMetadata(): Promise<Metadata> {
+    return withLocalizedCanonical("/wild-ceylon", baseMetadata);
+}
 
 export default async function WildCeylonPage() {
     const headersList = await headers();

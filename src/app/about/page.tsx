@@ -1,3 +1,4 @@
+import { withLocalizedCanonical } from "@/utils/seo-i18n";
 import MainLayout from "@/components/layout/MainLayout";
 import Image from "next/image";
 import Link from "next/link";
@@ -7,7 +8,7 @@ import { headers } from "next/headers";
 import { getDictionary } from "@/dictionaries";
 import { I18nProvider } from "@/components/I18nProvider";
 
-export const metadata: Metadata = {
+const baseMetadata: Metadata = {
     title: "About Us | Sri Lanka's Premier Travel Curator & Independent DMC",
     description: "Learn about Nilathra Collection's evolution from a trusted local execution engine for international ultra-luxury tour operators into an independent Destination Management Company.",
     alternates: {
@@ -29,6 +30,10 @@ export const metadata: Metadata = {
         type: "website",
     },
 };
+
+export async function generateMetadata(): Promise<Metadata> {
+    return withLocalizedCanonical("/about", baseMetadata);
+}
 
 export default async function AboutPage() {
     const headersList = await headers();

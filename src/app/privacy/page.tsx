@@ -1,8 +1,9 @@
+import { withLocalizedCanonical } from "@/utils/seo-i18n";
 import MainLayout from "@/components/layout/MainLayout";
 import { Shield, Lock, Eye, Users, Globe, Database, Scale } from "lucide-react";
 import { Metadata } from "next";
 
-export const metadata: Metadata = {
+const baseMetadata: Metadata = {
     title: "Privacy Policy | Nilathra Collection",
     description: "Read the Nilathra Collection Privacy Policy. Learn how we collect, store, protect, and process your personal data in accordance with international privacy laws.",
     alternates: {
@@ -16,6 +17,10 @@ export const metadata: Metadata = {
         type: "website",
     },
 };
+
+export async function generateMetadata(): Promise<Metadata> {
+    return withLocalizedCanonical("/privacy", baseMetadata);
+}
 
 export default function PrivacyPolicyPage() {
     return (

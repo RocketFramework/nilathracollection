@@ -34,17 +34,16 @@ export async function generateStaticParams() {
     ];
 }
 
+import { withLocalizedCanonical } from "@/utils/seo-i18n";
+
 export async function generateMetadata({ params }: { params: Promise<{ slug: string }> }): Promise<Metadata> {
     const { slug } = await params;
     const data = metadataData[slug] || metadataData["sigiriya"];
 
-    return {
+    return withLocalizedCanonical(`/destinations/${slug}`, {
         title: `${data.name} | Luxury Travel Sri Lanka`,
         description: data.description,
-        alternates: {
-            canonical: `https://www.nilathra.com/destinations/${slug}`,
-        },
-    };
+    });
 }
 
 export default async function DestinationPage({ params }: { params: Promise<{ slug: string }> }) {

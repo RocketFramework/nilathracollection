@@ -1,3 +1,4 @@
+import { withLocalizedCanonical } from "@/utils/seo-i18n";
 import MainLayout from "@/components/layout/MainLayout";
 import CareersContent from "./CareersContent";
 import { Metadata } from "next";
@@ -5,7 +6,7 @@ import { headers } from "next/headers";
 import { getDictionary } from "@/dictionaries";
 import { I18nProvider } from "@/components/I18nProvider";
 
-export const metadata: Metadata = {
+const baseMetadata: Metadata = {
     title: "Careers | Join the Nilathra Collection Team",
     description: "Build a career in ultra-luxury travel. Explore career opportunities, vacancies, and roles at Nilathra Collection in Sri Lanka.",
     alternates: {
@@ -33,6 +34,10 @@ export const metadata: Metadata = {
         images: ["/images/luxury_resort_sunset.avif"],
     },
 };
+
+export async function generateMetadata(): Promise<Metadata> {
+    return withLocalizedCanonical("/careers", baseMetadata);
+}
 
 export default async function CareersPage() {
     const headersList = await headers();

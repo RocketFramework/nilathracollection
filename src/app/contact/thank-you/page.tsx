@@ -1,9 +1,10 @@
+import { withLocalizedCanonical } from "@/utils/seo-i18n";
 import { Metadata } from "next";
 import MainLayout from "@/components/layout/MainLayout";
 import Link from "next/link";
 import { CheckCircle2, ArrowRight, Compass, Calendar, PhoneCall } from "lucide-react";
 
-export const metadata: Metadata = {
+const baseMetadata: Metadata = {
     title: "Inquiry Delivered | Thank You | Nilathra Collection",
     description: "Thank you for contacting Nilathra Collection. Our dedicated concierge team will review your private inquiry and contact you shortly.",
     alternates: {
@@ -14,6 +15,10 @@ export const metadata: Metadata = {
         follow: false,
     },
 };
+
+export async function generateMetadata(): Promise<Metadata> {
+    return withLocalizedCanonical("/contact/thank-you", baseMetadata);
+}
 
 export default function ThankYouPage() {
     return (

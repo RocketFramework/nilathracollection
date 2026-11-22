@@ -1,8 +1,9 @@
+import { withLocalizedCanonical } from "@/utils/seo-i18n";
 import MainLayout from "@/components/layout/MainLayout";
 import { Info, MousePointer2, Phone, UserCheck, ShieldAlert, Plane, Building2, Clock, Camera, FileCheck } from "lucide-react";
 import { Metadata } from "next";
 
-export const metadata: Metadata = {
+const baseMetadata: Metadata = {
     title: "Terms of Service | Nilathra Collection",
     description: "Read the Terms of Service for using the Nilathra Collection website and booking our ultra-luxury Sri Lankan travel experiences.",
     alternates: {
@@ -16,6 +17,10 @@ export const metadata: Metadata = {
         type: "website",
     },
 };
+
+export async function generateMetadata(): Promise<Metadata> {
+    return withLocalizedCanonical("/terms", baseMetadata);
+}
 
 export default function TermsOfServicePage() {
     return (

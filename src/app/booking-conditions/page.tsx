@@ -1,8 +1,9 @@
+import { withLocalizedCanonical } from "@/utils/seo-i18n";
 import MainLayout from "@/components/layout/MainLayout";
 import { Shield, Gavel, FileText, CreditCard, UserCheck, Stethoscope, AlertCircle, HelpCircle } from "lucide-react";
 import { Metadata } from "next";
 
-export const metadata: Metadata = {
+const baseMetadata: Metadata = {
     title: "Booking Conditions | Nilathra Collection",
     description: "Read the booking terms and conditions for Nilathra Collection travel experiences. Learn about contracts, pricing, payment terms, insurance, and cancellation policies.",
     alternates: {
@@ -16,6 +17,10 @@ export const metadata: Metadata = {
         type: "website",
     },
 };
+
+export async function generateMetadata(): Promise<Metadata> {
+    return withLocalizedCanonical("/booking-conditions", baseMetadata);
+}
 
 export default function BookingConditionsPage() {
     return (

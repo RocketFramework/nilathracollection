@@ -1,14 +1,14 @@
-import { Metadata } from "next";
+import type { Metadata } from "next";
+import { withLocalizedCanonical } from "@/utils/seo-i18n";
 
-export const metadata: Metadata = {
-    title: "Travel Reference & Essentials",
-    description: "Official resources and essential information for travelers to Sri Lanka, including visa links and health guidelines.",
-};
+export async function generateMetadata(): Promise<Metadata> {
+    return withLocalizedCanonical("/reference", {
+        title: "Sri Lanka Travel Reference, Visa (ETA) & Entry Guidelines",
+        description:
+            "Essential Sri Lanka travel reference including official Electronic Travel Authorization (ETA) visa links, customs, immigration, and concierge health & safety guidance.",
+    });
+}
 
-export default function ReferenceLayout({
-    children,
-}: {
-    children: React.ReactNode;
-}) {
-    return <>{children}</>;
+export default function ReferenceLayout({ children }: { children: React.ReactNode }) {
+    return children;
 }
