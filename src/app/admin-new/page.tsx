@@ -227,6 +227,8 @@ import { AIRule } from '@/types/ai';
 import { ItineraryPdfTemplateNew } from './components/ItineraryPdfTemplateNew';
 import { ItineraryPdfTemplateSimple } from './components/ItineraryPdfTemplateSimple';
 import { ItineraryPdfTemplateHotelsInvoice } from './components/ItineraryPdfTemplateHotelsInvoice';
+import CancelHotelPoModal from './components/CancelHotelPoModal';
+import HotelCourtesyHoldModal from './components/HotelCourtesyHoldModal';
 import { generateHotelRfqPdf } from '@/utils/rfq-pdf';
 import { generateHotelPoPdf, generateTransportPoPdf, generateDriverPoPdf } from '@/utils/po-pdf';
 import { generateSettlementVoucherPdf, generateExpenseVoucherPdf } from '@/utils/settlement-voucher-pdf';
@@ -782,6 +784,8 @@ function PlannerWizardWorkspace() {
 
   // PO Email Modal State
   const [showPoModal, setShowPoModal] = useState(false);
+  const [cancelHotelPoContext, setCancelHotelPoContext] = useState<{ hotel: any; stays: any[]; blockId: string; candidatePos: any[]; initialPoId?: string } | null>(null);
+  const [courtesyHoldContext, setCourtesyHoldContext] = useState<{ hotel: any; stays: any[]; blockId: string } | null>(null);
   const [selectedPoHotel, setSelectedPoHotel] = useState<any>(null);
   const [selectedPoStays, setSelectedPoStays] = useState<any[]>([]);
   const [poEmailTo, setPoEmailTo] = useState('');
@@ -12320,6 +12324,22 @@ ${chauffeurHtml}
                                           </button>
                                           <button
                                             type="button"
+                                            onClick={() =>
+                                              setCourtesyHoldContext({
+                                                hotel,
+                                                stays: blockActivities,
+                                                blockId: block.id,
+                                              })
+                                            }
+                                            disabled={isLockedByOther}
+                                            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-dashed border-indigo-500/50 hover:border-indigo-600 hover:bg-indigo-50 text-[9px] font-extrabold text-indigo-700 transition-all shadow-sm disabled:opacity-40"
+                                            title="Request Courtesy Booking / Room Hold"
+                                          >
+                                            <Clock className="w-3.5 h-3.5 text-indigo-600" />
+                                            <span>Request Hold</span>
+                                          </button>
+                                          <button
+                                            type="button"
                                             onClick={() => handleOpenPoModal(hotel, blockActivities, block.id, 'hotel')}
                                             disabled={isLockedByOther}
                                             className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-dashed border-amber-600/40 hover:border-amber-600 hover:bg-amber-50/20 text-[9px] font-extrabold text-amber-700 transition-all shadow-sm disabled:opacity-40"
@@ -12328,6 +12348,40 @@ ${chauffeurHtml}
                                             <FileText className="w-3.5 h-3.5 text-amber-600" />
                                             <span>Create PO</span>
                                           </button>
+                                          {(() => {
+                                            const blockRfpPoIds = new Set(
+                                              rfpEmails
+                                                .filter((e: any) => e.po_block_id === block.id && e.purchase_order_id)
+                                                .map((e: any) => e.purchase_order_id)
+                                            );
+                                            const activeBlockHotelPos = purchaseOrders.filter(
+                                              (p: any) =>
+                                                p.vendor_type === 'hotel' &&
+                                                p.status !== 'Cancelled' &&
+                                                (p.po_block_id === block.id || blockRfpPoIds.has(p.id))
+                                            );
+                                            if (activeBlockHotelPos.length === 0) return null;
+                                            return (
+                                              <button
+                                                type="button"
+                                                onClick={() =>
+                                                  setCancelHotelPoContext({
+                                                    hotel,
+                                                    stays: blockActivities,
+                                                    blockId: block.id,
+                                                    candidatePos: activeBlockHotelPos,
+                                                    initialPoId: activeBlockHotelPos[0]?.id,
+                                                  })
+                                                }
+                                                disabled={isLockedByOther}
+                                                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-dashed border-rose-500/50 hover:border-rose-600 hover:bg-rose-50 text-[9px] font-extrabold text-rose-700 transition-all shadow-sm disabled:opacity-40"
+                                                title="Cancel Purchase Order & Send Cancellation Email"
+                                              >
+                                                <X className="w-3.5 h-3.5 text-rose-600" />
+                                                <span>Cancel PO</span>
+                                              </button>
+                                            );
+                                          })()}
                                         </>
                                       )}
                                     </div>
@@ -12901,7 +12955,46 @@ ${chauffeurHtml}
                                                     ${Number(emailLog.quoted_price).toFixed(2)}
                                                   </span>
                                                 )}
+                                                {emailLog.logType === 'RFP' && emailLog.purchase_order_id && (() => {
+                                                  const linkedPo = purchaseOrders.find((p: any) => p.id === emailLog.purchase_order_id);
+                                                  if (!linkedPo) return null;
+                                                  return (
+                                                    <span className={`px-2 py-0.5 text-[8px] font-bold rounded-full border ${
+                                                      linkedPo.status === 'Cancelled'
+                                                        ? 'bg-rose-100 text-rose-800 border-rose-200'
+                                                        : linkedPo.status === 'Accepted'
+                                                          ? 'bg-emerald-100 text-emerald-800 border-emerald-200'
+                                                          : 'bg-amber-100 text-amber-800 border-amber-200'
+                                                    }`}>
+                                                      PO {linkedPo.po_number}: {linkedPo.status}
+                                                    </span>
+                                                  );
+                                                })()}
                                               </div>
+                                              <div className="flex items-center gap-2">
+                                                {emailLog.logType === 'RFP' && emailLog.purchase_order_id && (() => {
+                                                  const linkedPo = purchaseOrders.find((p: any) => p.id === emailLog.purchase_order_id);
+                                                  if (!linkedPo || linkedPo.status === 'Cancelled') return null;
+                                                  return (
+                                                    <button
+                                                      type="button"
+                                                      disabled={isLockedByOther}
+                                                      onClick={() =>
+                                                        setCancelHotelPoContext({
+                                                          hotel,
+                                                          stays: blockActivities,
+                                                          blockId: block.id,
+                                                          candidatePos: [linkedPo],
+                                                          initialPoId: linkedPo.id,
+                                                        })
+                                                      }
+                                                      className="px-2 py-0.5 rounded-lg border border-rose-200 bg-rose-50 hover:bg-rose-100 text-[9px] font-bold text-rose-700 transition-colors disabled:opacity-40"
+                                                      title="Cancel this Purchase Order and email hotel"
+                                                    >
+                                                      Cancel PO
+                                                    </button>
+                                                  );
+                                                })()}
                                               <button
                                                 type="button"
                                                 onClick={() => {
@@ -12933,6 +13026,7 @@ ${chauffeurHtml}
                                               >
                                                 {isEmailBodyExpanded ? 'Hide Details' : 'Show Details'}
                                               </button>
+                                              </div>
                                             </div>
 
                                             <div className="text-[10px] space-y-0.5 text-neutral-600">
@@ -24540,6 +24634,42 @@ ${chauffeurHtml}
 
             </div>
           </div>
+        )}
+
+        {/* Hotel Courtesy Booking / Hold Modal */}
+        {courtesyHoldContext && (
+          <HotelCourtesyHoldModal
+            isOpen={!!courtesyHoldContext}
+            onClose={() => setCourtesyHoldContext(null)}
+            tourId={tourId}
+            tourCode={tourCode || undefined}
+            blockId={courtesyHoldContext.blockId}
+            hotel={courtesyHoldContext.hotel}
+            stays={courtesyHoldContext.stays}
+            defaultAdults={tripData?.profile?.adults ?? 0}
+            defaultChildren={tripData?.profile?.children ?? 0}
+            defaultInfants={tripData?.profile?.infants ?? 0}
+            agentName="Nilathra Collection Reservations"
+            onSent={() => loadProcurementData(tourId)}
+          />
+        )}
+
+        {/* Cancel Hotel PO Modal */}
+        {cancelHotelPoContext && (
+          <CancelHotelPoModal
+            isOpen={!!cancelHotelPoContext}
+            onClose={() => setCancelHotelPoContext(null)}
+            tourId={tourId}
+            tourCode={tourCode || undefined}
+            blockId={cancelHotelPoContext.blockId}
+            hotel={cancelHotelPoContext.hotel}
+            stays={cancelHotelPoContext.stays}
+            candidatePos={cancelHotelPoContext.candidatePos}
+            initialPoId={cancelHotelPoContext.initialPoId}
+            touristName={[touristData?.profile?.first_name, touristData?.profile?.last_name].filter(Boolean).join(' ')}
+            agentName="Nilathra Collection Reservations"
+            onCancelled={() => loadProcurementData(tourId)}
+          />
         )}
 
         {/* Edit PO Details Modal */}

@@ -2186,6 +2186,146 @@ export async function saveAppMarkupsAction(markups: Record<string, any>) {
     }
 }
 
+export async function sendHotelCourtesyHoldEmailAction(options: {
+    to: string;
+    from?: string;
+    subject: string;
+    body: string;
+}) {
+    try {
+        const { to, from, subject, body } = options;
+
+        const recipients: string[] = [];
+        for (const part of (to || '').split(/[;\n]|,(?=(?:[^"]*"[^"]*")*[^"]*$)/)) {
+            const trimmed = part.trim();
+            if (!trimmed) continue;
+            const m = trimmed.match(/<\s*([^<>\s@]+@[^<>\s@]+)\s*>/) || trimmed.match(/([^<>\s,;"']+@[^<>\s,;"']+)/);
+            const addr = m ? m[1].trim() : '';
+            if (addr && !recipients.some(r => r.toLowerCase() === addr.toLowerCase())) recipients.push(addr);
+        }
+        if (recipients.length === 0) {
+            return { success: false, error: "Recipient email is required." };
+        }
+
+        const apiKey = process.env.RESEND_API_KEY;
+        if (!apiKey) {
+            return { success: false, error: "Resend API key is not configured in .env.local" };
+        }
+
+        const isHtml = /<[a-z][\s\S]*>/i.test(body);
+        const contentHtml = `
+          <div style="font-size:15px;color:#4a4a4a;line-height:1.7;${isHtml ? '' : 'white-space:pre-wrap;'}">${body}</div>
+          <p style="margin:32px 0 0;font-size:15px;color:#4a4a4a;line-height:1.7;">
+            For any further assistance, please contact us at <a href="mailto:concierge@nilathra.com" style="color:#C9A84C;text-decoration:none;font-weight:600;">concierge@nilathra.com</a>.
+          </p>
+        `;
+        const html = emailService.generateEmailHtml('Courtesy Room Hold Request', 'Courtesy Room Hold Request', contentHtml);
+        const sender = from || process.env.EMAIL_FROM || 'concierge@nilathra.com';
+
+        const res = await fetch('https://api.resend.com/emails', {
+            method: 'POST',
+            headers: {
+                'Authorization': `Bearer ${apiKey}`,
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+                from: sender,
+                to: recipients,
+                subject,
+                html,
+            }),
+        });
+
+        const resJson = await res.json();
+        if (!res.ok) {
+            console.error("Resend courtesy hold email delivery failed:", resJson);
+            return { success: false, error: resJson.message || "Failed to send email via Resend." };
+        }
+
+        return { success: true, data: resJson };
+    } catch (error: any) {
+        console.error("Error sending courtesy hold email:", error);
+        return { success: false, error: error.message || "Failed to send courtesy hold email." };
+    }
+}
+
+export async function sendPurchaseOrderCancellationEmailAction(options: {
+    to: string;
+    from?: string;
+    subject: string;
+    body: string;
+    poId: string;
+    reason: string;
+    sendEmail?: boolean;
+}) {
+    try {
+        const { to, from, subject, body, poId, reason, sendEmail = true } = options;
+
+        if (!poId) {
+            return { success: false, error: "Purchase Order ID is required." };
+        }
+
+        let resJson: any = null;
+
+        if (sendEmail) {
+            const recipients: string[] = [];
+            for (const part of (to || '').split(/[;\n]|,(?=(?:[^"]*"[^"]*")*[^"]*$)/)) {
+                const trimmed = part.trim();
+                if (!trimmed) continue;
+                const m = trimmed.match(/<\s*([^<>\s@]+@[^<>\s@]+)\s*>/) || trimmed.match(/([^<>\s,;"']+@[^<>\s,;"']+)/);
+                const addr = m ? m[1].trim() : '';
+                if (addr && !recipients.some(r => r.toLowerCase() === addr.toLowerCase())) recipients.push(addr);
+            }
+            if (recipients.length === 0) {
+                return { success: false, error: "Recipient email is required to send the cancellation notice." };
+            }
+
+            const apiKey = process.env.RESEND_API_KEY;
+            if (!apiKey) {
+                return { success: false, error: "Resend API key is not configured in .env.local" };
+            }
+
+            const isHtml = /<[a-z][\s\S]*>/i.test(body);
+            const contentHtml = `
+              <div style="font-size:15px;color:#4a4a4a;line-height:1.7;${isHtml ? '' : 'white-space:pre-wrap;'}">${body}</div>
+              <p style="margin:32px 0 0;font-size:15px;color:#4a4a4a;line-height:1.7;">
+                For any further assistance, please contact us at <a href="mailto:concierge@nilathra.com" style="color:#C9A84C;text-decoration:none;font-weight:600;">concierge@nilathra.com</a>.
+              </p>
+            `;
+            const html = emailService.generateEmailHtml('Purchase Order Cancellation', 'Purchase Order Cancellation', contentHtml);
+            const sender = from || process.env.EMAIL_FROM || 'concierge@nilathra.com';
+
+            const res = await fetch('https://api.resend.com/emails', {
+                method: 'POST',
+                headers: {
+                    'Authorization': `Bearer ${apiKey}`,
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    from: sender,
+                    to: recipients,
+                    subject,
+                    html,
+                }),
+            });
+
+            resJson = await res.json();
+            if (!res.ok) {
+                console.error("Resend PO cancellation email delivery failed:", resJson);
+                return { success: false, error: resJson.message || "Failed to send cancellation email via Resend." };
+            }
+        }
+
+        const noteSuffix = sendEmail ? `${reason.trim() || 'Cancelled'} (Cancellation email sent to ${to})` : `${reason.trim() || 'Cancelled'} (Cancelled internally without email)`;
+        await FinanceService.cancelPurchaseOrder(poId, noteSuffix);
+
+        return { success: true, data: resJson };
+    } catch (error: any) {
+        console.error("Error cancelling Purchase Order:", error);
+        return { success: false, error: error.message || "Failed to cancel Purchase Order." };
+    }
+}
+
 export async function sendPurchaseOrderEmailAction(options: {
     to: string;
     from?: string;

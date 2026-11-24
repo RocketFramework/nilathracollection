@@ -378,6 +378,44 @@ export class FinanceService {
     }
 
     /**
+     * Cancels a purchase order and appends the cancellation reason to internal_notes.
+     */
+    static async cancelPurchaseOrder(poId: string, reason: string): Promise<boolean> {
+        const supabase = createAdminClient();
+        const { data: existing } = await supabase
+            .from('purchase_orders')
+            .select('internal_notes, daily_activity_vendor_id')
+            .eq('id', poId)
+            .maybeSingle();
+
+        const stamp = new Date().toISOString().slice(0, 10);
+        const noteLine = `[Cancelled ${stamp}]: ${reason?.trim() || 'Cancelled by operations'}`;
+        const combinedNotes = existing?.internal_notes
+            ? `${existing.internal_notes}\n${noteLine}`
+            : noteLine;
+
+        const { error } = await supabase
+            .from('purchase_orders')
+            .update({
+                status: 'Cancelled',
+                internal_notes: combinedNotes,
+                updated_at: new Date().toISOString(),
+            })
+            .eq('id', poId);
+
+        if (error) throw error;
+
+        if (existing?.daily_activity_vendor_id) {
+            await supabase
+                .from('tour_rfq_emails')
+                .update({ status: 'Cancelled', selected_vendor: false })
+                .eq('id', existing.daily_activity_vendor_id);
+        }
+
+        return true;
+    }
+
+    /**
      * Updates specific details (status, notes, discounts, tax, and acceptance details) of an existing PO.
      */
     static async updatePurchaseOrderDetails(poId: string, updates: any): Promise<boolean> {
