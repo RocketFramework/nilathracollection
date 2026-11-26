@@ -1,5 +1,6 @@
 import { TravelStyle, Gender, RequestType, RequestStatus } from '../types/types';
 import { createAdminClient } from '@/utils/supabase/admin';
+import type { TourRouteStopDTO } from './tour-planning.dto';
 
 const isUuid = (val: any) => typeof val === 'string' && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(val);
 
@@ -29,6 +30,9 @@ export interface TravelPreferencesDTO {
     medical_conditions: string;
     accessibility_requirements: string;
     special_notes: string;
+    activity_preferences: string[];
+    travel_locations: string[];
+    travel_route?: TourRouteStopDTO[];
 }
 
 export interface TouristTeamMemberDTO {
@@ -111,11 +115,27 @@ export namespace TouristDataDTO {
             userRow = u;
         }
 
-        // 4. Fetch team members for this tour
-        const { data: teamRows } = await supabaseAdmin
-            .from('tourist_team')
-            .select('*')
-            .eq('tour_id', tourId);
+        // 4. Fetch team members and dated route stops for this tour
+        const [{ data: teamRows }, { data: routeStopRows }] = await Promise.all([
+            supabaseAdmin
+                .from('tourist_team')
+                .select('*')
+                .eq('tour_id', tourId),
+            supabaseAdmin
+                .from('tour_route_stops')
+                .select('*')
+                .eq('tour_id', tourId)
+                .order('stop_order', { ascending: true }),
+        ]);
+
+        const savedRouteStops: TourRouteStopDTO[] = (routeStopRows || []).map((row: any, idx: number) => ({
+            id: row.id,
+            stop_order: Number(row.stop_order ?? idx + 1),
+            location_name: row.location_name || '',
+            tour_date: row.tour_date ? String(row.tour_date).slice(0, 10) : '',
+            day_number: row.day_number ?? idx + 1,
+            notes: row.notes ?? null,
+        }));
 
         const team: TouristTeamMemberDTO[] = (teamRows || []).map(row => ({
             id: row.id,
@@ -197,7 +217,21 @@ export namespace TouristDataDTO {
                 dietary_requirements: activeProfile.dietary_requirements || '',
                 medical_conditions: activeProfile.medical_conditions || '',
                 accessibility_requirements: activeProfile.accessibility_requirements || '',
-                special_notes: specialNotes
+                special_notes: specialNotes,
+                activity_preferences: Array.isArray(activeProfile.activity_preferences) ? activeProfile.activity_preferences : [],
+                travel_locations: savedRouteStops.length > 0
+                    ? savedRouteStops.map(s => s.location_name)
+                    : (Array.isArray(activeProfile.travel_locations) ? activeProfile.travel_locations : []),
+                travel_route: savedRouteStops.length > 0
+                    ? savedRouteStops
+                    : (Array.isArray(activeProfile.travel_locations)
+                        ? activeProfile.travel_locations.map((loc: string, idx: number) => ({
+                            stop_order: idx + 1,
+                            location_name: loc,
+                            tour_date: '',
+                            day_number: idx + 1,
+                        }))
+                        : [])
             },
             request: {
                 id: requestMsg?.id || requestId || '',
@@ -288,6 +322,8 @@ export namespace TouristDataDTO {
                     accessibility_requirements: data.preferences.accessibility_requirements || null,
                     language_preference: data.preferences.language_preference || 'English',
                     special_notes: data.preferences.special_notes || null,
+                    activity_preferences: Array.isArray(data.preferences.activity_preferences) ? data.preferences.activity_preferences : [],
+                    travel_locations: Array.isArray(data.preferences.travel_locations) ? data.preferences.travel_locations : [],
                     updated_at: new Date().toISOString()
                 });
 
@@ -321,7 +357,35 @@ export namespace TouristDataDTO {
             }
         }
 
-        // 5. Sync tourist_team table
+        // 5. Sync tour_route_stops table (dated travel route)
+        if (Array.isArray(data.preferences.travel_route)) {
+            const { error: delRouteErr } = await supabaseAdmin
+                .from('tour_route_stops')
+                .delete()
+                .eq('tour_id', tourId);
+
+            if (delRouteErr) {
+                console.warn('Failed to clear tour_route_stops (table may not be migrated yet):', delRouteErr.message);
+            } else if (data.preferences.travel_route.length > 0) {
+                const routeRows = data.preferences.travel_route.map((stop, idx) => ({
+                    tour_id: tourId,
+                    stop_order: idx + 1,
+                    location_name: stop.location_name,
+                    tour_date: stop.tour_date ? String(stop.tour_date).slice(0, 10) : null,
+                    day_number: stop.day_number ?? idx + 1,
+                    notes: stop.notes ?? null,
+                    updated_at: new Date().toISOString(),
+                }));
+                const { error: insRouteErr } = await supabaseAdmin
+                    .from('tour_route_stops')
+                    .insert(routeRows);
+                if (insRouteErr) {
+                    console.warn('Failed to insert tour_route_stops:', insRouteErr.message);
+                }
+            }
+        }
+
+        // 6. Sync tourist_team table
         const { error: deleteTeamErr } = await supabaseAdmin
             .from('tourist_team')
             .delete()

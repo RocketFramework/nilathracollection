@@ -58,6 +58,7 @@ import {
   Check,
   MapPin,
   Clock,
+  Building2,
   ChevronUp,
   ChevronDown,
   MessageSquare,
@@ -229,6 +230,10 @@ import { ItineraryPdfTemplateSimple } from './components/ItineraryPdfTemplateSim
 import { ItineraryPdfTemplateHotelsInvoice } from './components/ItineraryPdfTemplateHotelsInvoice';
 import CancelHotelPoModal from './components/CancelHotelPoModal';
 import HotelCourtesyHoldModal from './components/HotelCourtesyHoldModal';
+import TouristActivityAndRoutePreferences from './components/TouristActivityAndRoutePreferences';
+import ProposedHotelsStep from './components/ProposedHotelsStep';
+import { getTourPlanningScheduleAction, saveTourActivitySelectionsAction } from '../../actions/tour-planning.actions';
+import type { TourProposedHotelDTO, TourRouteStopDTO } from '../../dtos/tour-planning.dto';
 import { generateHotelRfqPdf } from '@/utils/rfq-pdf';
 import { generateHotelPoPdf, generateTransportPoPdf, generateDriverPoPdf } from '@/utils/po-pdf';
 import { generateSettlementVoucherPdf, generateExpenseVoucherPdf } from '@/utils/settlement-voucher-pdf';
@@ -512,7 +517,9 @@ const MOCK_TOURIST_DATA: TouristDataDTO = {
     dietary_requirements: "No shellfish, standard vegetarian meals for companion.",
     medical_conditions: "One companion carries asthma inhaler.",
     accessibility_requirements: "Ground floor hotel rooms preferred due to light knee injury.",
-    special_notes: "Celebrating John and Jane's 10th wedding anniversary. Prefers rooms with ocean views and late check-outs if available."
+    special_notes: "Celebrating John and Jane's 10th wedding anniversary. Prefers rooms with ocean views and late check-outs if available.",
+    activity_preferences: [],
+    travel_locations: []
   },
   request: {
     id: "req-9823-a1",
@@ -1036,6 +1043,10 @@ function PlannerWizardWorkspace() {
   const [selectedActivityIds, setSelectedActivityIds] = useState<number[]>([]);
   const [activitySearchTerm, setActivitySearchTerm] = useState<string>('');
   const [activityCategoryFilter, setActivityCategoryFilter] = useState<string>('All');
+  const [hoveredActivityAlert, setHoveredActivityAlert] = useState<{ text: string; x: number; y: number } | null>(null);
+  const [activityDateMap, setActivityDateMap] = useState<Record<number, string>>({});
+  const [proposedHotels, setProposedHotels] = useState<TourProposedHotelDTO[]>([]);
+  const [isSavingActivityDates, setIsSavingActivityDates] = useState(false);
   const [activityTravelPrepTime, setActivityTravelPrepTime] = useState<number>(2);
   const [dailyActivityHoursLimit, setDailyActivityHoursLimit] = useState<number>(6);
   const [activityAverageSpeedKm, setActivityAverageSpeedKm] = useState<number>(30);
@@ -2758,9 +2769,96 @@ function PlannerWizardWorkspace() {
     };
   }, [touristData?.preferences?.duration_days, totalInferredDuration, dailyActivityHoursLimit]);
 
+  const resolveAutoDateForActivity = (
+    actId: number,
+    existingIds: number[],
+    currentDateMap: Record<number, string>
+  ): string => {
+    const act = activitiesList.find((a) => a.id === actId);
+    const routeStops = touristData?.preferences?.travel_route || [];
+    if (!act || routeStops.length === 0) return '';
+
+    const norm = (v?: string | null) => String(v || '').trim().toLowerCase();
+    const actLoc = norm(act.location_name);
+    const actDist = norm(act.district);
+
+    const matchingDates = Array.from(
+      new Set(
+        routeStops
+          .filter((stop) => {
+            if (!stop.tour_date) return false;
+            const stopLoc = norm(stop.location_name);
+            if (!stopLoc) return false;
+            return (
+              (actLoc && (stopLoc === actLoc || actLoc.includes(stopLoc) || stopLoc.includes(actLoc))) ||
+              (actDist && (stopLoc === actDist || actDist.includes(stopLoc) || stopLoc.includes(actDist)))
+            );
+          })
+          .sort((a, b) => a.tour_date.localeCompare(b.tour_date) || a.stop_order - b.stop_order)
+          .map((s) => s.tour_date.slice(0, 10))
+      )
+    );
+
+    if (matchingDates.length === 0) return '';
+    if (matchingDates.length === 1) return matchingDates[0];
+
+    // Multiple dates in this location: assign sequentially by selection order (1st date first, then next date, etc.)
+    const countsByDate: Record<string, number> = {};
+    matchingDates.forEach((d) => {
+      countsByDate[d] = 0;
+    });
+    existingIds.forEach((eid) => {
+      if (eid === actId) return;
+      const d = currentDateMap[eid];
+      if (d && countsByDate[d] !== undefined) {
+        countsByDate[d] += 1;
+      }
+    });
+
+    // Pick the earliest date with the fewest activities already assigned
+    let bestDate = matchingDates[0];
+    let minCount = countsByDate[bestDate];
+    for (const d of matchingDates) {
+      if (countsByDate[d] < minCount) {
+        minCount = countsByDate[d];
+        bestDate = d;
+      }
+    }
+    return bestDate;
+  };
+
+  // Auto-populate missing dates for already-selected activities when route stops have dates
+  useEffect(() => {
+    const routeStops = touristData?.preferences?.travel_route || [];
+    if (selectedActivityIds.length === 0 || routeStops.length === 0 || activitiesList.length === 0) return;
+
+    const missingIds = selectedActivityIds.filter((id) => !activityDateMap[id]);
+    if (missingIds.length === 0) return;
+
+    const nextMap: Record<number, string> = { ...activityDateMap };
+    let changed = false;
+    selectedActivityIds.forEach((id, idx) => {
+      if (!nextMap[id]) {
+        const autoDate = resolveAutoDateForActivity(id, selectedActivityIds.slice(0, idx), nextMap);
+        if (autoDate) {
+          nextMap[id] = autoDate;
+          changed = true;
+        }
+      }
+    });
+
+    if (changed) {
+      setActivityDateMap(nextMap);
+    }
+  }, [selectedActivityIds, touristData?.preferences?.travel_route, activitiesList]);
+
   const handleAddActivity = (id: number) => {
     if (!selectedActivityIds.includes(id)) {
+      const autoDate = resolveAutoDateForActivity(id, selectedActivityIds, activityDateMap);
       setSelectedActivityIds(prev => [...prev, id]);
+      if (autoDate) {
+        setActivityDateMap(prev => (prev[id] ? prev : { ...prev, [id]: autoDate }));
+      }
     }
   };
 
@@ -3252,6 +3350,12 @@ function PlannerWizardWorkspace() {
       icon: Compass
     },
     {
+      id: 'proposed-hotels',
+      label: 'Proposed Hotels',
+      description: 'Select 3 to 5 hotel options for each tour date based on the travel route.',
+      icon: Building2
+    },
+    {
       id: 'ai-builder',
       label: 'AI Itinerary Builder',
       description: 'Generate a smart AI-powered skeleton draft itinerary optimized for routing.',
@@ -3709,7 +3813,8 @@ function PlannerWizardWorkspace() {
             itinCountRes,
             concItemsRes,
             savedConcRes,
-            itinDatesRes
+            itinDatesRes,
+            planningScheduleRes
           ] = await Promise.all([
             getTouristDataAction(activeTourId),
             getTourDataAction(activeTourId),
@@ -3729,8 +3834,22 @@ function PlannerWizardWorkspace() {
             getTourItineraryCountAction(activeTourId),
             getSeamlessConciergeCostItemsAction({ pageSize: 100 }),
             getTourConciergesAction(activeTourId),
-            getItineraryDatesAction(activeTourId)
+            getItineraryDatesAction(activeTourId),
+            getTourPlanningScheduleAction(activeTourId)
           ]);
+
+          if (planningScheduleRes?.success && planningScheduleRes.data) {
+            setProposedHotels(planningScheduleRes.data.proposedHotels || []);
+            const dbActs = planningScheduleRes.data.activitySelections || [];
+            if (dbActs.length > 0) {
+              const dateMap: Record<number, string> = {};
+              dbActs.forEach((a: any) => {
+                if (a.tour_date) dateMap[a.activity_id] = a.tour_date;
+              });
+              setActivityDateMap(dateMap);
+              setSelectedActivityIds((prev) => (prev.length > 0 ? prev : dbActs.map((a: any) => a.activity_id)));
+            }
+          }
 
           if (itinDatesRes?.dayToItinIdMap) {
             setDayToItinIdMap(itinDatesRes.dayToItinIdMap);
@@ -4060,6 +4179,7 @@ function PlannerWizardWorkspace() {
         const localBasicSteps = [
           'tourist-data',
           'activity-selection',
+          'proposed-hotels',
           'ai-builder',
           'concierge-config',
           'share-tourist'
@@ -9737,7 +9857,7 @@ ${chauffeurHtml}
     }));
   };
 
-  const handlePreferenceChange = (key: keyof TravelPreferencesDTO, value: string | number) => {
+  const handlePreferenceChange = (key: keyof TravelPreferencesDTO, value: string | number | string[]) => {
     setTouristData(prev => {
       const nextPrefs = { ...prev.preferences, [key]: value };
 
@@ -10449,6 +10569,27 @@ ${chauffeurHtml}
                               />
                             </div>
 
+                            <TouristActivityAndRoutePreferences
+                              selectedCategories={touristData.preferences.activity_preferences || []}
+                              onCategoriesChange={(cats) => handlePreferenceChange('activity_preferences', cats)}
+                              travelLocations={touristData.preferences.travel_locations || []}
+                              onTravelLocationsChange={(locs) => handlePreferenceChange('travel_locations', locs)}
+                              travelRoute={touristData.preferences.travel_route || []}
+                              onTravelRouteChange={(stops: TourRouteStopDTO[]) =>
+                                setTouristData((prev) => ({
+                                  ...prev,
+                                  preferences: {
+                                    ...prev.preferences,
+                                    travel_route: stops,
+                                    travel_locations: stops.map((s) => s.location_name),
+                                  },
+                                }))
+                              }
+                              arrivalDate={touristData.preferences.arrival_date}
+                              extraCategories={activitiesList.map((a) => a.category).filter(Boolean)}
+                              extraLocations={activitiesList.map((a) => a.district).filter(Boolean)}
+                            />
+
                             <div className="md:col-span-3">
                               <label className="text-xs font-bold text-neutral-500 block mb-1.5 uppercase tracking-wide">Dietary Requirements</label>
                               <textarea
@@ -10712,6 +10853,37 @@ ${chauffeurHtml}
                 ) : track === 'basic' && currentStep.id === 'activity-selection' ? (
                   <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start animate-in fade-in slide-in-from-bottom-3 duration-300">
 
+                    {/* Travel Route Preview (matching Tourist Data → Preferences) */}
+                    {(() => {
+                      const routeStops =
+                        (touristData?.preferences?.travel_route && touristData.preferences.travel_route.length > 0)
+                          ? touristData.preferences.travel_route
+                          : (touristData?.preferences?.travel_locations || []).map((loc, idx) => ({
+                              stop_order: idx + 1,
+                              location_name: loc,
+                              tour_date: '',
+                            }));
+                      if (routeStops.length === 0) return null;
+                      return (
+                        <div className="lg:col-span-12 bg-emerald-50/70 border border-emerald-200/70 rounded-xl px-3.5 py-2.5 text-xs text-emerald-900 font-medium flex flex-wrap items-center gap-1.5">
+                          <span className="text-[10px] font-bold uppercase tracking-wider text-emerald-700 mr-1">Route:</span>
+                          {routeStops.map((stop, idx) => (
+                            <React.Fragment key={`act-route-preview-${idx}-${stop.location_name}`}>
+                              <span className="font-semibold">
+                                {stop.location_name}
+                                {stop.tour_date && (
+                                  <span className="text-[10px] font-mono text-emerald-700/80 ml-1">({stop.tour_date})</span>
+                                )}
+                              </span>
+                              {idx < routeStops.length - 1 && (
+                                <span className="text-emerald-500 font-bold">→</span>
+                              )}
+                            </React.Fragment>
+                          ))}
+                        </div>
+                      );
+                    })()}
+
                     {/* Left Column: Activity List & Search */}
                     <div className="lg:col-span-6 xl:col-span-6 space-y-6">
 
@@ -10728,34 +10900,61 @@ ${chauffeurHtml}
                           />
                         </div>
 
-                        <div className="flex flex-wrap gap-2 pt-1">
-                          {['All', 'Adventure', 'Beach', 'Cultural & Heritage', 'Nature', 'Casino', 'Food & Drink', 'Urban', 'Nature & Wildlife', 'Cultural', 'Wildlife', 'Wellness', 'Food', 'Water Sports'].map((cat) => (
-                            <button
-                              key={cat}
-                              onClick={() => setActivityCategoryFilter(cat)}
-                              className={`px-4 py-2 rounded-xl text-xs font-bold transition-all uppercase tracking-wide
-                                ${activityCategoryFilter === cat
-                                  ? 'bg-emerald-800 text-white shadow-sm'
-                                  : 'bg-neutral-100 hover:bg-neutral-200 text-neutral-600'
-                                }`}
-                            >
-                              {cat}
-                            </button>
-                          ))}
-                        </div>
+                        {(() => {
+                          const preferredCats = touristData?.preferences?.activity_preferences || [];
+                          return (
+                            <>
+                              <div className="flex flex-wrap gap-2 pt-1">
+                                {['All', 'Adventure', 'Beach', 'Cultural & Heritage', 'Nature', 'Casino', 'Food & Drink', 'Urban', 'Nature & Wildlife', 'Cultural', 'Wildlife', 'Wellness', 'Food', 'Water Sports'].map((cat) => {
+                                  const isPreferred = cat !== 'All' && preferredCats.includes(cat);
+                                  const isActive = activityCategoryFilter === cat;
+                                  return (
+                                    <button
+                                      key={cat}
+                                      onClick={() => setActivityCategoryFilter(cat)}
+                                      title={isPreferred ? 'Preferred by tourist (set in Tourist Data → Preferences)' : undefined}
+                                      className={`px-4 py-2 rounded-xl text-xs font-bold transition-all uppercase tracking-wide flex items-center gap-1.5
+                                        ${isActive
+                                          ? isPreferred
+                                            ? 'bg-amber-600 text-white shadow-sm ring-2 ring-amber-300'
+                                            : 'bg-emerald-800 text-white shadow-sm'
+                                          : isPreferred
+                                            ? 'bg-amber-100 hover:bg-amber-200 text-amber-900 border border-amber-300 shadow-2xs'
+                                            : 'bg-neutral-100 hover:bg-neutral-200 text-neutral-600'
+                                        }`}
+                                    >
+                                      {isPreferred && <span className="text-[11px] leading-none">★</span>}
+                                      <span>{cat}</span>
+                                    </button>
+                                  );
+                                })}
+                              </div>
+                              {preferredCats.length > 0 && (
+                                <div className="flex items-center gap-2 text-[11px] text-amber-800 bg-amber-50/70 border border-amber-200/70 rounded-xl px-3 py-1.5">
+                                  <span className="font-bold">★ Tourist Preferences:</span>
+                                  <span className="text-amber-900/80">Highlighted categories match the tourist&apos;s preferred activity list.</span>
+                                </div>
+                              )}
+                            </>
+                          );
+                        })()}
                       </div>
 
                       {/* Activities Display List */}
                       <div className="space-y-4">
                         {filteredActivities.map((act) => {
                           const isSelected = selectedActivityIds.includes(act.id);
+                          const preferredCats = touristData?.preferences?.activity_preferences || [];
+                          const isOutsidePref = isSelected && preferredCats.length > 0 && !preferredCats.includes(act.category);
                           return (
                             <div
                               key={act.id}
                               className={`bg-white rounded-3xl p-6 border transition-all flex flex-col md:flex-row gap-6 hover:shadow-md
-                                ${isSelected
-                                  ? 'border-emerald-800/30 ring-1 ring-emerald-800/20 bg-emerald-50/5'
-                                  : 'border-neutral-200'
+                                ${isOutsidePref
+                                  ? 'border-amber-400/80 ring-1 ring-amber-300/60 bg-amber-50/20'
+                                  : isSelected
+                                    ? 'border-emerald-800/30 ring-1 ring-emerald-800/20 bg-emerald-50/5'
+                                    : 'border-neutral-200'
                                 }`}
                             >
                               {/* Left side: Thumbnail */}
@@ -10781,7 +10980,26 @@ ${chauffeurHtml}
                               {/* Middle side: Details */}
                               <div className="flex-1 space-y-3">
                                 <div>
-                                  <h3 className="text-md font-serif font-bold text-neutral-800">{act.activity_name}</h3>
+                                  <div className="flex items-center gap-2">
+                                    <h3 className="text-md font-serif font-bold text-neutral-800">{act.activity_name}</h3>
+                                    {isOutsidePref && (
+                                      <span
+                                        className="inline-flex items-center cursor-help shrink-0"
+                                        onMouseEnter={(e) => {
+                                        const rect = e.currentTarget.getBoundingClientRect();
+                                        const x = Math.min(Math.max(rect.left + rect.width / 2, 140), window.innerWidth - 140);
+                                        setHoveredActivityAlert({
+                                          text: `"${act.activity_name}" (${act.category}) is outside the tourist's preferred list of activities.`,
+                                          x,
+                                          y: rect.top - 8,
+                                        });
+                                      }}
+                                        onMouseLeave={() => setHoveredActivityAlert(null)}
+                                      >
+                                        <AlertCircle className="w-4 h-4 text-amber-600" />
+                                      </span>
+                                    )}
+                                  </div>
                                   <div className="flex flex-wrap items-center gap-x-3 gap-y-1.5 mt-1.5 text-xs text-neutral-500 font-medium">
                                     <span className="flex items-center gap-1">
                                       <MapPin className="w-3.5 h-3.5 text-neutral-400" />
@@ -10861,9 +11079,39 @@ ${chauffeurHtml}
                       <div className="bg-white rounded-3xl border border-neutral-200 shadow-md p-6">
 
                         {/* Header */}
-                        <div className="border-b border-neutral-100 pb-4 mb-4">
-                          <h3 className="text-md font-serif font-bold text-neutral-800">Selected Activities</h3>
-                          <p className="text-xs text-neutral-400">Order and prioritize the selected experiences for this basic itinerary draft.</p>
+                        <div className="border-b border-neutral-100 pb-4 mb-4 flex items-center justify-between gap-2 flex-wrap">
+                          <div>
+                            <h3 className="text-md font-serif font-bold text-neutral-800">Selected Activities</h3>
+                            <p className="text-xs text-neutral-400">Order, assign tour dates, and prioritize selected experiences.</p>
+                          </div>
+                          {selectedActivities.length > 0 && (
+                            <button
+                              type="button"
+                              disabled={isSavingActivityDates || isLockedByOther}
+                              onClick={async () => {
+                                setIsSavingActivityDates(true);
+                                try {
+                                  const payload = selectedActivities.map((act, idx) => ({
+                                    activity_id: act.id,
+                                    tour_date: activityDateMap[act.id] || '',
+                                    sort_order: idx + 1,
+                                  }));
+                                  const res = await saveTourActivitySelectionsAction(tourId, payload);
+                                  if (res.success) {
+                                    alert('Selected activities and tour dates saved.');
+                                  } else {
+                                    alert('Failed to save activity dates: ' + (res.error || 'Unknown error'));
+                                  }
+                                } finally {
+                                  setIsSavingActivityDates(false);
+                                }
+                              }}
+                              className="px-3 py-1.5 rounded-xl bg-emerald-800 hover:bg-emerald-900 text-white text-[11px] font-bold shadow-sm transition-all flex items-center gap-1.5 disabled:opacity-50"
+                            >
+                              <Save className="w-3.5 h-3.5" />
+                              <span>{isSavingActivityDates ? 'Saving...' : 'Save Dates'}</span>
+                            </button>
+                          )}
                         </div>
 
                         {/* Summary Stats / Trip Duration Budget */}
@@ -10951,20 +11199,65 @@ ${chauffeurHtml}
 
                         {/* Selected List */}
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-3 max-h-[420px] overflow-y-auto pr-1">
-                          {selectedActivities.map((act, index) => (
+                          {selectedActivities.map((act, index) => {
+                            const preferredCats = touristData?.preferences?.activity_preferences || [];
+                            const isOutsidePref = preferredCats.length > 0 && !preferredCats.includes(act.category);
+                            return (
                             <div
                               key={act.id}
-                              className="flex items-center gap-3 p-3 rounded-2xl border border-neutral-200/80 bg-white hover:border-neutral-300 transition-all relative group"
+                              className={`flex items-center gap-3 p-3 rounded-2xl border transition-all relative group ${
+                                isOutsidePref
+                                  ? 'border-amber-300 bg-amber-50/30 hover:border-amber-400'
+                                  : 'border-neutral-200/80 bg-white hover:border-neutral-300'
+                              }`}
                             >
                               {/* Order Badge */}
-                              <div className="w-6 h-6 rounded-lg bg-emerald-50 text-emerald-800 border border-emerald-100/50 flex items-center justify-center text-xs font-bold shrink-0">
+                              <div className={`w-6 h-6 rounded-lg border flex items-center justify-center text-xs font-bold shrink-0 ${
+                                isOutsidePref
+                                  ? 'bg-amber-100 text-amber-800 border-amber-200'
+                                  : 'bg-emerald-50 text-emerald-800 border-emerald-100/50'
+                              }`}>
                                 {index + 1}
                               </div>
 
                               {/* Details */}
                               <div className="flex-1 min-w-0">
-                                <h4 className="text-xs font-bold text-neutral-800 truncate">{act.activity_name}</h4>
+                                <div className="flex items-center gap-1.5">
+                                  <h4 className="text-xs font-bold text-neutral-800 truncate">{act.activity_name}</h4>
+                                  {isOutsidePref && (
+                                    <span
+                                      className="inline-flex items-center cursor-help shrink-0"
+                                      onMouseEnter={(e) => {
+                                        const rect = e.currentTarget.getBoundingClientRect();
+                                        const x = Math.min(Math.max(rect.left + rect.width / 2, 140), window.innerWidth - 140);
+                                        setHoveredActivityAlert({
+                                          text: `"${act.activity_name}" (${act.category}) is outside the tourist's preferred list of activities.`,
+                                          x,
+                                          y: rect.top - 8,
+                                        });
+                                      }}
+                                      onMouseLeave={() => setHoveredActivityAlert(null)}
+                                    >
+                                      <AlertCircle className="w-3.5 h-3.5 text-amber-600" />
+                                    </span>
+                                  )}
+                                </div>
                                 <span className="text-[10px] text-neutral-400 block truncate">{act.location_name} &bull; {act.duration_hours}h (+{activityTravelPrepTime}h travel/prep)</span>
+                                <div className="mt-1.5 flex items-center gap-1.5">
+                                  <span className="text-[9px] font-bold uppercase text-neutral-400">Date:</span>
+                                  <input
+                                    type="date"
+                                    min={touristData?.preferences?.arrival_date || undefined}
+                                    value={activityDateMap[act.id] || ''}
+                                    onChange={(e) =>
+                                      setActivityDateMap((prev) => ({
+                                        ...prev,
+                                        [act.id]: e.target.value,
+                                      }))
+                                    }
+                                    className="text-[10px] font-mono font-semibold text-neutral-700 bg-neutral-50 border border-neutral-200 rounded-md px-1.5 py-0.5 focus:outline-none focus:border-emerald-700"
+                                  />
+                                </div>
                               </div>
 
                               {/* Controls (Remove) */}
@@ -10978,7 +11271,8 @@ ${chauffeurHtml}
                                 </button>
                               </div>
                             </div>
-                          ))}
+                            );
+                          })}
 
                           {selectedActivities.length === 0 && (
                             <div className="md:col-span-2 border border-dashed border-neutral-200 bg-neutral-50/50 rounded-2xl p-8 text-center flex flex-col items-center justify-center min-h-[180px]">
@@ -10994,6 +11288,20 @@ ${chauffeurHtml}
                     </div>
 
                   </div>
+                ) : track === 'basic' && currentStep.id === 'proposed-hotels' ? (
+                  <ProposedHotelsStep
+                    tourId={tourId}
+                    arrivalDate={touristData.preferences.arrival_date}
+                    departureDate={touristData.preferences.departure_date}
+                    durationDays={touristData.preferences.duration_days}
+                    travelRoute={touristData.preferences.travel_route || []}
+                    hotels={masterData.hotels || []}
+                    selectedActivities={selectedActivities}
+                    activityDateMap={activityDateMap}
+                    proposedHotels={proposedHotels}
+                    onProposedHotelsChange={setProposedHotels}
+                    disabled={isLockedByOther}
+                  />
                 ) : track === 'basic' && currentStep.id === 'concierge-config' ? (
                   <div className="space-y-6 animate-in fade-in slide-in-from-bottom-3 duration-300">
                     {/* Top Header Card with Download PDF */}
@@ -24633,6 +24941,17 @@ ${chauffeurHtml}
               </div>
 
             </div>
+          </div>
+        )}
+
+        {/* Fixed Floating Tooltip (escapes overflow-y-auto, positioned at hovered icon) */}
+        {hoveredActivityAlert && (
+          <div
+            style={{ left: hoveredActivityAlert.x, top: hoveredActivityAlert.y, transform: 'translate(-50%, -100%)' }}
+            className="fixed z-[9999] pointer-events-none w-64 px-3 py-2 rounded-xl bg-neutral-900 text-white text-[11px] font-medium leading-snug shadow-2xl border border-amber-400/40 flex items-start gap-2"
+          >
+            <AlertCircle className="w-3.5 h-3.5 text-amber-400 shrink-0 mt-0.5" />
+            <span>{hoveredActivityAlert.text}</span>
           </div>
         )}
 

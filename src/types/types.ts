@@ -1,13 +1,14 @@
 export type TrackType = 'basic' | 'final';
 
-export type BasicStep = 
-  | 'tourist-data' 
-  | 'activity-selection' 
+export type BasicStep =
+  | 'tourist-data'
+  | 'activity-selection'
+  | 'proposed-hotels'
   | 'concierge-config'
   | 'prepare-basic';
 
-export type PrepareBasicSubStep = 
-  | 'ai-builder' 
+export type PrepareBasicSubStep =
+  | 'ai-builder'
   | 'share-tourist';
 
 export type FinalStep =
@@ -67,20 +68,20 @@ export const REQUEST_STATUSES = ['Pending', 'Assigned', 'Active', 'Completed', '
 export type RequestStatus = typeof REQUEST_STATUSES[number];
 
 export type ServiceScope =
-    | 'Book International Flights'
-    | 'Plan Activities & Experiences'
-    | 'Visa Assistance';
+  | 'Book International Flights'
+  | 'Plan Activities & Experiences'
+  | 'Visa Assistance';
 
 export type TripStatus =
-    | 'Draft'
-    | 'Proposal Sent'
-    | 'Client Reviewing'
-    | 'Approved'
-    | 'Booking In Progress'
-    | 'Fully Confirmed'
-    | 'Documents Sent'
-    | 'Completed'
-    | 'Archived';
+  | 'Draft'
+  | 'Proposal Sent'
+  | 'Client Reviewing'
+  | 'Approved'
+  | 'Booking In Progress'
+  | 'Fully Confirmed'
+  | 'Documents Sent'
+  | 'Completed'
+  | 'Archived';
 
 export const ITINERARY_BLOCK_TYPES = ['activity', 'travel', 'meal', 'sleep', 'train', 'buffer', 'wait', 'guide', 'custom'] as const;
 export type ItineraryBlockType = typeof ITINERARY_BLOCK_TYPES[number];
@@ -175,12 +176,12 @@ export const Settings = {
 export type RoomSizeName = 'single_room' | 'double_room' | 'twin_room' | 'triple_room' | 'family_room';
 
 export const VENDOR_EMAIL_STATUSES = {
-  PENDING:   'Pending',
-  SENT:      'Sent',
-  REPLIED:   'Replied',
-  DECLINED:  'Declined',
-  EXPIRED:   'Expired',
-  SELECTED:  'Selected',
+  PENDING: 'Pending',
+  SENT: 'Sent',
+  REPLIED: 'Replied',
+  DECLINED: 'Declined',
+  EXPIRED: 'Expired',
+  SELECTED: 'Selected',
   CONFIRMED: 'Confirmed',
   CANCELLED: 'Cancelled',
 } as const;
@@ -192,23 +193,23 @@ export type TourExpenseCategory = typeof TOUR_EXPENSE_CATEGORIES[number];
 export type PoSettlementMode = 'invoice' | 'direct';
 
 export interface TourConciergeItem {
-    id?: string;
-    tour_id: string;
-    tour_itinerary_id?: string | null;
-    concierge_cost_item_id: string;
-    quantity: number;
-    cost: number | null;
-    created_at?: string;
-    updated_at?: string;
-    cost_item?: {
-        cost_code: string;
-        title: string;
-        details?: string | null;
-        category: string;
-        default_cost: number;
-        currency: string;
-        costing_basis: string;
-    };
+  id?: string;
+  tour_id: string;
+  tour_itinerary_id?: string | null;
+  concierge_cost_item_id: string;
+  quantity: number;
+  cost: number | null;
+  created_at?: string;
+  updated_at?: string;
+  cost_item?: {
+    cost_code: string;
+    title: string;
+    details?: string | null;
+    category: string;
+    default_cost: number;
+    currency: string;
+    costing_basis: string;
+  };
 }
 
 export type { ActivityBookingItem, ActivityBookingStatus } from './activity-booking.type';
@@ -219,70 +220,70 @@ export type TaskStatus = 'pending' | 'in_progress' | 'on_hold' | 'in_review' | '
 export type TaskPriority = 'low' | 'medium' | 'high' | 'urgent';
 export type TaskDueBasis = 'creation' | 'tour_start';
 export type TaskStepKey =
-    | 'ai-builder' | 'concierge-config' | 'hotel-selection' | 'activity' | 'restaurant'
-    | 'transport' | 'guide' | 'driver' | 'po-creation' | 'payment-receive'
-    | 'finance-controlling' | 'profit-loss' | 'general';
+  | 'ai-builder' | 'concierge-config' | 'hotel-selection' | 'activity' | 'restaurant'
+  | 'transport' | 'guide' | 'driver' | 'po-creation' | 'payment-receive'
+  | 'finance-controlling' | 'profit-loss' | 'general';
 
 export const TASK_STEPS: { key: TaskStepKey; label: string }[] = [
-    { key: 'ai-builder', label: 'AI Builder' },
-    { key: 'concierge-config', label: 'Concierge Config' },
-    { key: 'hotel-selection', label: 'Hotel Selection' },
-    { key: 'activity', label: 'Activity' },
-    { key: 'restaurant', label: 'Restaurant' },
-    { key: 'transport', label: 'Transport Provider' },
-    { key: 'guide', label: 'Guide' },
-    { key: 'driver', label: 'Driver' },
-    { key: 'po-creation', label: 'PO Creation' },
-    { key: 'payment-receive', label: 'Customer Payment' },
-    { key: 'finance-controlling', label: 'Finance Controlling' },
-    { key: 'profit-loss', label: 'Profit & Loss' },
-    { key: 'general', label: 'General' },
+  { key: 'ai-builder', label: 'AI Builder' },
+  { key: 'concierge-config', label: 'Concierge Config' },
+  { key: 'hotel-selection', label: 'Hotel Selection' },
+  { key: 'activity', label: 'Activity' },
+  { key: 'restaurant', label: 'Restaurant' },
+  { key: 'transport', label: 'Transport Provider' },
+  { key: 'guide', label: 'Guide' },
+  { key: 'driver', label: 'Driver' },
+  { key: 'po-creation', label: 'PO Creation' },
+  { key: 'payment-receive', label: 'Customer Payment' },
+  { key: 'finance-controlling', label: 'Finance Controlling' },
+  { key: 'profit-loss', label: 'Profit & Loss' },
+  { key: 'general', label: 'General' },
 ];
 
 export const PLANNER_STEP_TO_TASK_STEP: Record<string, TaskStepKey> = {
-    'tourist-data': 'general', 'activity-selection': 'activity', 'ai-builder': 'ai-builder',
-    'concierge-config': 'concierge-config', 'share-tourist': 'general', 'element-selection': 'general',
-    'po-creation': 'po-creation', 'hotel-selection': 'hotel-selection', 'activity-provider': 'activity',
-    'restaurant-selection': 'restaurant', 'transport-provider': 'transport', 'security-service': 'general',
-    'guide-selection': 'guide', 'driver-selection': 'driver', 'payment-receive': 'payment-receive',
-    'finance-controlling': 'finance-controlling', 'profit-loss': 'profit-loss',
+  'tourist-data': 'general', 'activity-selection': 'activity', 'proposed-hotels': 'hotel-selection', 'ai-builder': 'ai-builder',
+  'concierge-config': 'concierge-config', 'share-tourist': 'general', 'element-selection': 'general',
+  'po-creation': 'po-creation', 'hotel-selection': 'hotel-selection', 'activity-provider': 'activity',
+  'restaurant-selection': 'restaurant', 'transport-provider': 'transport', 'security-service': 'general',
+  'guide-selection': 'guide', 'driver-selection': 'driver', 'payment-receive': 'payment-receive',
+  'finance-controlling': 'finance-controlling', 'profit-loss': 'profit-loss',
 };
 
 // --- Employee Hierarchy & Tour Commission Types ---
 export type CommissionStatus =
-    | 'Not Eligible'
-    | 'Calculated'
-    | 'Pending Approval'
-    | 'Approved'
-    | 'Paid'
-    | 'Disputed'
-    | 'Cancelled';
+  | 'Not Eligible'
+  | 'Calculated'
+  | 'Pending Approval'
+  | 'Approved'
+  | 'Paid'
+  | 'Disputed'
+  | 'Cancelled';
 
 export type PerformanceRatingTier = 'below' | 'meets' | 'exceeds' | 'exceptional';
 
 export type MultiplierCapMode = 'RESERVE_NORMALIZED' | 'BASE_WITH_CEILING';
 
 export type CommissionAllocationType =
-    | 'DIRECT'
-    | 'LEADERSHIP_TIER_1'
-    | 'LEADERSHIP_TIER_2'
-    | 'LEADERSHIP_TIER_3'
-    | 'TEAM_DEVELOPMENT';
+  | 'DIRECT'
+  | 'LEADERSHIP_TIER_1'
+  | 'LEADERSHIP_TIER_2'
+  | 'LEADERSHIP_TIER_3'
+  | 'TEAM_DEVELOPMENT';
 
 export type SimulationOrgPresetKey =
-    | 'solo_agent'
-    | 'agent_under_senior'
-    | 'senior_with_junior'
-    | 'exec_multi_team'
-    | 'multi_supervisor_chain';
+  | 'solo_agent'
+  | 'agent_under_senior'
+  | 'senior_with_junior'
+  | 'exec_multi_team'
+  | 'multi_supervisor_chain';
 
 export type CommissionAdjustmentActionType =
-    | 'CALCULATED'
-    | 'STATUS_CHANGE'
-    | 'DECLARED_GP_UPDATE'
-    | 'MANUAL_ADJUSTMENT'
-    | 'CAP_OVERRIDE'
-    | 'PAID';
+  | 'CALCULATED'
+  | 'STATUS_CHANGE'
+  | 'DECLARED_GP_UPDATE'
+  | 'MANUAL_ADJUSTMENT'
+  | 'CAP_OVERRIDE'
+  | 'PAID';
 
 // --- Office HR & Employee Management Types ---
 export type EmployeeEmploymentType = 'Full-Time' | 'Part-Time' | 'Probation' | 'Contract';
