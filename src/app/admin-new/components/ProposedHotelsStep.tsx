@@ -467,11 +467,6 @@ export default function ProposedHotelsStep({
                         <h3 className="text-xl font-serif font-bold text-neutral-800">
                             Proposed Hotels by Tour Date
                         </h3>
-                        {!loadingHotels && (
-                            <span className="px-2.5 py-0.5 rounded-full bg-neutral-100 border border-neutral-200 text-[10px] font-bold text-neutral-600">
-                                {catalogHotels.length} hotels available
-                            </span>
-                        )}
                     </div>
                     <p className="text-xs text-neutral-500 mt-1">
                         Select <strong>3 to 5 hotel options</strong> for each tour night from the full hotel database.
@@ -582,7 +577,7 @@ export default function ProposedHotelsStep({
                                     </div>
 
                                     <span
-                                        className={`px-3 py-1 rounded-full text-xs font-bold border ${
+                                        className={`hidden sm:inline-flex px-3 py-1 rounded-full text-xs font-bold border ${
                                             hasMinOptions
                                                 ? 'bg-emerald-50 text-emerald-800 border-emerald-200'
                                                 : 'bg-amber-50 text-amber-800 border-amber-200'
@@ -623,7 +618,7 @@ export default function ProposedHotelsStep({
                                                         [slot.date]: hotelId,
                                                     }))
                                                 }
-                                                placeholder={`Search and select hotel option #${options.length + 1} (${availableHotels.length} hotels)…`}
+                                                placeholder={`Search and select hotel option #${options.length + 1}…`}
                                                 loading={loadingHotels}
                                                 disabled={disabled}
                                             />
