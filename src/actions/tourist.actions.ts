@@ -13,14 +13,14 @@ async function assertTouristOwnsTour(tourId: string): Promise<string> {
     if (!user) throw new Error("Please sign in to access your trip.");
 
     const admin = createAdminClient();
-    const { data: tour, error } = await admin
-        .from('tours')
-        .select('id, tourist_id')
-        .eq('id', tourId)
-        .single();
+    const [{ data: tour, error }, { data: roleRows }] = await Promise.all([
+        admin.from('tours').select('id, tourist_id').eq('id', tourId).single(),
+        admin.from('user_roles').select('roles(name)').eq('user_id', user.id),
+    ]);
 
     if (error || !tour) throw new Error("Tour not found.");
-    if (tour.tourist_id && tour.tourist_id !== user.id) {
+    const isStaff = (roleRows || []).some((r: any) => r.roles?.name && r.roles.name !== 'tourist');
+    if (!isStaff && tour.tourist_id && tour.tourist_id !== user.id) {
         throw new Error("Unauthorized access to this tour.");
     }
     return user.id;

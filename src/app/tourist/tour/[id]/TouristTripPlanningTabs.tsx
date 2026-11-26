@@ -156,6 +156,57 @@ export default function TouristTripPlanningTabs({
         return selectedActivityIds.map((id) => byId.get(id)).filter(Boolean);
     }, [selectedActivityIds, activitiesList]);
 
+    const activityDaySlots = useMemo(() => {
+        const byDate = new Map<string, { date: string; dayNumber: number; location: string }>();
+        const addDays = (isoDate: string, days: number) => {
+            const d = new Date(`${isoDate.slice(0, 10)}T00:00:00Z`);
+            if (Number.isNaN(d.getTime())) return '';
+            d.setUTCDate(d.getUTCDate() + days);
+            return d.toISOString().slice(0, 10);
+        };
+        const arrival = touristData?.preferences?.arrival_date || '';
+        const departure = touristData?.preferences?.departure_date || '';
+        const dur = touristData?.preferences?.duration_days || 0;
+
+        routeStops.forEach((stop, idx) => {
+            const d = stop.tour_date ? stop.tour_date.slice(0, 10) : (arrival ? addDays(arrival, idx) : '');
+            if (!d) return;
+            if (!byDate.has(d)) {
+                byDate.set(d, { date: d, dayNumber: stop.day_number ?? idx + 1, location: stop.location_name || '' });
+            } else if (stop.location_name && !byDate.get(d)!.location) {
+                byDate.get(d)!.location = stop.location_name;
+            }
+        });
+
+        if (arrival) {
+            const start = new Date(`${arrival.slice(0, 10)}T00:00:00Z`);
+            let totalDays = dur;
+            if (departure) {
+                const end = new Date(`${departure.slice(0, 10)}T00:00:00Z`);
+                if (!Number.isNaN(start.getTime()) && !Number.isNaN(end.getTime()) && end >= start) {
+                    totalDays = Math.round((end.getTime() - start.getTime()) / (1000 * 60 * 60 * 24)) + 1;
+                }
+            }
+            for (let i = 0; i < totalDays; i++) {
+                const d = addDays(arrival, i);
+                if (d && !byDate.has(d)) {
+                    byDate.set(d, { date: d, dayNumber: i + 1, location: '' });
+                }
+            }
+        }
+
+        selectedActivities.forEach((act) => {
+            const d = activityDateMap[act.id];
+            if (d && !byDate.has(d)) {
+                byDate.set(d, { date: d, dayNumber: byDate.size + 1, location: act.location_name || act.district || '' });
+            }
+        });
+
+        return Array.from(byDate.values())
+            .sort((a, b) => a.date.localeCompare(b.date))
+            .map((slot, idx) => ({ ...slot, dayNumber: idx + 1 }));
+    }, [routeStops, touristData?.preferences?.arrival_date, touristData?.preferences?.departure_date, touristData?.preferences?.duration_days, selectedActivities, activityDateMap]);
+
     const filteredActivities = useMemo(() => {
         const q = activitySearch.trim().toLowerCase();
         return activitiesList.filter((a) => {
@@ -351,11 +402,10 @@ export default function TouristTripPlanningTabs({
                                 key={t.id}
                                 type="button"
                                 onClick={() => setDataTab(t.id as any)}
-                                className={`min-h-[44px] px-2 py-2 rounded-xl text-xs font-bold flex items-center justify-center gap-1.5 transition-all ${
-                                    active
+                                className={`min-h-[44px] px-2 py-2 rounded-xl text-xs font-bold flex items-center justify-center gap-1.5 transition-all ${active
                                         ? 'bg-brand-green text-white shadow-sm'
                                         : 'text-neutral-600 hover:bg-neutral-100'
-                                }`}
+                                    }`}
                             >
                                 <Icon className="w-4 h-4 shrink-0" />
                                 <span className="truncate">{t.label}</span>
@@ -366,11 +416,10 @@ export default function TouristTripPlanningTabs({
 
                 {dataMsg && (
                     <div
-                        className={`p-3.5 rounded-2xl border text-xs font-semibold flex items-center gap-2 ${
-                            dataMsg.type === 'ok'
+                        className={`p-3.5 rounded-2xl border text-xs font-semibold flex items-center gap-2 ${dataMsg.type === 'ok'
                                 ? 'bg-emerald-50 border-emerald-200 text-emerald-800'
                                 : 'bg-rose-50 border-rose-200 text-rose-700'
-                        }`}
+                            }`}
                     >
                         {dataMsg.type === 'ok' ? <CheckCircle2 className="w-4 h-4 shrink-0" /> : <AlertCircle className="w-4 h-4 shrink-0" />}
                         <span>{dataMsg.text}</span>
@@ -479,13 +528,13 @@ export default function TouristTripPlanningTabs({
                                     setTouristData((prev) =>
                                         prev
                                             ? {
-                                                  ...prev,
-                                                  preferences: {
-                                                      ...prev.preferences,
-                                                      travel_route: stops,
-                                                      travel_locations: stops.map((s) => s.location_name),
-                                                  },
-                                              }
+                                                ...prev,
+                                                preferences: {
+                                                    ...prev.preferences,
+                                                    travel_route: stops,
+                                                    travel_locations: stops.map((s) => s.location_name),
+                                                },
+                                            }
                                             : prev
                                     )
                                 }
@@ -614,11 +663,10 @@ export default function TouristTripPlanningTabs({
 
                 {actMsg && (
                     <div
-                        className={`p-3.5 rounded-2xl border text-xs font-semibold flex items-center gap-2 ${
-                            actMsg.type === 'ok'
+                        className={`p-3.5 rounded-2xl border text-xs font-semibold flex items-center gap-2 ${actMsg.type === 'ok'
                                 ? 'bg-emerald-50 border-emerald-200 text-emerald-800'
                                 : 'bg-rose-50 border-rose-200 text-rose-700'
-                        }`}
+                            }`}
                     >
                         {actMsg.type === 'ok' ? <CheckCircle2 className="w-4 h-4 shrink-0" /> : <AlertCircle className="w-4 h-4 shrink-0" />}
                         <span>{actMsg.text}</span>
@@ -630,18 +678,16 @@ export default function TouristTripPlanningTabs({
                     <button
                         type="button"
                         onClick={() => setMobileActPane('browse')}
-                        className={`min-h-[44px] rounded-xl text-xs font-bold flex items-center justify-center gap-1.5 ${
-                            mobileActPane === 'browse' ? 'bg-brand-green text-white shadow-sm' : 'text-neutral-600'
-                        }`}
+                        className={`min-h-[44px] rounded-xl text-xs font-bold flex items-center justify-center gap-1.5 ${mobileActPane === 'browse' ? 'bg-brand-green text-white shadow-sm' : 'text-neutral-600'
+                            }`}
                     >
                         <Compass className="w-4 h-4" /> Browse ({filteredActivities.length})
                     </button>
                     <button
                         type="button"
                         onClick={() => setMobileActPane('selected')}
-                        className={`min-h-[44px] rounded-xl text-xs font-bold flex items-center justify-center gap-1.5 ${
-                            mobileActPane === 'selected' ? 'bg-brand-green text-white shadow-sm' : 'text-neutral-600'
-                        }`}
+                        className={`min-h-[44px] rounded-xl text-xs font-bold flex items-center justify-center gap-1.5 ${mobileActPane === 'selected' ? 'bg-brand-green text-white shadow-sm' : 'text-neutral-600'
+                            }`}
                     >
                         <Check className="w-4 h-4" /> Selected ({selectedActivities.length})
                     </button>
@@ -671,15 +717,14 @@ export default function TouristTripPlanningTabs({
                                             key={cat}
                                             type="button"
                                             onClick={() => setActivityCat(cat)}
-                                            className={`shrink-0 px-3.5 py-2 rounded-xl text-xs font-bold whitespace-nowrap flex items-center gap-1 transition-all ${
-                                                isActive
+                                            className={`shrink-0 px-3.5 py-2 rounded-xl text-xs font-bold whitespace-nowrap flex items-center gap-1 transition-all ${isActive
                                                     ? isPreferred
                                                         ? 'bg-amber-600 text-white ring-2 ring-amber-300'
                                                         : 'bg-brand-green text-white'
                                                     : isPreferred
                                                         ? 'bg-amber-100 text-amber-900 border border-amber-300'
                                                         : 'bg-neutral-100 text-neutral-600'
-                                            }`}
+                                                }`}
                                         >
                                             {isPreferred && <span>★</span>}
                                             <span>{cat}</span>
@@ -696,13 +741,12 @@ export default function TouristTripPlanningTabs({
                                 return (
                                     <div
                                         key={act.id}
-                                        className={`bg-white rounded-3xl overflow-hidden border shadow-xs transition-all ${
-                                            isOutside
+                                        className={`bg-white rounded-3xl overflow-hidden border shadow-xs transition-all ${isOutside
                                                 ? 'border-amber-400 bg-amber-50/20'
                                                 : isSelected
                                                     ? 'border-emerald-600/40 bg-emerald-50/10'
                                                     : 'border-neutral-200'
-                                        }`}
+                                            }`}
                                     >
                                         {act.images?.[0] && (
                                             <div className="relative h-40 w-full bg-neutral-100">
@@ -743,11 +787,10 @@ export default function TouristTripPlanningTabs({
                                             <button
                                                 type="button"
                                                 onClick={() => handleToggleActivity(act.id)}
-                                                className={`w-full min-h-[44px] rounded-xl text-xs font-bold flex items-center justify-center gap-1.5 transition-all ${
-                                                    isSelected
+                                                className={`w-full min-h-[44px] rounded-xl text-xs font-bold flex items-center justify-center gap-1.5 transition-all ${isSelected
                                                         ? 'bg-rose-50 text-rose-700 border border-rose-200'
                                                         : 'bg-brand-green text-white'
-                                                }`}
+                                                    }`}
                                             >
                                                 {isSelected ? <><Check className="w-4 h-4" /> Selected (Tap to Remove)</> : <><Plus className="w-4 h-4" /> Add to My Tour</>}
                                             </button>
@@ -758,84 +801,216 @@ export default function TouristTripPlanningTabs({
                         </div>
                     </div>
 
-                    {/* Selected Activities Column */}
+                    {/* Selected Activities Column — Day-by-Day Template matching Proposed Hotels */}
                     <div className={`lg:col-span-5 space-y-4 ${mobileActPane === 'browse' ? 'hidden lg:block' : ''}`}>
-                        <div className="bg-white rounded-3xl border border-neutral-200 p-5 shadow-xs space-y-4">
-                            <div className="flex items-center justify-between gap-2">
-                                <div>
-                                    <h3 className="text-base font-serif font-bold text-neutral-800">My Selected Activities</h3>
-                                    <p className="text-xs text-neutral-400">Dates auto-fill from your route and can be adjusted below.</p>
-                                </div>
-                                <span className="px-2.5 py-1 rounded-full bg-emerald-50 text-emerald-800 text-xs font-bold">
-                                    {selectedActivities.length}
-                                </span>
+                        <div className="bg-white rounded-3xl border border-neutral-200 p-5 shadow-xs flex flex-wrap items-center justify-between gap-3">
+                            <div>
+                                <h3 className="text-base font-serif font-bold text-neutral-800 flex items-center gap-2">
+                                    <Compass className="w-5 h-5 text-emerald-800" />
+                                    My Selected Activities
+                                </h3>
+                                <p className="text-xs text-neutral-400 mt-0.5">Organized by tour day and location.</p>
                             </div>
-
-                            {selectedActivities.length === 0 ? (
-                                <div className="py-10 text-center text-xs text-neutral-400 border border-dashed border-neutral-200 rounded-2xl">
-                                    No activities selected yet. Switch to <strong>Browse</strong> to add experiences.
-                                </div>
-                            ) : (
-                                <div className="space-y-3">
-                                    {selectedActivities.map((act, idx) => {
-                                        const isOutside = preferredCategories.length > 0 && !preferredCategories.includes(act.category);
-                                        return (
-                                            <div
-                                                key={act.id}
-                                                className={`p-3.5 rounded-2xl border space-y-2 ${
-                                                    isOutside ? 'border-amber-300 bg-amber-50/30' : 'border-neutral-200 bg-neutral-50/40'
-                                                }`}
-                                            >
-                                                <div className="flex items-start justify-between gap-2">
-                                                    <div className="flex items-center gap-2 min-w-0">
-                                                        <span className="w-6 h-6 rounded-lg bg-brand-green text-white text-xs font-bold flex items-center justify-center shrink-0">
-                                                            {idx + 1}
-                                                        </span>
-                                                        <div className="min-w-0">
-                                                            <div className="text-sm font-bold text-neutral-800 truncate">{act.activity_name}</div>
-                                                            <div className="text-[11px] text-neutral-500">{act.location_name || act.district} · {act.duration_hours}h</div>
-                                                        </div>
-                                                    </div>
-                                                    <button
-                                                        type="button"
-                                                        onClick={() => handleToggleActivity(act.id)}
-                                                        className="p-2 rounded-xl text-rose-500 hover:bg-rose-50 shrink-0"
-                                                    >
-                                                        <Trash2 className="w-4 h-4" />
-                                                    </button>
-                                                </div>
-                                                {isOutside && (
-                                                    <div className="text-[11px] text-amber-800 flex items-center gap-1.5 font-medium">
-                                                        <AlertCircle className="w-3.5 h-3.5 shrink-0 text-amber-600" />
-                                                        <span>Outside your preferred categories ({act.category})</span>
-                                                    </div>
-                                                )}
-                                                <div className="flex items-center gap-2">
-                                                    <Calendar className="w-4 h-4 text-neutral-400 shrink-0" />
-                                                    <input
-                                                        type="date"
-                                                        min={touristData.preferences.arrival_date || undefined}
-                                                        value={activityDateMap[act.id] || ''}
-                                                        onChange={(e) => setActivityDateMap((prev) => ({ ...prev, [act.id]: e.target.value }))}
-                                                        className="flex-1 px-3 py-2 rounded-xl border border-neutral-200 bg-white text-xs font-mono font-semibold text-neutral-800"
-                                                    />
-                                                </div>
-                                            </div>
-                                        );
-                                    })}
-                                </div>
-                            )}
-
                             <button
                                 type="button"
                                 onClick={handleSaveActivities}
                                 disabled={savingActs}
-                                className="w-full min-h-[48px] px-5 py-3 rounded-2xl bg-brand-green hover:bg-emerald-900 text-white text-sm font-bold shadow-md flex items-center justify-center gap-2 disabled:opacity-50"
+                                className="min-h-[40px] px-4 py-2 rounded-xl bg-brand-green hover:bg-emerald-900 text-white text-xs font-bold shadow-sm flex items-center gap-1.5 disabled:opacity-50"
                             >
-                                {savingActs ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
-                                <span>{savingActs ? 'Saving...' : 'Save My Selected Activities'}</span>
+                                {savingActs ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Save className="w-3.5 h-3.5" />}
+                                <span>{savingActs ? 'Saving...' : 'Save Activities'}</span>
                             </button>
                         </div>
+
+                        {selectedActivities.length === 0 ? (
+                            <div className="bg-white rounded-3xl border border-dashed border-neutral-200 py-10 px-6 text-center text-xs text-neutral-400">
+                                No activities selected yet. Switch to <strong>Browse</strong> to add experiences.
+                            </div>
+                        ) : (
+                            <div className="space-y-4">
+                                {activityDaySlots
+                                    .filter((slot) => selectedActivities.some((a) => activityDateMap[a.id] === slot.date))
+                                    .map((slot) => {
+                                        const dayActs = selectedActivities.filter((a) => activityDateMap[a.id] === slot.date);
+                                        const displayLocation =
+                                            slot.location ||
+                                            dayActs[0]?.location_name ||
+                                            dayActs[0]?.district ||
+                                            '';
+                                        return (
+                                            <div
+                                                key={slot.date}
+                                                className="bg-white rounded-3xl border border-neutral-200 shadow-xs overflow-hidden"
+                                            >
+                                                {/* Day Card Header (matching Proposed Hotels template) */}
+                                                <div className="px-5 py-3.5 bg-neutral-50/80 border-b border-neutral-200/80 flex flex-wrap items-center gap-2.5">
+                                                    <span className="px-3 py-1 rounded-xl bg-emerald-800 text-white text-xs font-extrabold">
+                                                        Day {slot.dayNumber}
+                                                    </span>
+                                                    <span className="text-sm font-mono font-bold text-neutral-800 flex items-center gap-1.5">
+                                                        <Calendar className="w-4 h-4 text-emerald-700" />
+                                                        {slot.date}
+                                                    </span>
+                                                    {displayLocation && (
+                                                        <span className="px-3 py-1 rounded-full bg-amber-50 border border-amber-200 text-amber-900 text-xs font-bold flex items-center gap-1">
+                                                            <MapPin className="w-3.5 h-3.5 text-amber-600" />
+                                                            {displayLocation}
+                                                        </span>
+                                                    )}
+                                                </div>
+
+                                                {/* Day Activities with Images */}
+                                                <div className="p-4 space-y-3">
+                                                    {dayActs.map((act) => {
+                                                        const isOutside = preferredCategories.length > 0 && !preferredCategories.includes(act.category);
+                                                        return (
+                                                            <div
+                                                                key={act.id}
+                                                                className={`rounded-2xl border overflow-hidden transition-all ${isOutside
+                                                                        ? 'border-amber-300 bg-amber-50/30'
+                                                                        : 'border-neutral-200 bg-neutral-50/40'
+                                                                    }`}
+                                                            >
+                                                                {act.images?.[0] ? (
+                                                                    <div className="relative h-36 w-full bg-neutral-100">
+                                                                        <img
+                                                                            src={act.images[0]}
+                                                                            alt={act.activity_name}
+                                                                            className="w-full h-full object-cover"
+                                                                        />
+                                                                        {act.category && (
+                                                                            <span className="absolute top-2.5 left-2.5 px-2.5 py-0.5 rounded-full bg-white/95 text-[10px] font-bold uppercase text-neutral-700 shadow-xs">
+                                                                                {act.category}
+                                                                            </span>
+                                                                        )}
+                                                                    </div>
+                                                                ) : (
+                                                                    <div className="h-20 w-full bg-neutral-100 flex items-center justify-center text-neutral-300">
+                                                                        <Compass className="w-6 h-6" />
+                                                                    </div>
+                                                                )}
+
+                                                                <div className="p-3.5 space-y-2">
+                                                                    <div className="flex items-start justify-between gap-2">
+                                                                        <div className="min-w-0">
+                                                                            <h4 className="text-sm font-serif font-bold text-neutral-900 leading-snug">
+                                                                                {act.activity_name}
+                                                                            </h4>
+                                                                            <div className="flex flex-wrap items-center gap-2.5 mt-1 text-[11px] text-neutral-500 font-medium">
+                                                                                <span className="flex items-center gap-1">
+                                                                                    <MapPin className="w-3 h-3 text-brand-gold" />
+                                                                                    {act.location_name || act.district || 'Sri Lanka'}
+                                                                                </span>
+                                                                                <span className="flex items-center gap-1">
+                                                                                    <Clock className="w-3 h-3 text-neutral-400" />
+                                                                                    {act.duration_hours} hrs
+                                                                                </span>
+                                                                            </div>
+                                                                        </div>
+                                                                        <button
+                                                                            type="button"
+                                                                            onClick={() => handleToggleActivity(act.id)}
+                                                                            className="p-2 rounded-xl text-rose-500 hover:bg-rose-50 shrink-0"
+                                                                            title="Remove activity"
+                                                                        >
+                                                                            <Trash2 className="w-4 h-4" />
+                                                                        </button>
+                                                                    </div>
+
+                                                                    {act.description && (
+                                                                        <p className="text-xs text-neutral-500 line-clamp-2 leading-relaxed">
+                                                                            {act.description}
+                                                                        </p>
+                                                                    )}
+
+                                                                    {isOutside && (
+                                                                        <div className="text-[11px] text-amber-800 bg-amber-100/70 border border-amber-200 rounded-xl px-2.5 py-1.5 flex items-center gap-1.5 font-medium">
+                                                                            <AlertCircle className="w-3.5 h-3.5 shrink-0 text-amber-600" />
+                                                                            <span>Outside your preferred categories ({act.category})</span>
+                                                                        </div>
+                                                                    )}
+
+                                                                    <div className="flex items-center gap-2 pt-1">
+                                                                        <Calendar className="w-3.5 h-3.5 text-neutral-400 shrink-0" />
+                                                                        <input
+                                                                            type="date"
+                                                                            min={touristData.preferences.arrival_date || undefined}
+                                                                            value={activityDateMap[act.id] || ''}
+                                                                            onChange={(e) => setActivityDateMap((prev) => ({ ...prev, [act.id]: e.target.value }))}
+                                                                            className="flex-1 px-2.5 py-1.5 rounded-xl border border-neutral-200 bg-white text-xs font-mono font-semibold text-neutral-800"
+                                                                        />
+                                                                    </div>
+                                                                </div>
+                                                            </div>
+                                                        );
+                                                    })}
+                                                </div>
+                                            </div>
+                                        );
+                                    })}
+
+                                {/* Unscheduled Activities (if any selected activity has no date assigned yet) */}
+                                {(() => {
+                                    const unscheduled = selectedActivities.filter((a) => !activityDateMap[a.id]);
+                                    if (unscheduled.length === 0) return null;
+                                    return (
+                                        <div className="bg-white rounded-3xl border border-neutral-200 shadow-xs overflow-hidden">
+                                            <div className="px-5 py-3.5 bg-neutral-50/80 border-b border-neutral-200/80 flex items-center gap-2">
+                                                <span className="px-3 py-1 rounded-xl bg-neutral-700 text-white text-xs font-extrabold">
+                                                    Unscheduled
+                                                </span>
+                                                <span className="text-xs text-neutral-500 font-medium">Pick a tour date below</span>
+                                            </div>
+                                            <div className="p-4 space-y-3">
+                                                {unscheduled.map((act) => {
+                                                    const isOutside = preferredCategories.length > 0 && !preferredCategories.includes(act.category);
+                                                    return (
+                                                        <div
+                                                            key={act.id}
+                                                            className={`rounded-2xl border overflow-hidden ${isOutside ? 'border-amber-300 bg-amber-50/30' : 'border-neutral-200 bg-neutral-50/40'
+                                                                }`}
+                                                        >
+                                                            {act.images?.[0] && (
+                                                                <div className="relative h-32 w-full bg-neutral-100">
+                                                                    <img src={act.images[0]} alt={act.activity_name} className="w-full h-full object-cover" />
+                                                                </div>
+                                                            )}
+                                                            <div className="p-3.5 space-y-2">
+                                                                <div className="flex items-start justify-between gap-2">
+                                                                    <div className="min-w-0">
+                                                                        <h4 className="text-sm font-serif font-bold text-neutral-900">{act.activity_name}</h4>
+                                                                        <div className="text-[11px] text-neutral-500 mt-0.5">
+                                                                            {act.location_name || act.district} · {act.duration_hours} hrs
+                                                                        </div>
+                                                                    </div>
+                                                                    <button
+                                                                        type="button"
+                                                                        onClick={() => handleToggleActivity(act.id)}
+                                                                        className="p-2 rounded-xl text-rose-500 hover:bg-rose-50 shrink-0"
+                                                                    >
+                                                                        <Trash2 className="w-4 h-4" />
+                                                                    </button>
+                                                                </div>
+                                                                <div className="flex items-center gap-2">
+                                                                    <Calendar className="w-3.5 h-3.5 text-neutral-400 shrink-0" />
+                                                                    <input
+                                                                        type="date"
+                                                                        min={touristData.preferences.arrival_date || undefined}
+                                                                        value={activityDateMap[act.id] || ''}
+                                                                        onChange={(e) => setActivityDateMap((prev) => ({ ...prev, [act.id]: e.target.value }))}
+                                                                        className="flex-1 px-2.5 py-1.5 rounded-xl border border-neutral-200 bg-white text-xs font-mono font-semibold text-neutral-800"
+                                                                    />
+                                                                </div>
+                                                            </div>
+                                                        </div>
+                                                    );
+                                                })}
+                                            </div>
+                                        </div>
+                                    );
+                                })()}
+                            </div>
+                        )}
                     </div>
                 </div>
             </div>

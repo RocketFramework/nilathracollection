@@ -79,10 +79,24 @@ export class TouristService {
      */
     static async getTourDetails(tourId: string) {
         const supabase = await createClient();
+        const adminClient = createAdminClient();
 
         const { data: { user } } = await supabase.auth.getUser();
+        if (!user) {
+            throw new Error("Please sign in to view this tour");
+        }
 
-        let query = supabase
+        // Check if logged-in user has a staff role (admin/agent/supervisor/finance)
+        const { data: roleRows } = await adminClient
+            .from('user_roles')
+            .select('roles(name)')
+            .eq('user_id', user.id);
+        const roleNames = (roleRows || [])
+            .map((r: any) => r.roles?.name)
+            .filter(Boolean);
+        const isStaff = roleNames.some((r: string) => r !== 'tourist');
+
+        const { data, error } = await adminClient
             .from('tours')
             .select(`
                 *,
@@ -97,19 +111,15 @@ export class TouristService {
                     daily_activities(title, time_start)
                 )
             `)
-            .eq('id', tourId);
-
-        if (user) {
-            const { data: userData } = await supabase.from('users').select('role').eq('id', user.id).maybeSingle();
-            if (userData && userData.role === 'tourist') {
-                query = query.eq('tourist_id', user.id);
-            }
-        }
-
-        const { data, error } = await query.maybeSingle();
+            .eq('id', tourId)
+            .maybeSingle();
 
         if (error || !data) {
             console.error("Error fetching tour in getTourDetails:", error);
+            throw new Error("Tour not found or access denied");
+        }
+
+        if (!isStaff && data.tourist_id && data.tourist_id !== user.id) {
             throw new Error("Tour not found or access denied");
         }
 
