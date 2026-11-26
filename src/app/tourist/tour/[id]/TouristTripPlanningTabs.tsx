@@ -402,10 +402,11 @@ export default function TouristTripPlanningTabs({
                                 key={t.id}
                                 type="button"
                                 onClick={() => setDataTab(t.id as any)}
-                                className={`min-h-[44px] px-2 py-2 rounded-xl text-xs font-bold flex items-center justify-center gap-1.5 transition-all ${active
+                                className={`min-h-[44px] px-2 py-2 rounded-xl text-xs font-bold flex items-center justify-center gap-1.5 transition-all ${
+                                    active
                                         ? 'bg-brand-green text-white shadow-sm'
                                         : 'text-neutral-600 hover:bg-neutral-100'
-                                    }`}
+                                }`}
                             >
                                 <Icon className="w-4 h-4 shrink-0" />
                                 <span className="truncate">{t.label}</span>
@@ -416,10 +417,11 @@ export default function TouristTripPlanningTabs({
 
                 {dataMsg && (
                     <div
-                        className={`p-3.5 rounded-2xl border text-xs font-semibold flex items-center gap-2 ${dataMsg.type === 'ok'
+                        className={`p-3.5 rounded-2xl border text-xs font-semibold flex items-center gap-2 ${
+                            dataMsg.type === 'ok'
                                 ? 'bg-emerald-50 border-emerald-200 text-emerald-800'
                                 : 'bg-rose-50 border-rose-200 text-rose-700'
-                            }`}
+                        }`}
                     >
                         {dataMsg.type === 'ok' ? <CheckCircle2 className="w-4 h-4 shrink-0" /> : <AlertCircle className="w-4 h-4 shrink-0" />}
                         <span>{dataMsg.text}</span>
@@ -528,13 +530,13 @@ export default function TouristTripPlanningTabs({
                                     setTouristData((prev) =>
                                         prev
                                             ? {
-                                                ...prev,
-                                                preferences: {
-                                                    ...prev.preferences,
-                                                    travel_route: stops,
-                                                    travel_locations: stops.map((s) => s.location_name),
-                                                },
-                                            }
+                                                  ...prev,
+                                                  preferences: {
+                                                      ...prev.preferences,
+                                                      travel_route: stops,
+                                                      travel_locations: stops.map((s) => s.location_name),
+                                                  },
+                                              }
                                             : prev
                                     )
                                 }
@@ -663,10 +665,11 @@ export default function TouristTripPlanningTabs({
 
                 {actMsg && (
                     <div
-                        className={`p-3.5 rounded-2xl border text-xs font-semibold flex items-center gap-2 ${actMsg.type === 'ok'
+                        className={`p-3.5 rounded-2xl border text-xs font-semibold flex items-center gap-2 ${
+                            actMsg.type === 'ok'
                                 ? 'bg-emerald-50 border-emerald-200 text-emerald-800'
                                 : 'bg-rose-50 border-rose-200 text-rose-700'
-                            }`}
+                        }`}
                     >
                         {actMsg.type === 'ok' ? <CheckCircle2 className="w-4 h-4 shrink-0" /> : <AlertCircle className="w-4 h-4 shrink-0" />}
                         <span>{actMsg.text}</span>
@@ -678,16 +681,18 @@ export default function TouristTripPlanningTabs({
                     <button
                         type="button"
                         onClick={() => setMobileActPane('browse')}
-                        className={`min-h-[44px] rounded-xl text-xs font-bold flex items-center justify-center gap-1.5 ${mobileActPane === 'browse' ? 'bg-brand-green text-white shadow-sm' : 'text-neutral-600'
-                            }`}
+                        className={`min-h-[44px] rounded-xl text-xs font-bold flex items-center justify-center gap-1.5 ${
+                            mobileActPane === 'browse' ? 'bg-brand-green text-white shadow-sm' : 'text-neutral-600'
+                        }`}
                     >
                         <Compass className="w-4 h-4" /> Browse ({filteredActivities.length})
                     </button>
                     <button
                         type="button"
                         onClick={() => setMobileActPane('selected')}
-                        className={`min-h-[44px] rounded-xl text-xs font-bold flex items-center justify-center gap-1.5 ${mobileActPane === 'selected' ? 'bg-brand-green text-white shadow-sm' : 'text-neutral-600'
-                            }`}
+                        className={`min-h-[44px] rounded-xl text-xs font-bold flex items-center justify-center gap-1.5 ${
+                            mobileActPane === 'selected' ? 'bg-brand-green text-white shadow-sm' : 'text-neutral-600'
+                        }`}
                     >
                         <Check className="w-4 h-4" /> Selected ({selectedActivities.length})
                     </button>
@@ -717,14 +722,15 @@ export default function TouristTripPlanningTabs({
                                             key={cat}
                                             type="button"
                                             onClick={() => setActivityCat(cat)}
-                                            className={`shrink-0 px-3.5 py-2 rounded-xl text-xs font-bold whitespace-nowrap flex items-center gap-1 transition-all ${isActive
+                                            className={`shrink-0 px-3.5 py-2 rounded-xl text-xs font-bold whitespace-nowrap flex items-center gap-1 transition-all ${
+                                                isActive
                                                     ? isPreferred
                                                         ? 'bg-amber-600 text-white ring-2 ring-amber-300'
                                                         : 'bg-brand-green text-white'
                                                     : isPreferred
                                                         ? 'bg-amber-100 text-amber-900 border border-amber-300'
                                                         : 'bg-neutral-100 text-neutral-600'
-                                                }`}
+                                            }`}
                                         >
                                             {isPreferred && <span>★</span>}
                                             <span>{cat}</span>
@@ -741,12 +747,13 @@ export default function TouristTripPlanningTabs({
                                 return (
                                     <div
                                         key={act.id}
-                                        className={`bg-white rounded-3xl overflow-hidden border shadow-xs transition-all ${isOutside
+                                        className={`bg-white rounded-3xl overflow-hidden border shadow-xs transition-all ${
+                                            isOutside
                                                 ? 'border-amber-400 bg-amber-50/20'
                                                 : isSelected
                                                     ? 'border-emerald-600/40 bg-emerald-50/10'
                                                     : 'border-neutral-200'
-                                            }`}
+                                        }`}
                                     >
                                         {act.images?.[0] && (
                                             <div className="relative h-40 w-full bg-neutral-100">
@@ -787,10 +794,11 @@ export default function TouristTripPlanningTabs({
                                             <button
                                                 type="button"
                                                 onClick={() => handleToggleActivity(act.id)}
-                                                className={`w-full min-h-[44px] rounded-xl text-xs font-bold flex items-center justify-center gap-1.5 transition-all ${isSelected
+                                                className={`w-full min-h-[44px] rounded-xl text-xs font-bold flex items-center justify-center gap-1.5 transition-all ${
+                                                    isSelected
                                                         ? 'bg-rose-50 text-rose-700 border border-rose-200'
                                                         : 'bg-brand-green text-white'
-                                                    }`}
+                                                }`}
                                             >
                                                 {isSelected ? <><Check className="w-4 h-4" /> Selected (Tap to Remove)</> : <><Plus className="w-4 h-4" /> Add to My Tour</>}
                                             </button>
@@ -866,10 +874,11 @@ export default function TouristTripPlanningTabs({
                                                         return (
                                                             <div
                                                                 key={act.id}
-                                                                className={`rounded-2xl border overflow-hidden transition-all ${isOutside
+                                                                className={`rounded-2xl border overflow-hidden transition-all ${
+                                                                    isOutside
                                                                         ? 'border-amber-300 bg-amber-50/30'
                                                                         : 'border-neutral-200 bg-neutral-50/40'
-                                                                    }`}
+                                                                }`}
                                                             >
                                                                 {act.images?.[0] ? (
                                                                     <div className="relative h-36 w-full bg-neutral-100">
@@ -967,8 +976,9 @@ export default function TouristTripPlanningTabs({
                                                     return (
                                                         <div
                                                             key={act.id}
-                                                            className={`rounded-2xl border overflow-hidden ${isOutside ? 'border-amber-300 bg-amber-50/30' : 'border-neutral-200 bg-neutral-50/40'
-                                                                }`}
+                                                            className={`rounded-2xl border overflow-hidden ${
+                                                                isOutside ? 'border-amber-300 bg-amber-50/30' : 'border-neutral-200 bg-neutral-50/40'
+                                                            }`}
                                                         >
                                                             {act.images?.[0] && (
                                                                 <div className="relative h-32 w-full bg-neutral-100">
