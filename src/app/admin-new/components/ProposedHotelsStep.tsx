@@ -41,6 +41,7 @@ interface ProposedHotelsStepProps {
     activityDateMap: Record<number, string>;
     proposedHotels: TourProposedHotelDTO[];
     onProposedHotelsChange: (next: TourProposedHotelDTO[]) => void;
+    onSaveOverride?: (items: TourProposedHotelDTO[]) => Promise<{ success: boolean; error?: string }>;
     disabled?: boolean;
 }
 
@@ -256,6 +257,7 @@ export default function ProposedHotelsStep({
     activityDateMap,
     proposedHotels,
     onProposedHotelsChange,
+    onSaveOverride,
     disabled = false,
 }: ProposedHotelsStepProps) {
     const [allDbHotels, setAllDbHotels] = useState<ProposedHotelOptionDTO[]>([]);
@@ -430,7 +432,9 @@ export default function ProposedHotelsStep({
         setSaving(true);
         setSaveMessage(null);
         try {
-            const res = await saveTourProposedHotelsAction(tourId, proposedHotels);
+            const res = onSaveOverride
+                ? await onSaveOverride(proposedHotels)
+                : await saveTourProposedHotelsAction(tourId, proposedHotels);
             if (res.success) {
                 setSaveMessage({ type: 'ok', text: 'Proposed hotel options saved successfully.' });
             } else {

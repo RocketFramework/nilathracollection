@@ -3,11 +3,12 @@
 import { useState, useEffect } from "react";
 import Link from "next/link";
 import { useParams } from "next/navigation";
-import { MapPin, Phone, Mail, MessageSquare, Download, CheckCircle2, ChevronRight, BedDouble, Calendar, ArrowLeft, ReceiptText, Navigation } from "lucide-react";
+import { MapPin, Phone, Mail, MessageSquare, Download, CheckCircle2, ChevronRight, BedDouble, Calendar, ArrowLeft, ReceiptText, Navigation, User, Compass, Building2, Map } from "lucide-react";
 import { ChatInterface } from "@/components/chat/ChatInterface";
 import { createClient } from "@/utils/supabase/client";
 import { ItineraryPdfTemplate } from "@/app/admin/(authenticated)/planner/components/ItineraryPdfTemplate";
 import { ItineraryBuilder } from "@/app/admin/(authenticated)/planner/steps/ItineraryBuilder";
+import TouristTripPlanningTabs, { type TouristPlanningScreen } from "./TouristTripPlanningTabs";
 
 import { getTouristTourDetailsAction, addTouristCommentToBlockAction } from "@/actions/tourist.actions";
 
@@ -20,6 +21,7 @@ export default function TourDetailsPage() {
     const [userId, setUserId] = useState<string | null>(null);
     const [commentDrafts, setCommentDrafts] = useState<Record<string, string>>({});
     const [savingNote, setSavingNote] = useState<string | null>(null);
+    const [activeTab, setActiveTab] = useState<'overview' | TouristPlanningScreen>('overview');
 
     const handleAddComment = async (blockId: string) => {
         const text = commentDrafts[blockId];
@@ -121,14 +123,47 @@ export default function TourDetailsPage() {
     return (
         <div className="space-y-6 animate-in fade-in duration-500">
             {/* Header / Breadcrumb */}
-            <div className="flex items-center gap-4 text-sm font-medium text-neutral-500">
-                <Link href="/tourist" className="hover:text-brand-green flex items-center gap-1 transition-colors">
+            <div className="flex items-center gap-2 sm:gap-4 text-xs sm:text-sm font-medium text-neutral-500 overflow-x-auto">
+                <Link href="/tourist" className="hover:text-brand-green flex items-center gap-1 transition-colors shrink-0">
                     <ArrowLeft size={16} /> Dashboard
                 </Link>
-                <ChevronRight size={14} />
-                <span className="text-brand-charcoal">{tour.title}</span>
+                <ChevronRight size={14} className="shrink-0" />
+                <span className="text-brand-charcoal truncate">{tour.title}</span>
             </div>
 
+            {/* Mobile-First Sticky Section Navigation */}
+            <div className="sticky top-[68px] z-30 -mx-4 px-4 sm:mx-0 sm:px-0 py-1.5 bg-[#F9FAFB]/95 backdrop-blur-sm">
+                <div className="bg-white p-1.5 rounded-2xl border border-neutral-200 shadow-sm flex gap-1.5 overflow-x-auto">
+                    {[
+                        { id: 'overview', label: 'Overview', icon: Map },
+                        { id: 'tourist-data', label: 'Tourist Data', icon: User },
+                        { id: 'activity-selection', label: 'Activities', icon: Compass },
+                        { id: 'proposed-hotels', label: 'Proposed Hotels', icon: Building2 },
+                    ].map((tab) => {
+                        const Icon = tab.icon;
+                        const active = activeTab === tab.id;
+                        return (
+                            <button
+                                key={tab.id}
+                                type="button"
+                                onClick={() => setActiveTab(tab.id as any)}
+                                className={`flex-1 min-w-[110px] min-h-[44px] px-3 py-2 rounded-xl text-xs font-bold whitespace-nowrap flex items-center justify-center gap-1.5 transition-all ${
+                                    active
+                                        ? 'bg-brand-green text-white shadow-sm'
+                                        : 'text-neutral-600 hover:bg-neutral-100'
+                                }`}
+                            >
+                                <Icon className="w-4 h-4 shrink-0" />
+                                <span>{tab.label}</span>
+                            </button>
+                        );
+                    })}
+                </div>
+            </div>
+
+            {activeTab !== 'overview' ? (
+                <TouristTripPlanningTabs tourId={id} activeScreen={activeTab} />
+            ) : (
             <div className="grid grid-cols-1 xl:grid-cols-3 gap-8">
                 {/* Left Column: Itinerary & Specifics */}
                 <div className="xl:col-span-2 space-y-8">
@@ -444,6 +479,7 @@ export default function TourDetailsPage() {
                     </div>
                 </div>
             </div>
+            )}
 
             {/* Hidden Print Container */}
             <div id="print-container" className="hidden">

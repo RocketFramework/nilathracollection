@@ -221,4 +221,18 @@ export class TourPlanningService {
 
         return all;
     }
+
+    /**
+     * Fetches all active activities for the Activity Selection screen.
+     */
+    static async listAllActivities(): Promise<any[]> {
+        const db = this.db();
+        const { data, error } = await db
+            .from('activities')
+            .select('id, activity_name, category, location_name, district, description, duration_hours, optimal_start_time, optimal_end_time, time_flexible, images, lat, lng')
+            .order('activity_name', { ascending: true });
+
+        if (error) throw error;
+        return data || [];
+    }
 }
