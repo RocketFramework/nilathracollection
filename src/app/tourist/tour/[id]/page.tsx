@@ -23,6 +23,12 @@ export default function TourDetailsPage() {
     const [savingNote, setSavingNote] = useState<string | null>(null);
     const [activeTab, setActiveTab] = useState<'overview' | TouristPlanningScreen>('overview');
 
+    useEffect(() => {
+        if (typeof window !== 'undefined' && window.innerWidth < 640) {
+            setActiveTab((prev) => (prev === 'overview' ? 'tourist-data' : prev));
+        }
+    }, []);
+
     const handleAddComment = async (blockId: string) => {
         const text = commentDrafts[blockId];
         if (!text?.trim()) return;
@@ -147,7 +153,7 @@ export default function TourDetailsPage() {
                                 key={tab.id}
                                 type="button"
                                 onClick={() => setActiveTab(tab.id as any)}
-                                className={`flex-1 min-w-[110px] min-h-[44px] px-3 py-2 rounded-xl text-xs font-bold whitespace-nowrap flex items-center justify-center gap-1.5 transition-all ${
+                                className={`${tab.id === 'overview' ? 'hidden sm:flex' : 'flex'} flex-1 min-w-[100px] min-h-[44px] px-3 py-2 rounded-xl text-xs font-bold whitespace-nowrap items-center justify-center gap-1.5 transition-all ${
                                     active
                                         ? 'bg-brand-green text-white shadow-sm'
                                         : 'text-neutral-600 hover:bg-neutral-100'
