@@ -594,9 +594,9 @@ export default function TouristTripPlanningTabs({
     if (activeScreen === 'activity-selection') {
         return (
             <div className="space-y-4 pb-20 sm:pb-6">
-                {/* Route Preview Strip (matching Tourist Data → Preferences) */}
+                {/* Route Preview Strip (hidden on mobile) */}
                 {routeStops.length > 0 && (
-                    <div className="bg-emerald-50/80 border border-emerald-200/80 rounded-2xl px-3.5 py-2.5 text-xs text-emerald-900 font-medium flex flex-wrap items-center gap-1.5">
+                    <div className="hidden sm:flex bg-emerald-50/80 border border-emerald-200/80 rounded-2xl px-3.5 py-2.5 text-xs text-emerald-900 font-medium flex-wrap items-center gap-1.5">
                         <span className="text-[10px] font-bold uppercase tracking-wider text-emerald-700 mr-1">Route:</span>
                         {routeStops.map((stop, idx) => (
                             <React.Fragment key={`t-route-${idx}-${stop.location_name}`}>

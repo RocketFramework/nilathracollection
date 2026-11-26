@@ -10865,7 +10865,7 @@ ${chauffeurHtml}
                             }));
                       if (routeStops.length === 0) return null;
                       return (
-                        <div className="lg:col-span-12 bg-emerald-50/70 border border-emerald-200/70 rounded-xl px-3.5 py-2.5 text-xs text-emerald-900 font-medium flex flex-wrap items-center gap-1.5">
+                        <div className="hidden sm:flex lg:col-span-12 bg-emerald-50/70 border border-emerald-200/70 rounded-xl px-3.5 py-2.5 text-xs text-emerald-900 font-medium flex-wrap items-center gap-1.5">
                           <span className="text-[10px] font-bold uppercase tracking-wider text-emerald-700 mr-1">Route:</span>
                           {routeStops.map((stop, idx) => (
                             <React.Fragment key={`act-route-preview-${idx}-${stop.location_name}`}>
