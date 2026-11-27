@@ -25,7 +25,7 @@ export default function TourDetailsPage() {
 
     useEffect(() => {
         if (typeof window !== 'undefined' && window.innerWidth < 640) {
-            setActiveTab((prev) => (prev === 'overview' ? 'tourist-data' : prev));
+            setActiveTab((prev) => (prev === 'overview' ? 'proposed-hotels' : prev));
         }
     }, []);
 
@@ -141,10 +141,10 @@ export default function TourDetailsPage() {
             <div className="sticky top-[68px] z-30 -mx-4 px-4 sm:mx-0 sm:px-0 py-1.5 bg-[#F9FAFB]/95 backdrop-blur-sm">
                 <div className="bg-white p-1.5 rounded-2xl border border-neutral-200 shadow-sm flex gap-1.5 overflow-x-auto">
                     {[
-                        { id: 'overview', label: 'Overview', icon: Map },
-                        { id: 'tourist-data', label: 'Tourist Data', icon: User },
-                        { id: 'activity-selection', label: 'Activities', icon: Compass },
                         { id: 'proposed-hotels', label: 'Proposed Hotels', icon: Building2 },
+                        { id: 'activity-selection', label: 'Activities', icon: Compass },
+                        { id: 'tourist-data', label: 'Tourist Data', icon: User },
+                        { id: 'overview', label: 'Overview', icon: Map },
                     ].map((tab) => {
                         const Icon = tab.icon;
                         const active = activeTab === tab.id;

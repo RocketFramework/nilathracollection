@@ -95,7 +95,7 @@ export default function TouristTripPlanningTabs({
     // Activity Selection UI state
     const [activitySearch, setActivitySearch] = useState('');
     const [activityCat, setActivityCat] = useState('All');
-    const [mobileActPane, setMobileActPane] = useState<'browse' | 'selected'>('browse');
+    const [mobileActPane, setMobileActPane] = useState<'browse' | 'selected'>('selected');
     const [savingActs, setSavingActs] = useState(false);
     const [actMsg, setActMsg] = useState<{ type: 'ok' | 'err'; text: string } | null>(null);
     const [activeAlertId, setActiveAlertId] = useState<number | null>(null);
@@ -676,17 +676,8 @@ export default function TouristTripPlanningTabs({
                     </div>
                 )}
 
-                {/* Mobile Switcher: Browse vs My Selected */}
+                {/* Mobile Switcher: Selected first, Browse second */}
                 <div className="lg:hidden bg-white p-1.5 rounded-2xl border border-neutral-200 grid grid-cols-2 gap-1">
-                    <button
-                        type="button"
-                        onClick={() => setMobileActPane('browse')}
-                        className={`min-h-[44px] rounded-xl text-xs font-bold flex items-center justify-center gap-1.5 ${
-                            mobileActPane === 'browse' ? 'bg-brand-green text-white shadow-sm' : 'text-neutral-600'
-                        }`}
-                    >
-                        <Compass className="w-4 h-4" /> Browse ({filteredActivities.length})
-                    </button>
                     <button
                         type="button"
                         onClick={() => setMobileActPane('selected')}
@@ -696,11 +687,20 @@ export default function TouristTripPlanningTabs({
                     >
                         <Check className="w-4 h-4" /> Selected ({selectedActivities.length})
                     </button>
+                    <button
+                        type="button"
+                        onClick={() => setMobileActPane('browse')}
+                        className={`min-h-[44px] rounded-xl text-xs font-bold flex items-center justify-center gap-1.5 ${
+                            mobileActPane === 'browse' ? 'bg-brand-green text-white shadow-sm' : 'text-neutral-600'
+                        }`}
+                    >
+                        <Compass className="w-4 h-4" /> Browse ({filteredActivities.length})
+                    </button>
                 </div>
 
                 <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
-                    {/* Browse Column */}
-                    <div className={`lg:col-span-7 space-y-4 ${mobileActPane === 'selected' ? 'hidden lg:block' : ''}`}>
+                    {/* Browse Column (displayed second on desktop via lg:order-2) */}
+                    <div className={`lg:col-span-7 lg:order-2 space-y-4 ${mobileActPane === 'selected' ? 'hidden lg:block' : ''}`}>
                         <div className="bg-white rounded-3xl p-4 sm:p-5 border border-neutral-200 shadow-xs space-y-3">
                             <div className="relative">
                                 <Search className="w-4 h-4 text-neutral-400 absolute left-3.5 top-3.5" />
@@ -809,8 +809,8 @@ export default function TouristTripPlanningTabs({
                         </div>
                     </div>
 
-                    {/* Selected Activities Column — Day-by-Day Template matching Proposed Hotels */}
-                    <div className={`lg:col-span-5 space-y-4 ${mobileActPane === 'browse' ? 'hidden lg:block' : ''}`}>
+                    {/* Selected Activities Column — displayed first (lg:order-1) */}
+                    <div className={`lg:col-span-5 lg:order-1 space-y-4 ${mobileActPane === 'browse' ? 'hidden lg:block' : ''}`}>
                         <div className="bg-white rounded-3xl border border-neutral-200 p-5 shadow-xs flex flex-wrap items-center justify-between gap-3">
                             <div>
                                 <h3 className="text-base font-serif font-bold text-neutral-800 flex items-center gap-2">
