@@ -8,7 +8,7 @@ export const metadata = {
     title: 'My Tasks | Nilathra',
     description: 'Mobile task list for tour team members.',
     manifest: '/tasks-manifest.webmanifest',
-    themeColor: '#D4AF37',
+    themeColor: '#0F2421',
 };
 
 export default async function MobileTasksPage() {
