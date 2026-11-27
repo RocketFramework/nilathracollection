@@ -713,13 +713,6 @@ export default function ProposedHotelsStep({
                                                             </div>
 
                                                             <div className="flex items-center gap-2 shrink-0 flex-wrap">
-                                                                <input
-                                                                    type="text"
-                                                                    value={opt.notes || ''}
-                                                                    onChange={(e) => handleNoteChange(slot.date, opt.hotel_id, e.target.value)}
-                                                                    placeholder="Option note (e.g. Lake view)..."
-                                                                    className="w-44 px-2.5 py-1.5 rounded-lg border border-neutral-200 bg-white text-xs text-neutral-700 focus:outline-none focus:border-emerald-700"
-                                                                />
                                                                 <button
                                                                     type="button"
                                                                     onClick={() => handleTogglePrimary(slot.date, opt.hotel_id)}
@@ -759,6 +752,17 @@ export default function ProposedHotelsStep({
                                                                     <Trash2 className="w-3.5 h-3.5" />
                                                                 </button>
                                                             </div>
+                                                        </div>
+
+                                                        {/* Hotel Uniqueness / Option Note */}
+                                                        <div className="pl-0 sm:pl-10">
+                                                            <textarea
+                                                                rows={3}
+                                                                value={opt.notes || ''}
+                                                                onChange={(e) => handleNoteChange(slot.date, opt.hotel_id, e.target.value)}
+                                                                placeholder="Describe what makes this hotel unique for the guest (e.g. panoramic tea valley views, private plunge pool, colonial heritage charm)..."
+                                                                className="w-full px-3 py-2 rounded-xl border border-neutral-200 bg-white text-xs leading-relaxed text-neutral-700 placeholder:text-neutral-400 focus:outline-none focus:border-emerald-700 focus:ring-1 focus:ring-emerald-700/20 resize-y"
+                                                            />
                                                         </div>
 
                                                         {/* Shared Multi-Image Hotel Gallery (up to 3 WebP images synced with Master Data) */}
