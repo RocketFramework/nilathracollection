@@ -233,6 +233,7 @@ import HotelCourtesyHoldModal from './components/HotelCourtesyHoldModal';
 import TouristActivityAndRoutePreferences from './components/TouristActivityAndRoutePreferences';
 import ProposedHotelsStep from './components/ProposedHotelsStep';
 import { getTourPlanningScheduleAction, listAllHotelsForProposalAction, saveTourActivitySelectionsAction } from '../../actions/tour-planning.actions';
+import { bootstrapAdminNewAction, loadFinalTrackBundleAction } from '@/actions/admin-new-bootstrap.actions';
 import type { TourProposedHotelDTO, TourRouteStopDTO } from '../../dtos/tour-planning.dto';
 import { generateHotelRfqPdf } from '@/utils/rfq-pdf';
 import { generateHotelPoPdf, generateTransportPoPdf, generateDriverPoPdf } from '@/utils/po-pdf';
@@ -689,7 +690,7 @@ function computeConciergeDisplayTotal(
 }
 
 function PlannerWizardWorkspace() {
-  const [tourId, setTourId] = useState<string>('60dec7e8-cbd9-4801-9f97-b41e5062fcc2');
+  const [tourId, setTourId] = useState<string>('');
   const STORAGE_KEY = `nilathra_planner_wizard_state_${tourId}`;
 
   // Responsive sidebar collapse state
@@ -1445,52 +1446,7 @@ function PlannerWizardWorkspace() {
     };
   }, [activeAssignment]);
 
-  // Load master data on mount
-  useEffect(() => {
-    async function loadData() {
-      setLoadingMaster(true);
-      try {
-        const assignedHotelIds = itinerary
-          .filter(b => b.type === ItineraryBlockTypes.SLEEP && b.hotelId)
-          .map(b => b.hotelId as string);
-
-        const [h, v, d, g, r, tp, act, markupRes, vehiclesRes] = await Promise.all([
-          getAssignedHotelsAction(assignedHotelIds),
-          getVendorsAction(),
-          getDriversAction(),
-          getTourGuidesAction(),
-          getRestaurantsAction(),
-          getTransportProvidersAction(),
-          getActivitiesAction(),
-          getAppMarkupsAction(),
-          getTransportVehiclesAction()
-        ]);
-        const providersList = tp.success ? tp.providers : [];
-        const vehiclesList = vehiclesRes.success ? vehiclesRes.vehicles : [];
-        setMasterData({
-          hotels: h.success ? h.hotels : [],
-          vendors: v.success ? v.vendors : [],
-          drivers: d.success ? d.drivers : [],
-          guides: g.success ? g.guides : [],
-          restaurants: r.success ? r.restaurants : [],
-          transportProviders: providersList,
-          transportVehicles: vehiclesList,
-          activities: act.success ? (act.data || (act as any).activities || []) : []
-        });
-        if (markupRes && markupRes.success && markupRes.markups) {
-          setMarkups(markupRes.markups);
-          setRoomMarkup(markupRes.markups[Settings.Room_Markup] ?? 10);
-        }
-      } catch (err) {
-        console.error("Failed to load master data for assignment:", err);
-      } finally {
-        setLoadingMaster(false);
-      }
-    }
-    if (tourId) {
-      loadData();
-    }
-  }, [tourId]);
+  // Master data is hydrated in a single batched round-trip inside restoreSession() via bootstrapAdminNewAction.
 
   const handleSearchHotels = async () => {
     setIsSearchingHotels(true);
@@ -2697,39 +2653,7 @@ function PlannerWizardWorkspace() {
   };
 
 
-  // Fetch activities and settings from the database
-  useEffect(() => {
-    async function loadActivitiesAndSettings() {
-      try {
-        const res = await getActivitiesAction();
-        if (res.success && res.data) {
-          setActivitiesList(res.data as TouristActivity[]);
-        }
-      } catch (error) {
-        console.error("Failed to load activities from database:", error);
-      }
-
-      try {
-        const res = await getAppMarkupsAction();
-        if (res.success && res.markups) {
-          const settings = res.markups as any;
-          setAppSettings(settings);
-          if (settings[Settings.Activity_Travel_Prep_Time] !== undefined) {
-            setActivityTravelPrepTime(Number(settings[Settings.Activity_Travel_Prep_Time]));
-          }
-          if (settings[Settings.Daily_Activity_Hours_Limit] !== undefined) {
-            setDailyActivityHoursLimit(Number(settings[Settings.Daily_Activity_Hours_Limit]));
-          }
-          if (settings[Settings.Activity_Average_Speed_Km] !== undefined) {
-            setActivityAverageSpeedKm(Number(settings[Settings.Activity_Average_Speed_Km]));
-          }
-        }
-      } catch (error) {
-        console.error("Failed to load app settings from database:", error);
-      }
-    }
-    loadActivitiesAndSettings();
-  }, []);
+  // Activities list & app settings are hydrated in a single batched round-trip inside restoreSession().
 
   const filteredActivities = useMemo(() => {
     return activitiesList.filter(act => {
@@ -3792,9 +3716,40 @@ function PlannerWizardWorkspace() {
 
         const storageKey = `nilathra_planner_wizard_state_${activeTourId}`;
 
-        if (activeTourId && activeTourId !== 'draft-tour') {
-          // Fetch everything in parallel to eliminate sequential database query bottlenecks
-          const [
+        // Single batched server round-trip for master data, user role, app state, and tour records
+        const bootstrap = await bootstrapAdminNewAction(activeTourId, storageKey);
+
+        if (bootstrap.master) {
+          setMasterData({
+            hotels: bootstrap.master.hotels || [],
+            vendors: bootstrap.master.vendors || [],
+            drivers: bootstrap.master.drivers || [],
+            guides: bootstrap.master.guides || [],
+            restaurants: bootstrap.master.restaurants || [],
+            transportProviders: bootstrap.master.transportProviders || [],
+            transportVehicles: bootstrap.master.transportVehicles || [],
+            activities: bootstrap.master.activities || [],
+          });
+          setActivitiesList((bootstrap.master.activities || []) as TouristActivity[]);
+          if (bootstrap.master.markups) {
+            const settings = bootstrap.master.markups as any;
+            setMarkups(settings);
+            setRoomMarkup(settings[Settings.Room_Markup] ?? 10);
+            setAppSettings(settings);
+            if (settings[Settings.Activity_Travel_Prep_Time] !== undefined) {
+              setActivityTravelPrepTime(Number(settings[Settings.Activity_Travel_Prep_Time]));
+            }
+            if (settings[Settings.Daily_Activity_Hours_Limit] !== undefined) {
+              setDailyActivityHoursLimit(Number(settings[Settings.Daily_Activity_Hours_Limit]));
+            }
+            if (settings[Settings.Activity_Average_Speed_Km] !== undefined) {
+              setActivityAverageSpeedKm(Number(settings[Settings.Activity_Average_Speed_Km]));
+            }
+          }
+        }
+
+        if (bootstrap.hasRealTour && bootstrap.tour) {
+          const {
             touristRes,
             tourRes,
             versionsRes,
@@ -3815,28 +3770,7 @@ function PlannerWizardWorkspace() {
             savedConcRes,
             itinDatesRes,
             planningScheduleRes
-          ] = await Promise.all([
-            getTouristDataAction(activeTourId),
-            getTourDataAction(activeTourId),
-            getDraftVersionsAction(activeTourId),
-            getDailyActivitiesAction(activeTourId),
-            fetch(`/api/app-state?stateKey=${storageKey}`).then(r => r.ok ? r.json() : null).catch(() => null),
-            getQuotationRequestsForTourAction(activeTourId),
-            getPurchaseOrdersAction(activeTourId),
-            getVendorBookingsAction(activeTourId),
-            getRfqEmailsForTourAction(activeTourId),
-            getRfpEmailsForTourAction(activeTourId),
-            getPOBlocksAction(activeTourId),
-            getTourPORebuildStatusAction(activeTourId),
-            getTourDailyDriversAction(activeTourId),
-            getTourDailyTransportsAction(activeTourId),
-            getTourDailyVehiclesAction(activeTourId),
-            getTourItineraryCountAction(activeTourId),
-            getSeamlessConciergeCostItemsAction({ pageSize: 100 }),
-            getTourConciergesAction(activeTourId),
-            getItineraryDatesAction(activeTourId),
-            getTourPlanningScheduleAction(activeTourId)
-          ]);
+          } = bootstrap.tour;
 
           if (planningScheduleRes?.success && planningScheduleRes.data) {
             setProposedHotels(planningScheduleRes.data.proposedHotels || []);
@@ -3943,34 +3877,7 @@ function PlannerWizardWorkspace() {
             if (fullTripData.manualTriple !== undefined) setManualTriple(fullTripData.manualTriple);
             if (fullTripData.manualFamily !== undefined) setManualFamily(fullTripData.manualFamily);
 
-            const hotelIds = (fullTripData.itinerary || [])
-              .filter(b => b.type === ItineraryBlockTypes.SLEEP && b.hotelId)
-              .map(b => b.hotelId as string);
-
-            const restaurantIds = (fullTripData.itinerary || [])
-              .filter(b => b.type === ItineraryBlockTypes.MEAL && b.restaurantId)
-              .map(b => b.restaurantId as string);
-
-            if (hotelIds.length > 0 || restaurantIds.length > 0) {
-              Promise.all([
-                hotelIds.length > 0 ? getAssignedHotelsAction(hotelIds) : Promise.resolve({ success: false, hotels: [] }),
-                restaurantIds.length > 0 ? getAssignedRestaurantsAction(restaurantIds) : Promise.resolve({ success: false, restaurants: [] })
-              ]).then(([hRes, rRes]) => {
-                setMasterData((prev: any) => {
-                  const existingHotelIds = new Set(prev.hotels.map((h: any) => h.id));
-                  const newHotels = (hRes.success && hRes.hotels ? hRes.hotels : []).filter((h: any) => !existingHotelIds.has(h.id));
-
-                  const existingRestIds = new Set(prev.restaurants.map((r: any) => r.id));
-                  const newRestaurants = (rRes.success && rRes.restaurants ? rRes.restaurants : []).filter((r: any) => !existingRestIds.has(r.id));
-
-                  return {
-                    ...prev,
-                    hotels: [...prev.hotels, ...newHotels],
-                    restaurants: [...prev.restaurants, ...newRestaurants]
-                  };
-                });
-              });
-            }
+            // Assigned hotels and restaurants are already merged into bootstrap.master on the server.
 
             if (fullTripData.profile) {
               setTouristData(prev => ({
@@ -4146,7 +4053,7 @@ function PlannerWizardWorkspace() {
         }
 
         // 3. Apply restored values or default fallback
-        const roleRes = await getUserRoleAction().catch(() => null);
+        const roleRes = bootstrap.roleRes ?? null;
         const roleResRoles: string[] = Array.isArray((roleRes as any)?.roles) ? (roleRes as any).roles : [];
         const canAccessFinance =
           Boolean((roleRes as any)?.hasFinanceAccess) ||
@@ -4343,7 +4250,7 @@ function PlannerWizardWorkspace() {
     setIsLoadingDriverRates(true);
 
     try {
-      const [
+      const {
         statusRes,
         blocksRes,
         dbActivitiesRes,
@@ -4357,21 +4264,7 @@ function PlannerWizardWorkspace() {
         guideActivitiesRes,
         driverActivitiesRes,
         guideRfqRes
-      ] = await Promise.all([
-        getTourPORebuildStatusAction(tid),
-        getPOBlocksAction(tid),
-        getDailyActivitiesAction(tid),
-        getQuotationRequestsForTourAction(tid),
-        getPurchaseOrdersAction(tid),
-        getVendorBookingsAction(tid),
-        getRfqEmailsForTourAction(tid),
-        getRfpEmailsForTourAction(tid),
-        getCustomerInvoicesAction(tid),
-        getCustomerAdvancePaymentsAction(tid),
-        getGuideDailyActivitiesAction(tid),
-        getDriverDailyActivitiesAction(tid),
-        getGuideRfqDetailsAction(tid)
-      ]);
+      } = await loadFinalTrackBundleAction(tid);
 
       if (statusRes.success && statusRes.needsRebuild) {
         setPoDataNeedsRebuild(true);
@@ -9464,27 +9357,29 @@ ${chauffeurHtml}
         dbActivities
       }));
 
-      // 2. Sync to Database in background
-      fetch('/api/app-state', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          stateKey: STORAGE_KEY,
-          stateData: {
-            track,
-            activeBasicStepIndex,
-            activeFinalStepIndex,
-            elements,
-            selectedActivityIds,
-            itinerary,
-            dbActivities
-          }
-        })
-      }).catch(err => {
-        console.error("Background state sync failed:", err);
-      });
+      // 2. Sync to Database in background (debounced to avoid redundant POSTs during rapid state updates)
+      const syncTimer = setTimeout(() => {
+        fetch('/api/app-state', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            stateKey: STORAGE_KEY,
+            stateData: {
+              track,
+              activeBasicStepIndex,
+              activeFinalStepIndex,
+              elements,
+              selectedActivityIds,
+              itinerary,
+              dbActivities
+            }
+          })
+        }).catch(err => {
+          console.error("Background state sync failed:", err);
+        });
+      }, 400);
 
       // 3. Sync to browser address bar silently using native history API
       const activeStepsList = track === 'basic' ? basicSteps : finalSteps;
@@ -9504,6 +9399,7 @@ ${chauffeurHtml}
           window.history.replaceState(null, '', `${window.location.pathname}?${params.toString()}`);
         }
       }
+      return () => clearTimeout(syncTimer);
     } catch (e) {
       console.error("Failed to persist state:", e);
     }
@@ -9511,12 +9407,6 @@ ${chauffeurHtml}
 
   // C. CENTRALIZED DEBOUNCED AUTO-SAVE ITINERARY OPERATIONAL RECORDS (whenever itinerary changes)
   useEffect(() => {
-    fetch('/api/debug-log', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ message: `Auto-save useEffect hook triggered. isStateRestored: ${isStateRestored}, tourId: ${tourId}, tripData: ${!!tripData}` })
-    }).catch(() => { });
-
     if (!isStateRestored || !tourId || tourId === 'draft-tour' || !tripData) return;
 
     const handler = setTimeout(async () => {

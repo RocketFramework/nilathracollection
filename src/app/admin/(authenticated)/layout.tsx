@@ -15,6 +15,7 @@ export default async function AdminLayout({ children }: { children: ReactNode })
 
     let isAdmin = false;
     let isFinance = false;
+    let isFinanceOnly = false;
     let canAccessHr = false;
     let userInitials = "NC";
     let displayRole = "Guest";
@@ -37,6 +38,7 @@ export default async function AdminLayout({ children }: { children: ReactNode })
         isAdmin = userRoles.includes('admin');
         isFinance = userRoles.includes('finance');
         const hasOperationalRole = userRoles.some((r: string) => AGENT_ROLES.has(r) || SUPERVISOR_ROLES.has(r));
+        isFinanceOnly = isFinance && !isAdmin && !hasOperationalRole;
         canAccessHr = isAdmin || isFinance || hasOperationalRole;
 
         if (isAdmin || isFinance || hasOperationalRole) {
@@ -67,14 +69,18 @@ export default async function AdminLayout({ children }: { children: ReactNode })
                     <p className="text-xs text-[#6B7280] uppercase tracking-widest mt-1">Admin Portal</p>
                 </div>
                 <nav className="flex-1 py-6 space-y-2 overflow-y-auto">
-                    <Link href="/admin" className="flex items-center gap-4 px-6 py-3 text-[#4B5563] hover:bg-[#F5F3EF] hover:text-[#2B2B2B] transition-colors rounded-r-full mr-4 group">
-                        <LayoutDashboard size={20} className="text-[#6B7280] group-hover:text-[#D4AF37] transition-colors" />
-                        <span className="font-medium tracking-wide">Dashboard</span>
-                    </Link>
-                    <Link href="/admin/requests" className="flex items-center gap-4 px-6 py-3 text-[#4B5563] hover:bg-[#F5F3EF] hover:text-[#2B2B2B] transition-colors rounded-r-full mr-4 group">
-                        <MapPin size={20} className="text-[#6B7280] group-hover:text-[#D4AF37] transition-colors" />
-                        <span className="font-medium tracking-wide">Requests</span>
-                    </Link>
+                    {!isFinanceOnly && (
+                        <>
+                            <Link href="/admin" className="flex items-center gap-4 px-6 py-3 text-[#4B5563] hover:bg-[#F5F3EF] hover:text-[#2B2B2B] transition-colors rounded-r-full mr-4 group">
+                                <LayoutDashboard size={20} className="text-[#6B7280] group-hover:text-[#D4AF37] transition-colors" />
+                                <span className="font-medium tracking-wide">Dashboard</span>
+                            </Link>
+                            <Link href="/admin/requests" className="flex items-center gap-4 px-6 py-3 text-[#4B5563] hover:bg-[#F5F3EF] hover:text-[#2B2B2B] transition-colors rounded-r-full mr-4 group">
+                                <MapPin size={20} className="text-[#6B7280] group-hover:text-[#D4AF37] transition-colors" />
+                                <span className="font-medium tracking-wide">Requests</span>
+                            </Link>
+                        </>
+                    )}
                     <Link href="/admin/emails" className="flex items-center gap-4 px-6 py-3 text-[#4B5563] hover:bg-[#F5F3EF] hover:text-[#2B2B2B] transition-colors rounded-r-full mr-4 group">
                         <Mail size={20} className="text-[#6B7280] group-hover:text-[#D4AF37] transition-colors" />
                         <span className="font-medium tracking-wide">Send Email</span>
@@ -114,20 +120,24 @@ export default async function AdminLayout({ children }: { children: ReactNode })
                         </>
                     )}
 
-                    <Link href="/admin/master-data" className="flex items-center gap-4 px-6 py-3 text-[#4B5563] hover:bg-[#F5F3EF] hover:text-[#2B2B2B] transition-colors rounded-r-full mr-4 group">
-                        <Database size={20} className="text-[#6B7280] group-hover:text-[#D4AF37] transition-colors" />
-                        <span className="font-medium tracking-wide">Master Data</span>
-                    </Link>
+                    {!isFinanceOnly && (
+                        <>
+                            <Link href="/admin/master-data" className="flex items-center gap-4 px-6 py-3 text-[#4B5563] hover:bg-[#F5F3EF] hover:text-[#2B2B2B] transition-colors rounded-r-full mr-4 group">
+                                <Database size={20} className="text-[#6B7280] group-hover:text-[#D4AF37] transition-colors" />
+                                <span className="font-medium tracking-wide">Master Data</span>
+                            </Link>
 
-                    <Link href="/admin/settings/terms" className="flex items-center gap-4 px-6 py-3 text-[#4B5563] hover:bg-[#F5F3EF] hover:text-[#2B2B2B] transition-colors rounded-r-full mr-4 group">
-                        <LayoutTemplate size={20} className="text-[#6B7280] group-hover:text-[#D4AF37] transition-colors" />
-                        <span className="font-medium tracking-wide">Terms & Conditions</span>
-                    </Link>
+                            <Link href="/admin/settings/terms" className="flex items-center gap-4 px-6 py-3 text-[#4B5563] hover:bg-[#F5F3EF] hover:text-[#2B2B2B] transition-colors rounded-r-full mr-4 group">
+                                <LayoutTemplate size={20} className="text-[#6B7280] group-hover:text-[#D4AF37] transition-colors" />
+                                <span className="font-medium tracking-wide">Terms & Conditions</span>
+                            </Link>
 
-                    <Link href="/admin/tasks" className="flex items-center gap-4 px-6 py-3 text-[#4B5563] hover:bg-[#F5F3EF] hover:text-[#2B2B2B] transition-colors rounded-r-full mr-4 group">
-                        <ListChecks size={20} className="text-[#6B7280] group-hover:text-[#D4AF37] transition-colors" />
-                        <span className="font-medium tracking-wide">Tasks</span>
-                    </Link>
+                            <Link href="/admin/tasks" className="flex items-center gap-4 px-6 py-3 text-[#4B5563] hover:bg-[#F5F3EF] hover:text-[#2B2B2B] transition-colors rounded-r-full mr-4 group">
+                                <ListChecks size={20} className="text-[#6B7280] group-hover:text-[#D4AF37] transition-colors" />
+                                <span className="font-medium tracking-wide">Tasks</span>
+                            </Link>
+                        </>
+                    )}
 
                     <Link href="/admin/commissions" className="flex items-center gap-4 px-6 py-3 text-[#4B5563] hover:bg-[#F5F3EF] hover:text-[#2B2B2B] transition-colors rounded-r-full mr-4 group">
                         <BarChart3 size={20} className="text-[#6B7280] group-hover:text-[#D4AF37] transition-colors" />
