@@ -1044,6 +1044,7 @@ export default function TouristTripPlanningTabs({
                 proposedHotels={proposedHotels}
                 onProposedHotelsChange={setProposedHotels}
                 onSaveOverride={(items) => saveTouristOwnProposedHotelsAction(tourId, items)}
+                allowImageEditing={false}
             />
         </div>
     );

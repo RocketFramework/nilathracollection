@@ -232,7 +232,7 @@ import CancelHotelPoModal from './components/CancelHotelPoModal';
 import HotelCourtesyHoldModal from './components/HotelCourtesyHoldModal';
 import TouristActivityAndRoutePreferences from './components/TouristActivityAndRoutePreferences';
 import ProposedHotelsStep from './components/ProposedHotelsStep';
-import { getTourPlanningScheduleAction, saveTourActivitySelectionsAction } from '../../actions/tour-planning.actions';
+import { getTourPlanningScheduleAction, listAllHotelsForProposalAction, saveTourActivitySelectionsAction } from '../../actions/tour-planning.actions';
 import type { TourProposedHotelDTO, TourRouteStopDTO } from '../../dtos/tour-planning.dto';
 import { generateHotelRfqPdf } from '@/utils/rfq-pdf';
 import { generateHotelPoPdf, generateTransportPoPdf, generateDriverPoPdf } from '@/utils/po-pdf';
@@ -21580,6 +21580,8 @@ ${chauffeurHtml}
                     conciergeSearchQuery={conciergeSearchQuery}
                     setConciergeSearchQuery={setConciergeSearchQuery}
                     dayToItinIdMap={dayToItinIdMap}
+                    activityDateMap={activityDateMap}
+                    proposedHotels={proposedHotels}
                   />
                 ) : track === 'basic' && currentStep.id === 'share-tourist' ? (
                   <div className="bg-white rounded-2xl sm:rounded-3xl border border-neutral-200 shadow-md p-4 sm:p-6 lg:p-8 space-y-6 sm:space-y-8 animate-in fade-in slide-in-from-bottom-3 duration-300">
@@ -26046,6 +26048,8 @@ interface AIItineraryBuilderProps {
   conciergeSearchQuery: string;
   setConciergeSearchQuery: React.Dispatch<React.SetStateAction<string>>;
   dayToItinIdMap?: Record<number, string>;
+  activityDateMap?: Record<number, string>;
+  proposedHotels?: TourProposedHotelDTO[];
 }
 
 function AIItineraryBuilder({
@@ -26127,7 +26131,9 @@ function AIItineraryBuilder({
   setSelectedTourConcierges,
   conciergeSearchQuery,
   setConciergeSearchQuery,
-  dayToItinIdMap = {}
+  dayToItinIdMap = {},
+  activityDateMap = {},
+  proposedHotels = []
 }: AIItineraryBuilderProps) {
   const [mounted, setMounted] = useState(false);
   useEffect(() => {
@@ -26890,6 +26896,174 @@ function AIItineraryBuilder({
   const doubleRoomsCount = hasTeam ? teamRooms.double : manualDouble;
   const tripleRoomsCount = hasTeam ? teamRooms.triple : manualTriple;
   const familyRoomsCount = hasTeam ? teamRooms.family : manualFamily;
+
+  const [isGeneratingSpecificRules, setIsGeneratingSpecificRules] = useState(false);
+
+  const handleGenerateSpecificRules = async () => {
+    setIsGeneratingSpecificRules(true);
+    try {
+      // Build hotel lookup from masterData.hotels, fetching full catalog if any proposed hotel ID is missing
+      const hotelMap = new Map<string, any>();
+      (masterData?.hotels || []).forEach((h: any) => hotelMap.set(h.id, h));
+      const missingHotelIds = (proposedHotels || []).filter((p) => p.hotel_id && !hotelMap.has(p.hotel_id));
+      if (missingHotelIds.length > 0) {
+        try {
+          const allRes = await listAllHotelsForProposalAction();
+          if (allRes.success && Array.isArray(allRes.data)) {
+            allRes.data.forEach((h: any) => hotelMap.set(h.id, h));
+          }
+        } catch (err) {
+          console.warn('Could not fetch full hotel catalog for prompt generation:', err);
+        }
+      }
+
+      const touristName =
+        [touristData?.profile?.first_name, touristData?.profile?.last_name]
+          .filter(Boolean)
+          .join(' ')
+          .trim() || 'Valued Guest';
+      const totalHeadCount = Number(adults || 0) + Number(children || 0) + Number(infants || 0);
+      const startStr = arrivalDate || touristData?.preferences?.arrival_date || 'TBD';
+      const endStr = departureDate || touristData?.preferences?.departure_date || 'TBD';
+      const nightsCount = durationDays > 0 ? Math.max(durationDays - 1, 0) : 0;
+
+      const lines: string[] = [
+        '=== TOUR DETAILS ===',
+        `Tourist Name: ${touristName}`,
+        `Travel Dates: ${startStr} to ${endStr} (${durationDays} Days / ${nightsCount} Nights)`,
+        `Travel Style: ${travelStyle || touristData?.preferences?.travel_style || 'Luxury'}`,
+        `Total Head Count: ${totalHeadCount} (Adults: ${adults || 0}, Children: ${children || 0}, Infants: ${infants || 0})`,
+        `Bed / Room Configuration: Single: ${singleRoomsCount}, Double: ${doubleRoomsCount}, Triple: ${tripleRoomsCount}, Family: ${familyRoomsCount}`,
+      ];
+
+      const prefCats = touristData?.preferences?.activity_preferences || [];
+      if (prefCats.length > 0) {
+        lines.push(`Preferred Activity Categories: ${prefCats.join(', ')}`);
+      }
+      if (touristData?.preferences?.dietary_requirements) {
+        lines.push(`Dietary Requirements: ${touristData.preferences.dietary_requirements}`);
+      }
+      if (touristData?.preferences?.medical_conditions) {
+        lines.push(`Medical Conditions: ${touristData.preferences.medical_conditions}`);
+      }
+      if (touristData?.preferences?.accessibility_requirements) {
+        lines.push(`Accessibility Requirements: ${touristData.preferences.accessibility_requirements}`);
+      }
+      if (touristData?.preferences?.special_notes) {
+        lines.push(`Special Notes: ${touristData.preferences.special_notes}`);
+      }
+
+      // Build ordered day-by-day schedule combining travel_route, arrival->departure dates, activityDateMap, and proposedHotels
+      const addDaysIso = (iso: string, offset: number): string => {
+        const d = new Date(`${iso.slice(0, 10)}T00:00:00Z`);
+        if (Number.isNaN(d.getTime())) return '';
+        d.setUTCDate(d.getUTCDate() + offset);
+        return d.toISOString().slice(0, 10);
+      };
+
+      const routeStops = touristData?.preferences?.travel_route || [];
+      const dayByDate = new Map<string, { date: string; city: string }>();
+
+      routeStops.forEach((stop, idx) => {
+        const d = stop.tour_date ? stop.tour_date.slice(0, 10) : (arrivalDate ? addDaysIso(arrivalDate, idx) : '');
+        if (!d) return;
+        if (!dayByDate.has(d)) {
+          dayByDate.set(d, { date: d, city: stop.location_name || '' });
+        } else if (stop.location_name && !dayByDate.get(d)!.city) {
+          dayByDate.get(d)!.city = stop.location_name;
+        }
+      });
+
+      if (arrivalDate) {
+        let totalDaysToBuild = durationDays || 0;
+        if (departureDate) {
+          const s = new Date(`${arrivalDate.slice(0, 10)}T00:00:00Z`);
+          const e = new Date(`${departureDate.slice(0, 10)}T00:00:00Z`);
+          if (!Number.isNaN(s.getTime()) && !Number.isNaN(e.getTime()) && e >= s) {
+            totalDaysToBuild = Math.round((e.getTime() - s.getTime()) / (1000 * 60 * 60 * 24)) + 1;
+          }
+        }
+        for (let i = 0; i < totalDaysToBuild; i++) {
+          const d = addDaysIso(arrivalDate, i);
+          if (d && !dayByDate.has(d)) {
+            dayByDate.set(d, { date: d, city: '' });
+          }
+        }
+      }
+
+      Object.values(activityDateMap || {}).forEach((d) => {
+        if (d && !dayByDate.has(d)) {
+          dayByDate.set(d, { date: d, city: '' });
+        }
+      });
+
+      (proposedHotels || []).forEach((ph) => {
+        if (ph.tour_date && !dayByDate.has(ph.tour_date)) {
+          dayByDate.set(ph.tour_date, { date: ph.tour_date, city: ph.location_name || '' });
+        }
+      });
+
+      const orderedDays = Array.from(dayByDate.values()).sort((a, b) => a.date.localeCompare(b.date));
+
+      lines.push('');
+      lines.push('=== DAY-BY-DAY ROUTE, ACTIVITIES & HOTEL PLAN ===');
+
+      if (orderedDays.length === 0) {
+        lines.push('No tour dates configured yet.');
+      } else {
+        orderedDays.forEach((slot, idx) => {
+          const dayNum = idx + 1;
+          const dayActs = (selectedActivities || []).filter((a) => activityDateMap[a.id] === slot.date);
+          const dayHotelOptions = (proposedHotels || [])
+            .filter((p) => p.tour_date === slot.date)
+            .sort((a, b) => a.option_rank - b.option_rank);
+          const primaryProposal =
+            dayHotelOptions.find((p) => p.is_selected) || dayHotelOptions[0] || null;
+          const hotelObj = primaryProposal ? hotelMap.get(primaryProposal.hotel_id) : null;
+
+          const mainCity =
+            slot.city ||
+            primaryProposal?.location_name ||
+            hotelObj?.closest_city ||
+            dayActs[0]?.location_name ||
+            dayActs[0]?.district ||
+            'TBD';
+
+          const actText =
+            dayActs.length > 0
+              ? dayActs
+                  .map((a) => `${a.activity_name}${a.duration_hours ? ` (${a.duration_hours}h)` : ''}`)
+                  .join('; ')
+              : 'None planned';
+
+          const hotelText = primaryProposal
+            ? `${hotelObj?.name || 'Selected Hotel'}${hotelObj?.closest_city ? ` (${hotelObj.closest_city})` : ''}${hotelObj?.hotel_class ? ` [${hotelObj.hotel_class}]` : ''}${primaryProposal.notes ? ` — Note: ${primaryProposal.notes}` : ''}`
+            : 'No hotel selected';
+
+          lines.push(`Day ${dayNum} (${slot.date}) — Main City: ${mainCity}`);
+          lines.push(`  • Planned Activities: ${actText}`);
+          lines.push(`  • Hotel Stay: ${hotelText}`);
+        });
+      }
+
+      const unscheduledActs = (selectedActivities || []).filter((a) => !activityDateMap[a.id]);
+      if (unscheduledActs.length > 0) {
+        lines.push('');
+        lines.push(
+          `Unscheduled Selected Activities (place on suitable days): ${unscheduledActs
+            .map((a) => `${a.activity_name} (${a.location_name || a.district || 'Sri Lanka'})`)
+            .join('; ')}`
+        );
+      }
+
+      setAiRules((prev: { generic: string; specific: string }) => ({
+        ...prev,
+        specific: lines.join('\n'),
+      }));
+    } finally {
+      setIsGeneratingSpecificRules(false);
+    }
+  };
 
   // Dynamically recalculate and update hotel prices across all days when room configuration or bound hotel changes
   useEffect(() => {
@@ -28437,15 +28611,27 @@ function AIItineraryBuilder({
       {/* Expandable Rules Configuration Card */}
       {showRulesConfig && (
         <div className="bg-neutral-50/50 border border-neutral-200/70 rounded-2xl p-5 space-y-5 animate-in fade-in slide-in-from-top-2 duration-300">
-          <div className="flex items-center justify-between border-b border-neutral-200/60 pb-3">
+          <div className="flex items-center justify-between gap-2 flex-wrap border-b border-neutral-200/60 pb-3">
             <h4 className="text-xs font-bold text-neutral-700 uppercase tracking-wider">AI Routing & Generation Constraints</h4>
-            <button
-              onClick={handleSaveRules}
-              disabled={isSavingRules || isLockedByOther}
-              className="px-4 py-2 bg-emerald-800 hover:bg-emerald-950 text-white rounded-xl text-[10px] font-extrabold uppercase tracking-wider transition-all disabled:opacity-50 shadow-sm hover:shadow-emerald-800/10"
-            >
-              {isSavingRules ? 'Saving...' : 'Save Rules'}
-            </button>
+            <div className="flex items-center gap-2">
+              <button
+                type="button"
+                onClick={handleGenerateSpecificRules}
+                disabled={isGeneratingSpecificRules || isLockedByOther}
+                className="px-4 py-2 bg-amber-600 hover:bg-amber-700 text-white rounded-xl text-[10px] font-extrabold uppercase tracking-wider transition-all disabled:opacity-50 shadow-sm flex items-center gap-1.5"
+                title="Generate Itinerary-Specific Rules from Tourist Data, Travel Route, Selected Activities, and Primary Proposed Hotels"
+              >
+                <Sparkles className="w-3.5 h-3.5" />
+                <span>{isGeneratingSpecificRules ? 'Generating...' : 'Generate'}</span>
+              </button>
+              <button
+                onClick={handleSaveRules}
+                disabled={isSavingRules || isLockedByOther}
+                className="px-4 py-2 bg-emerald-800 hover:bg-emerald-950 text-white rounded-xl text-[10px] font-extrabold uppercase tracking-wider transition-all disabled:opacity-50 shadow-sm hover:shadow-emerald-800/10"
+              >
+                {isSavingRules ? 'Saving...' : 'Save Rules'}
+              </button>
+            </div>
           </div>
 
           {isLoadingRules ? (
@@ -28469,7 +28655,7 @@ function AIItineraryBuilder({
               <div>
                 <label className="text-[10px] font-bold text-neutral-400 uppercase tracking-wider block mb-1.5">Itinerary-Specific Rules (This Tour Only)</label>
                 <textarea
-                  rows={4}
+                  rows={8}
                   placeholder="Specify rules for this client, e.g. 'Must plan Sigiriya rock climb for morning due to heat', 'Avoid travel after 6 PM'."
                   value={aiRules.specific}
                   disabled={isLockedByOther}

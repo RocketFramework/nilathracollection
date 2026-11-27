@@ -21,6 +21,7 @@ import {
     X,
 } from 'lucide-react';
 import type {
+    HotelImageDTO,
     ProposedHotelOptionDTO,
     TourProposedHotelDTO,
     TourRouteStopDTO,
@@ -29,6 +30,8 @@ import {
     listAllHotelsForProposalAction,
     saveTourProposedHotelsAction,
 } from '@/actions/tour-planning.actions';
+import { getHotelImagesBatchAction } from '@/actions/hotel-image.actions';
+import HotelImagesManager from '@/components/hotels/HotelImagesManager';
 
 interface ProposedHotelsStepProps {
     tourId: string;
@@ -42,6 +45,7 @@ interface ProposedHotelsStepProps {
     proposedHotels: TourProposedHotelDTO[];
     onProposedHotelsChange: (next: TourProposedHotelDTO[]) => void;
     onSaveOverride?: (items: TourProposedHotelDTO[]) => Promise<{ success: boolean; error?: string }>;
+    allowImageEditing?: boolean;
     disabled?: boolean;
 }
 
@@ -258,9 +262,11 @@ export default function ProposedHotelsStep({
     proposedHotels,
     onProposedHotelsChange,
     onSaveOverride,
+    allowImageEditing = true,
     disabled = false,
 }: ProposedHotelsStepProps) {
     const [allDbHotels, setAllDbHotels] = useState<ProposedHotelOptionDTO[]>([]);
+    const [hotelImagesMap, setHotelImagesMap] = useState<Record<string, HotelImageDTO[]>>({});
     const [loadingHotels, setLoadingHotels] = useState<boolean>(true);
     const [saving, setSaving] = useState(false);
     const [saveMessage, setSaveMessage] = useState<{ type: 'ok' | 'err'; text: string } | null>(null);
@@ -303,6 +309,28 @@ export default function ProposedHotelsStep({
         catalogHotels.forEach((h) => m.set(h.id, h));
         return m;
     }, [catalogHotels]);
+
+    // Fetch up to 3 images per hotel from shared hotel_images table for all proposed hotels
+    const proposedHotelIdsKey = useMemo(
+        () => Array.from(new Set(proposedHotels.map((p) => p.hotel_id).filter(Boolean))).sort().join(','),
+        [proposedHotels]
+    );
+
+    useEffect(() => {
+        if (!proposedHotelIdsKey) return;
+        const ids = proposedHotelIdsKey.split(',').filter(Boolean);
+        let alive = true;
+        getHotelImagesBatchAction(ids)
+            .then((res) => {
+                if (alive && res.success && res.data) {
+                    setHotelImagesMap((prev) => ({ ...prev, ...res.data }));
+                }
+            })
+            .catch(() => {});
+        return () => {
+            alive = false;
+        };
+    }, [proposedHotelIdsKey]);
 
     // Build ordered tour date slots from travelRoute + arrival/departure dates + already-saved proposedHotels
     const daySlots: DaySlot[] = useMemo(() => {
@@ -642,98 +670,119 @@ export default function ProposedHotelsStep({
                                         <div className="space-y-2.5">
                                             {options.map((opt, idx) => {
                                                 const h = hotelById.get(opt.hotel_id);
+                                                const imgs: HotelImageDTO[] =
+                                                    hotelImagesMap[opt.hotel_id] !== undefined
+                                                        ? hotelImagesMap[opt.hotel_id]
+                                                        : h?.photo_url
+                                                            ? [{ id: `master-${opt.hotel_id}`, hotel_id: opt.hotel_id, image_url: h.photo_url, is_primary: true, sort_order: 1 }]
+                                                            : [];
                                                 return (
                                                     <div
                                                         key={opt.hotel_id}
-                                                        className={`flex flex-col sm:flex-row sm:items-center gap-3 p-3.5 rounded-2xl border transition-all ${
+                                                        className={`p-3.5 rounded-2xl border space-y-3 transition-all ${
                                                             opt.is_selected
                                                                 ? 'border-emerald-400 bg-emerald-50/40'
                                                                 : 'border-neutral-200 bg-neutral-50/40'
                                                         }`}
                                                     >
-                                                        <div className="flex items-center gap-3 flex-1 min-w-0">
-                                                            <span className="w-7 h-7 rounded-xl bg-neutral-900 text-white text-xs font-bold flex items-center justify-center shrink-0">
-                                                                #{idx + 1}
-                                                            </span>
-                                                            {h?.photo_url ? (
-                                                                <img
-                                                                    src={h.photo_url}
-                                                                    alt={h.name}
-                                                                    className="w-12 h-10 rounded-xl object-cover border border-neutral-200 shrink-0"
+                                                        <div className="flex flex-col sm:flex-row sm:items-center gap-3">
+                                                            <div className="flex items-center gap-3 flex-1 min-w-0">
+                                                                <span className="w-7 h-7 rounded-xl bg-neutral-900 text-white text-xs font-bold flex items-center justify-center shrink-0">
+                                                                    #{idx + 1}
+                                                                </span>
+                                                                <div className="min-w-0 flex-1">
+                                                                    <div className="flex items-center gap-2 flex-wrap">
+                                                                        <span className="text-sm font-bold text-neutral-800 truncate">
+                                                                            {h?.name || 'Hotel'}
+                                                                        </span>
+                                                                        {h?.hotel_class && (
+                                                                            <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-amber-100 text-amber-800">
+                                                                                {h.hotel_class}
+                                                                            </span>
+                                                                        )}
+                                                                        {opt.is_selected && (
+                                                                            <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-800 text-white">
+                                                                                Primary Choice
+                                                                            </span>
+                                                                        )}
+                                                                    </div>
+                                                                    <div className="text-[11px] text-neutral-500 truncate">
+                                                                        {h?.closest_city || opt.location_name || h?.location_address || 'Location not specified'}
+                                                                    </div>
+                                                                </div>
+                                                            </div>
+
+                                                            <div className="flex items-center gap-2 shrink-0 flex-wrap">
+                                                                <input
+                                                                    type="text"
+                                                                    value={opt.notes || ''}
+                                                                    onChange={(e) => handleNoteChange(slot.date, opt.hotel_id, e.target.value)}
+                                                                    placeholder="Option note (e.g. Lake view)..."
+                                                                    className="w-44 px-2.5 py-1.5 rounded-lg border border-neutral-200 bg-white text-xs text-neutral-700 focus:outline-none focus:border-emerald-700"
                                                                 />
-                                                            ) : (
-                                                                <div className="w-12 h-10 rounded-xl bg-neutral-200/70 flex items-center justify-center text-neutral-400 shrink-0">
-                                                                    <Building2 className="w-4 h-4" />
-                                                                </div>
-                                                            )}
-                                                            <div className="min-w-0 flex-1">
-                                                                <div className="flex items-center gap-2 flex-wrap">
-                                                                    <span className="text-sm font-bold text-neutral-800 truncate">
-                                                                        {h?.name || 'Hotel'}
-                                                                    </span>
-                                                                    {h?.hotel_class && (
-                                                                        <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-amber-100 text-amber-800">
-                                                                            {h.hotel_class}
-                                                                        </span>
-                                                                    )}
-                                                                    {opt.is_selected && (
-                                                                        <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-800 text-white">
-                                                                            Primary Choice
-                                                                        </span>
-                                                                    )}
-                                                                </div>
-                                                                <div className="text-[11px] text-neutral-500 truncate">
-                                                                    {h?.closest_city || opt.location_name || h?.location_address || 'Location not specified'}
-                                                                </div>
+                                                                <button
+                                                                    type="button"
+                                                                    onClick={() => handleTogglePrimary(slot.date, opt.hotel_id)}
+                                                                    title="Mark as Primary Choice"
+                                                                    className={`p-1.5 rounded-lg border transition-colors ${
+                                                                        opt.is_selected
+                                                                            ? 'bg-amber-100 border-amber-300 text-amber-700'
+                                                                            : 'bg-white border-neutral-200 text-neutral-400 hover:text-amber-600'
+                                                                    }`}
+                                                                >
+                                                                    <Star className="w-3.5 h-3.5" />
+                                                                </button>
+                                                                <button
+                                                                    type="button"
+                                                                    onClick={() => handleMoveRank(slot.date, opt.hotel_id, -1)}
+                                                                    disabled={idx === 0}
+                                                                    title="Move up"
+                                                                    className="p-1.5 rounded-lg border border-neutral-200 bg-white text-neutral-500 hover:text-emerald-800 disabled:opacity-30"
+                                                                >
+                                                                    <ArrowUp className="w-3.5 h-3.5" />
+                                                                </button>
+                                                                <button
+                                                                    type="button"
+                                                                    onClick={() => handleMoveRank(slot.date, opt.hotel_id, 1)}
+                                                                    disabled={idx === options.length - 1}
+                                                                    title="Move down"
+                                                                    className="p-1.5 rounded-lg border border-neutral-200 bg-white text-neutral-500 hover:text-emerald-800 disabled:opacity-30"
+                                                                >
+                                                                    <ArrowDown className="w-3.5 h-3.5" />
+                                                                </button>
+                                                                <button
+                                                                    type="button"
+                                                                    onClick={() => handleRemoveHotelOption(slot.date, opt.hotel_id)}
+                                                                    title="Remove option"
+                                                                    className="p-1.5 rounded-lg border border-rose-200 bg-white text-rose-500 hover:text-rose-700 hover:bg-rose-50"
+                                                                >
+                                                                    <Trash2 className="w-3.5 h-3.5" />
+                                                                </button>
                                                             </div>
                                                         </div>
 
-                                                        <div className="flex items-center gap-2 shrink-0 flex-wrap">
-                                                            <input
-                                                                type="text"
-                                                                value={opt.notes || ''}
-                                                                onChange={(e) => handleNoteChange(slot.date, opt.hotel_id, e.target.value)}
-                                                                placeholder="Option note (e.g. Lake view)..."
-                                                                className="w-44 px-2.5 py-1.5 rounded-lg border border-neutral-200 bg-white text-xs text-neutral-700 focus:outline-none focus:border-emerald-700"
+                                                        {/* Shared Multi-Image Hotel Gallery (up to 3 WebP images synced with Master Data) */}
+                                                        <div className="pl-0 sm:pl-10">
+                                                            <HotelImagesManager
+                                                                hotelId={opt.hotel_id}
+                                                                images={imgs}
+                                                                editable={allowImageEditing && !disabled}
+                                                                compact
+                                                                onChange={(nextImgs) => {
+                                                                    setHotelImagesMap((prev) => ({
+                                                                        ...prev,
+                                                                        [opt.hotel_id]: nextImgs,
+                                                                    }));
+                                                                    const primary = nextImgs.find((i) => i.is_primary) || nextImgs[0] || null;
+                                                                    setAllDbHotels((prev) =>
+                                                                        prev.map((item) =>
+                                                                            item.id === opt.hotel_id
+                                                                                ? { ...item, photo_url: primary?.image_url || null }
+                                                                                : item
+                                                                        )
+                                                                    );
+                                                                }}
                                                             />
-                                                            <button
-                                                                type="button"
-                                                                onClick={() => handleTogglePrimary(slot.date, opt.hotel_id)}
-                                                                title="Mark as Primary Choice"
-                                                                className={`p-1.5 rounded-lg border transition-colors ${
-                                                                    opt.is_selected
-                                                                        ? 'bg-amber-100 border-amber-300 text-amber-700'
-                                                                        : 'bg-white border-neutral-200 text-neutral-400 hover:text-amber-600'
-                                                                }`}
-                                                            >
-                                                                <Star className="w-3.5 h-3.5" />
-                                                            </button>
-                                                            <button
-                                                                type="button"
-                                                                onClick={() => handleMoveRank(slot.date, opt.hotel_id, -1)}
-                                                                disabled={idx === 0}
-                                                                title="Move up"
-                                                                className="p-1.5 rounded-lg border border-neutral-200 bg-white text-neutral-500 hover:text-emerald-800 disabled:opacity-30"
-                                                            >
-                                                                <ArrowUp className="w-3.5 h-3.5" />
-                                                            </button>
-                                                            <button
-                                                                type="button"
-                                                                onClick={() => handleMoveRank(slot.date, opt.hotel_id, 1)}
-                                                                disabled={idx === options.length - 1}
-                                                                title="Move down"
-                                                                className="p-1.5 rounded-lg border border-neutral-200 bg-white text-neutral-500 hover:text-emerald-800 disabled:opacity-30"
-                                                            >
-                                                                <ArrowDown className="w-3.5 h-3.5" />
-                                                            </button>
-                                                            <button
-                                                                type="button"
-                                                                onClick={() => handleRemoveHotelOption(slot.date, opt.hotel_id)}
-                                                                title="Remove option"
-                                                                className="p-1.5 rounded-lg border border-rose-200 bg-white text-rose-500 hover:text-rose-700 hover:bg-rose-50"
-                                                            >
-                                                                <Trash2 className="w-3.5 h-3.5" />
-                                                            </button>
                                                         </div>
                                                     </div>
                                                 );

@@ -41,3 +41,11 @@ export interface ProposedHotelOptionDTO {
     photo_url?: string | null;
     is_suspended?: boolean | null;
 }
+
+export interface HotelImageDTO {
+    id: string;
+    hotel_id: string;
+    image_url: string;
+    is_primary: boolean;
+    sort_order: number;
+}
