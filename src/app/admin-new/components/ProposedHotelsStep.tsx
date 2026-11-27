@@ -765,6 +765,7 @@ export default function ProposedHotelsStep({
                                                         <div className="pl-0 sm:pl-10">
                                                             <HotelImagesManager
                                                                 hotelId={opt.hotel_id}
+                                                                hotelName={h?.name}
                                                                 images={imgs}
                                                                 editable={allowImageEditing && !disabled}
                                                                 compact

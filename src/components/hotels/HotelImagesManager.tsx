@@ -1,7 +1,7 @@
 'use client';
 
-import React, { useRef, useState } from 'react';
-import { Building2, Loader2, Plus, Star, Trash2 } from 'lucide-react';
+import React, { useEffect, useRef, useState } from 'react';
+import { Building2, ChevronLeft, ChevronRight, Loader2, Plus, Star, Trash2, X } from 'lucide-react';
 import type { HotelImageDTO } from '@/dtos/tour-planning.dto';
 import {
     deleteHotelImageAction,
@@ -11,6 +11,7 @@ import {
 
 interface HotelImagesManagerProps {
     hotelId: string;
+    hotelName?: string;
     images: HotelImageDTO[];
     onChange: (nextImages: HotelImageDTO[]) => void;
     editable?: boolean;
@@ -21,6 +22,7 @@ const MAX_IMAGES = 3;
 
 export default function HotelImagesManager({
     hotelId,
+    hotelName,
     images,
     onChange,
     editable = true,
@@ -29,8 +31,24 @@ export default function HotelImagesManager({
     const fileInputRef = useRef<HTMLInputElement>(null);
     const [busy, setBusy] = useState(false);
     const [error, setError] = useState('');
+    const [lightboxIndex, setLightboxIndex] = useState<number | null>(null);
 
     const remainingSlots = Math.max(MAX_IMAGES - images.length, 0);
+
+    useEffect(() => {
+        if (lightboxIndex === null) return;
+        const onKeyDown = (e: KeyboardEvent) => {
+            if (e.key === 'Escape') {
+                setLightboxIndex(null);
+            } else if (e.key === 'ArrowRight' && images.length > 1) {
+                setLightboxIndex((prev) => (prev === null ? null : (prev + 1) % images.length));
+            } else if (e.key === 'ArrowLeft' && images.length > 1) {
+                setLightboxIndex((prev) => (prev === null ? null : (prev - 1 + images.length) % images.length));
+            }
+        };
+        document.addEventListener('keydown', onKeyDown);
+        return () => document.removeEventListener('keydown', onKeyDown);
+    }, [lightboxIndex, images.length]);
 
     const handleFilesSelected = async (e: React.ChangeEvent<HTMLInputElement>) => {
         const files = Array.from(e.target.files || []);
@@ -91,24 +109,32 @@ export default function HotelImagesManager({
     };
 
     const thumbClass = compact ? 'w-20 h-16' : 'w-28 h-22 sm:w-32 sm:h-24';
+    const activeLightboxImg = lightboxIndex !== null ? images[lightboxIndex] : null;
 
     return (
         <div className="space-y-2">
             <div className="flex flex-wrap items-center gap-2.5">
-                {images.map((img) => (
+                {images.map((img, idx) => (
                     <div
                         key={img.id}
                         className={`relative ${thumbClass} rounded-xl overflow-hidden border bg-neutral-100 shrink-0 group ${
                             img.is_primary ? 'border-emerald-600 ring-2 ring-emerald-500/20' : 'border-neutral-200'
                         }`}
                     >
-                        <img
-                            src={img.image_url}
-                            alt="Hotel"
-                            className="w-full h-full object-cover"
-                        />
+                        <button
+                            type="button"
+                            onClick={() => setLightboxIndex(idx)}
+                            className="w-full h-full block focus:outline-none cursor-zoom-in"
+                            title="Click to enlarge"
+                        >
+                            <img
+                                src={img.image_url}
+                                alt={hotelName ? `${hotelName} photo ${idx + 1}` : `Hotel photo ${idx + 1}`}
+                                className="w-full h-full object-cover transition-transform duration-200 group-hover:scale-105"
+                            />
+                        </button>
                         {img.is_primary && (
-                            <span className="absolute bottom-1 left-1 px-1.5 py-0.5 rounded bg-emerald-800/90 text-white text-[8px] font-bold uppercase tracking-wider">
+                            <span className="pointer-events-none absolute bottom-1 left-1 px-1.5 py-0.5 rounded bg-emerald-800/90 text-white text-[8px] font-bold uppercase tracking-wider">
                                 Primary
                             </span>
                         )}
@@ -118,7 +144,10 @@ export default function HotelImagesManager({
                                     <button
                                         type="button"
                                         disabled={busy}
-                                        onClick={() => handleSetPrimary(img.id)}
+                                        onClick={(e) => {
+                                            e.stopPropagation();
+                                            handleSetPrimary(img.id);
+                                        }}
                                         title="Set as Primary Image"
                                         className="p-1 rounded-full bg-black/60 hover:bg-amber-500 text-white transition-colors"
                                     >
@@ -128,7 +157,10 @@ export default function HotelImagesManager({
                                 <button
                                     type="button"
                                     disabled={busy}
-                                    onClick={() => handleDelete(img.id)}
+                                    onClick={(e) => {
+                                        e.stopPropagation();
+                                        handleDelete(img.id);
+                                    }}
                                     title="Remove Image"
                                     className="p-1 rounded-full bg-black/60 hover:bg-rose-600 text-white transition-colors"
                                 >
@@ -179,6 +211,99 @@ export default function HotelImagesManager({
 
             {error && (
                 <p className="text-[11px] font-semibold text-rose-600">{error}</p>
+            )}
+
+            {/* Enlarged Lightbox Gallery Modal (view all up to 3 images) */}
+            {activeLightboxImg && lightboxIndex !== null && (
+                <div
+                    className="fixed inset-0 z-[200] bg-black/90 backdrop-blur-sm flex flex-col items-center justify-between p-4 sm:p-6 animate-in fade-in duration-150"
+                    onClick={() => setLightboxIndex(null)}
+                >
+                    {/* Top Bar */}
+                    <div
+                        className="w-full max-w-4xl flex items-center justify-between gap-3 text-white"
+                        onClick={(e) => e.stopPropagation()}
+                    >
+                        <div className="min-w-0">
+                            <h4 className="text-sm sm:text-base font-serif font-bold truncate">
+                                {hotelName || 'Hotel Gallery'}
+                            </h4>
+                            <p className="text-[11px] text-white/70 font-medium">
+                                Photo {lightboxIndex + 1} of {images.length}
+                                {activeLightboxImg.is_primary ? ' · Primary Photo' : ''}
+                            </p>
+                        </div>
+                        <button
+                            type="button"
+                            onClick={() => setLightboxIndex(null)}
+                            aria-label="Close image viewer"
+                            className="w-11 h-11 rounded-full bg-white/10 hover:bg-white/20 text-white flex items-center justify-center transition-colors shrink-0"
+                        >
+                            <X className="w-5 h-5" />
+                        </button>
+                    </div>
+
+                    {/* Main Enlarged Image + Prev/Next */}
+                    <div
+                        className="relative w-full max-w-4xl flex-1 flex items-center justify-center my-3 min-h-0"
+                        onClick={(e) => e.stopPropagation()}
+                    >
+                        {images.length > 1 && (
+                            <button
+                                type="button"
+                                onClick={() => setLightboxIndex((lightboxIndex - 1 + images.length) % images.length)}
+                                aria-label="Previous image"
+                                className="absolute left-1 sm:left-3 z-10 w-11 h-11 rounded-full bg-black/60 hover:bg-black/80 text-white flex items-center justify-center border border-white/20 transition-colors"
+                            >
+                                <ChevronLeft className="w-6 h-6" />
+                            </button>
+                        )}
+
+                        <img
+                            src={activeLightboxImg.image_url}
+                            alt={hotelName ? `${hotelName} photo ${lightboxIndex + 1}` : `Hotel photo ${lightboxIndex + 1}`}
+                            className="max-h-[68vh] max-w-full object-contain rounded-2xl shadow-2xl"
+                        />
+
+                        {images.length > 1 && (
+                            <button
+                                type="button"
+                                onClick={() => setLightboxIndex((lightboxIndex + 1) % images.length)}
+                                aria-label="Next image"
+                                className="absolute right-1 sm:right-3 z-10 w-11 h-11 rounded-full bg-black/60 hover:bg-black/80 text-white flex items-center justify-center border border-white/20 transition-colors"
+                            >
+                                <ChevronRight className="w-6 h-6" />
+                            </button>
+                        )}
+                    </div>
+
+                    {/* Bottom Thumbnail Strip (all up to 3 images) */}
+                    {images.length > 1 && (
+                        <div
+                            className="flex items-center justify-center gap-2.5 pb-1"
+                            onClick={(e) => e.stopPropagation()}
+                        >
+                            {images.map((thumb, idx) => (
+                                <button
+                                    key={thumb.id}
+                                    type="button"
+                                    onClick={() => setLightboxIndex(idx)}
+                                    className={`relative w-20 h-14 sm:w-24 sm:h-16 rounded-xl overflow-hidden border-2 transition-all ${
+                                        idx === lightboxIndex
+                                            ? 'border-amber-400 scale-105 shadow-lg'
+                                            : 'border-white/20 opacity-60 hover:opacity-100'
+                                    }`}
+                                >
+                                    <img
+                                        src={thumb.image_url}
+                                        alt={`Thumbnail ${idx + 1}`}
+                                        className="w-full h-full object-cover"
+                                    />
+                                </button>
+                            ))}
+                        </div>
+                    )}
+                </div>
             )}
         </div>
     );
