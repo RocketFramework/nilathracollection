@@ -14,6 +14,164 @@ export interface BlogPost {
 
 export const blogPosts: BlogPost[] = [
     {
+        title: "Bespoke 5–14-Day Itineraries for Dubai Families",
+        slug: "bespoke-5-14-day-itineraries-for-dubai-families",
+        date: "November 27, 2026",
+        author: "Nilathra Concierge",
+        category: "Ultra VIP",
+        readingTime: "10 min read",
+        image: "/images/ceylon_tea_trails_mansion_suv.webp",
+        keywords: [
+            "Dubai to Sri Lanka luxury family holiday",
+            "bespoke Sri Lanka itinerary for Dubai families",
+            "Emirati family holiday Sri Lanka",
+            "Dubai to Sri Lanka private jet holiday",
+            "private bungalow Hatton Sri Lanka buyout",
+            "MICHELIN Three Key hotel Sri Lanka",
+            "MICHELIN Key hotels Sri Lanka",
+            "Relais & Châteaux Sri Lanka tea bungalow",
+            "Relais & Châteaux Hatton",
+            "helicopter tours Sri Lanka from Dubai",
+            "Yala private safari Sri Lanka",
+            "Minneriya elephant safari luxury",
+            "Halal private chef Sri Lanka villa",
+            "VIP family travel Sri Lanka nanny security",
+            "Colombo luxury stay before departure",
+            "5 to 14 day Sri Lanka luxury itinerary UAE",
+        ],
+        faq: [
+            {
+                question: "How long is the flight from Dubai to Sri Lanka for a family holiday?",
+                answer: "Direct flights from Dubai (DXB) or private jet charters from Al Maktoum International (DWC) reach Colombo (BIA) in approximately 4 hours and 30 minutes, with only a 1.5-hour time difference—making Sri Lanka effortless for large families with young children and elders.",
+            },
+            {
+                question: "Can we book an entire private luxury bungalow in Hatton for a large family?",
+                answer: "Yes. Nilathra Collection arranges full private buyouts of heritage tea-estate bungalows in Hatton (4–6+ suites), giving your entire family exclusive use of the residence, gardens, pool, dedicated butler team, and private kitchen.",
+            },
+            {
+                question: "Does Nilathra Collection offer MICHELIN Three-Key or Relais & Châteaux hotels in Hatton?",
+                answer: "Yes. We curate exclusive private buyouts and multi-suite stays at Sri Lanka's highest-accolade highland estates in Hatton, including MICHELIN Three-Key distinction properties and prestigious Relais & Châteaux member tea-estate bungalows with full butler service and complete family privacy.",
+            },
+            {
+                question: "Are private helicopters, Halal private chefs, nannies, and security available?",
+                answer: "Yes. Every Nilathra Dubai Family journey can be operated with private helicopter transfers between Colombo, Hatton, Yala, and Minneriya, certified Halal private chefs preparing Arabic and international menus, vetted multilingual nannies for children, and discreet close protection security under strict NDA.",
+            },
+            {
+                question: "Can this 9-night blueprint be shortened to 5 days or extended to 14 days?",
+                answer: "Absolutely. Our travel architects scale this exact private blueprint seamlessly from a 5-day Eid or long-weekend highland-and-safari escape up to a 14-day grand estate journey adding Galle Fort coastal villas or a private Maldives extension.",
+            },
+        ],
+        excerpt: "Just 4.5 hours from Dubai, discover a private 5–14-day Sri Lanka itinerary for large VIP families: a 4-night Hatton tea-estate bungalow buyout featuring MICHELIN Three-Key and Relais & Châteaux options, 2-night Yala big-cat safari, 2-night Minneriya elephant safari, private helicopters, optional security, nannies, and Halal private chefs.",
+        content: `
+# Bespoke 5–14-Day Itineraries for Dubai Families
+
+Only **4 hours and 30 minutes** by direct flight or private jet from Dubai (DXB / DWC), Sri Lanka offers something extraordinary for large Emirati and Dubai-based families: cool 20°C emerald mountain estates, untouched wildlife kingdoms, and complete sovereign privacy — all within a single compact island.
+
+For distinguished families, royal entourages, and multi-generational households traveling with children, elders, and personal staff, standard luxury hotels rarely deliver true privacy. At **Nilathra Collection**, we architect **100% private 5- to 14-day Sri Lanka journeys** centered around full estate buyouts, private helicopter hops, dedicated Halal private chefs, optional vetted nannies, and discreet close protection.
+
+Below is our signature **9-Night Private Family Blueprint** — easily tailored into a 5-day long-weekend retreat or expanded into a 14-day grand island & Maldives escape.
+
+---
+
+## Tarmac-to-Sanctuary Arrival From Dubai
+
+<figure class="my-6">
+  <img src="/images/vip_family_arrival_bia.webp" alt="Private VIP family tarmac arrival in Sri Lanka" class="w-full h-[380px] object-cover rounded-2xl shadow-md" />
+  <figcaption class="text-xs text-neutral-400 mt-2 text-center italic">Seamless VIP arrival protocol at Bandaranaike International Airport with direct tarmac-to-helicopter or armored convoy transfer.</figcaption>
+</figure>
+
+From the moment your family touches down in Sri Lanka, there are **no queues, no crowded terminals, and no waiting**. Our executive protocol officers meet your aircraft at the tarmac, handle immigration and luggage discreetly through the VIP lounge, and escort your family directly to your waiting **private helicopter** or chauffeured luxury SUV convoy.
+
+---
+
+## Nights 1–4: Hatton — Complete Private Luxury Tea-Estate Bungalow (4 Nights)
+
+<figure class="my-6">
+  <img src="/images/castlereach.webp" alt="Private luxury colonial tea bungalow overlooking Castlereagh Lake in Hatton" class="w-full h-[380px] object-cover rounded-2xl shadow-md" />
+  <figcaption class="text-xs text-neutral-400 mt-2 text-center italic">Your family’s exclusive colonial tea-estate bungalow overlooking emerald hills and Castlereagh Reservoir in Hatton.</figcaption>
+</figure>
+
+A scenic **35-minute private helicopter flight** from Colombo lifts your family out of the tropical lowlands and directly into the cool, mist-draped highlands of Hatton.
+
+* **Full Private Bungalow Buyout:** Enjoy exclusive command of an entire historic planter’s estate — sprawling manicured lawns for children to run freely, heated infinity pools, private *majlis*-style verandas, and interconnecting family suites so everyone stays together under one roof.
+* **MICHELIN Three-Key & Relais & Châteaux Prestige:** We curate stays at Sri Lanka’s most celebrated highland sanctuaries — including **MICHELIN Three-Key** distinction properties and prestigious **Relais & Châteaux** member tea-estate bungalows, guaranteeing world-class hospitality, heirloom architecture, and white-glove butler service.
+* **Cool Mountain Climate:** A refreshing 18°C–23°C sanctuary — the ultimate green escape from Dubai’s summer heat.
+* **Private Family Experiences:** Gentle morning kayaking on Castlereagh Lake, private vintage tea-factory tastings, private waterfall picnics, and sunset bonfires on your estate lawn.
+* **Dedicated Private Chefs (100% Halal):** Your villa kitchen is dedicated exclusively to your family, preparing authentic Arabic and Gulf favorites alongside [authentic Sri Lankan dishes](/blog/what-local-sri-lankan-dishes-should-i-try) and refined international cuisine, tailored to elders’ preferences and children’s meal schedules.
+
+---
+
+## Nights 5–6: Yala — Private Big-Cat & Wildlife Safari (2 Nights)
+
+<figure class="my-6">
+  <img src="/images/wildlife_leopard.avif" alt="Sri Lankan Leopard in Yala National Park during a private luxury safari" class="w-full h-[380px] object-cover rounded-2xl shadow-md" />
+  <figcaption class="text-xs text-neutral-400 mt-2 text-center italic">Exclusive dawn and dusk big-cat game drives in Yala — home to the highest density of wild leopards on Earth.</figcaption>
+</figure>
+
+Skip the long overland mountain descent with a **45-minute private helicopter transfer** straight from the tea estates to Sri Lanka’s legendary southern wilderness at [Yala National Park](/destinations/yala).
+
+* **Exclusive Safari Sanctuary:** Stay in a privately reserved cluster of luxury tented pavilions or a private coastal wildlife villa bordering the park, complete with private plunge pools and ocean breezes.
+* **Private 4×4 Safari Fleet:** Dedicated, custom-outfitted luxury safari vehicles for your family alone — stocked with chilled towels, Arabic coffee (*gahwa*), dates, fresh fruit, and binoculars for every child.
+* **Iconic Big-Cat Tracking:** Led by Sri Lanka’s most senior wildlife naturalists, venture deep into Yala’s private-feeling tracks at sunrise and late afternoon to spot the island’s famous wild big cat — the **Sri Lankan Leopard** (often sought by travelers dreaming of an Asian big-cat / tiger-style safari) — alongside sloth bears, crocodiles, peacocks, and wild elephants.
+
+---
+
+## Nights 7–8: Minneriya — The Great Elephant Safari (2 Nights)
+
+<figure class="my-6">
+  <img src="/images/wildlife_elephant_herd.avif" alt="Wild Asian elephant herd gathering in Minneriya National Park" class="w-full h-[380px] object-cover rounded-2xl shadow-md" />
+  <figcaption class="text-xs text-neutral-400 mt-2 text-center italic">Witnessing hundreds of wild Asian elephants along the ancient lake shores of Minneriya — a lifetime memory for children and adults alike.</figcaption>
+</figure>
+
+Board your **private helicopter** north into the Cultural Triangle for two unforgettable nights dedicated to **Minneriya National Park** — world-famous for the largest seasonal gathering of wild Asian elephants on the planet.
+
+* **Private Elephant Safari:** Watch family herds of wild elephants — including playful calves — grazing and bathing along the shimmering reservoir shores from the comfort of your private safari jeeps.
+* **Optional Cultural Wonders:** Add a private sunrise aerial view over [Sigiriya Rock Fortress](/destinations/sigiriya) from your helicopter or a relaxed, private guided visit to Sri Lanka’s ancient royal gardens.
+* **Private Villa Dining:** Return to your secluded luxury estate surrounded by forest and lotus lakes for a private lantern-lit family dinner prepared by your chef.
+
+---
+
+## Night 9: Colombo — Luxury Finale Before Departure (1 Night)
+
+<figure class="my-6">
+  <img src="/images/shangri-la-colombo.webp" alt="Luxury 5-star oceanfront hotel stay in Colombo before departure" class="w-full h-[380px] object-cover rounded-2xl shadow-md" />
+  <figcaption class="text-xs text-neutral-400 mt-2 text-center italic">Unwind for one final night in Colombo’s finest suites for bespoke shopping, private dining, and a calm flight home to Dubai.</figcaption>
+</figure>
+
+Conclude your Sri Lankan journey with a seamless **45-minute helicopter flight** back to [Colombo](/destinations/colombo) for one effortless night before your return flight to Dubai.
+
+* **Presidential & Connecting Family Suites:** Stay at Colombo’s premier 5-star oceanfront residences with full butler service.
+* **Private Curated Shopping:** Private after-hours viewing of certified **Ceylon Blue Sapphires** and high jewelry, bespoke Ceylon tea gifting, and luxury boutiques arranged directly to your suite or via private chauffeur.
+* **VIP Departure Protocol:** Direct escorted airport transfer with fast-track check-in and VIP lounge access so your family boards relaxed and unhurried.
+
+---
+
+## Sovereign Optional Services for Large Dubai Families
+
+<figure class="my-6">
+  <img src="/images/private_chef_luxury_dining_1773073921412.avif" alt="Private chef dining experience for VIP families in Sri Lanka" class="w-full h-[380px] object-cover rounded-2xl shadow-md" />
+  <figcaption class="text-xs text-neutral-400 mt-2 text-center italic">Every detail — from certified Halal private chefs to vetted nannies and discreet close protection — is tailored to your family’s exact standards.</figcaption>
+</figure>
+
+Because no two families travel the same way, every Nilathra itinerary includes the option to integrate our **Sovereign Family Support Suite**:
+
+* **Private Helicopter Aviation Throughout:** Dedicated twin-engine helicopters on standby for direct estate-to-safari hops, eliminating hours of winding road travel and maximizing family rest. Explore our [Imperial Helicopter Charters](/imperial-helicopter).
+* **Dedicated Private Chefs (Halal & Arabic Specialties):** Travel with a senior private chef who coordinates with every villa kitchen — guaranteeing 100% Halal sourcing, Gulf & Levantine comfort dishes, custom baby purees, and 24-hour family dining flexibility.
+* **Vetted Professional Nannies & Childminders:** Experienced, background-checked female nannies and child-care specialists to assist with infants and younger children at the villa, poolside, or during excursions — giving parents true peace of mind.
+* **Discreet Close Protection & Executive Security:** Licensed personal security officers, B6/B7 armored SUVs upon request, advance route and property sweeps, and strict **Non-Disclosure Agreements (NDAs)** protecting your family’s privacy at every step.
+
+---
+
+## Scaling Your Journey: 5 Days to 14 Days
+
+* **5–6 Days (Eid / School Break Escape):** 3 Nights Private Hatton Tea Bungalow + 2 Nights Yala or Minneriya Safari via Private Helicopter.
+* **9 Nights (The Signature Dubai Family Blueprint):** 4 Nights Hatton + 2 Nights Yala + 2 Nights Minneriya + 1 Night Colombo.
+* **12–14 Days (The Sovereign Grand Collection):** Add 3–4 nights at a private beachfront villa buyout in [Galle](/destinations/galle) or Tangalle — or fly 1 hour south to a private overwater villa sanctuary in the Maldives.
+
+Every itinerary is designed privately 1-on-1 with our senior directors — never off a template. Ready to plan your family’s private Sri Lanka escape? [Design Your Bespoke Family Journey](/custom-plan) or explore our [Ultra VIP Collection](/plans/ultra-vip).
+        `
+    },
+    {
         title: "What Local Sri Lankan Dishes Should I Try?",
         slug: "what-local-sri-lankan-dishes-should-i-try",
         date: "November 22, 2026",
