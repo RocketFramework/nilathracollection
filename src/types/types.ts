@@ -190,6 +190,40 @@ export type VendorEmailStatus = typeof VENDOR_EMAIL_STATUSES[keyof typeof VENDOR
 export const TOUR_EXPENSE_CATEGORIES = ['Fuel', 'Parking & Tolls', 'Tips', 'Entry Fees', 'Stationery', 'Gifts', 'Additional Transport', 'Other'] as const;
 export type TourExpenseCategory = typeof TOUR_EXPENSE_CATEGORIES[number];
 
+export const COMPANY_EXPENSE_CATEGORIES = [
+  'Admin',
+  'Stationery',
+  'Laptop & Equipment Rent',
+  'Building Rent',
+  'Marketing Expense',
+  'Sales Expenses',
+  'Entertainment',
+  'Repair & Maintenance',
+  'Official Travel',
+  'Meeting Room Cost',
+  'Refreshment',
+  'Office Welfare',
+  'Utilities (Electricity / Water / Internet)',
+  'Software & Subscriptions',
+  'Legal, Accounting & Professional Fees',
+  'Bank Charges & Fees',
+  'Insurance',
+  'Courier & Postage',
+  'Cleaning & Security',
+  'Other',
+] as const;
+export type CompanyExpenseCategory = typeof COMPANY_EXPENSE_CATEGORIES[number];
+
+export const COMPANY_EXPENSE_PAYMENT_METHODS = [
+  'Bank Transfer',
+  'Cash',
+  'Corporate Card',
+  'Cheque',
+  'Petty Cash',
+  'Online Payment',
+] as const;
+export type CompanyExpensePaymentMethod = typeof COMPANY_EXPENSE_PAYMENT_METHODS[number];
+
 export type PoSettlementMode = 'invoice' | 'direct';
 
 export interface TourConciergeItem {
