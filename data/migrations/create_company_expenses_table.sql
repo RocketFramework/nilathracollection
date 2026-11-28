@@ -102,3 +102,11 @@ CREATE POLICY admin_only_delete_company_expenses
               AND r.name = 'admin'
         )
     );
+
+-- Seed default Company Expense categories into app_settings (editable in Admin -> Settings)
+INSERT INTO public.app_settings (setting_key, setting_value)
+VALUES (
+    'company_expense_categories',
+    E'Admin\nStationery\nLaptop & Equipment Rent\nBuilding Rent\nMarketing Expense\nSales Expenses\nEntertainment\nRepair & Maintenance\nOfficial Travel\nMeeting Room Cost\nRefreshment\nOffice Welfare\nUtilities (Electricity / Water / Internet)\nSoftware & Subscriptions\nLegal, Accounting & Professional Fees\nBank Charges & Fees\nInsurance\nCourier & Postage\nCleaning & Security\nOther'
+)
+ON CONFLICT (setting_key) DO NOTHING;

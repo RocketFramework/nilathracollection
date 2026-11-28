@@ -20,7 +20,6 @@ import {
 } from 'lucide-react';
 import { CompanyExpenseDTO } from '@/dtos/company-expense.dto';
 import {
-    COMPANY_EXPENSE_CATEGORIES,
     COMPANY_EXPENSE_PAYMENT_METHODS,
     CompanyExpenseCategory,
 } from '@/types/types';
@@ -34,14 +33,15 @@ import {
 
 interface Props {
     initialExpenses: CompanyExpenseDTO[];
+    categories: string[];
     initialError: string | null;
     isAdmin: boolean;
 }
 
 const CURRENCIES = ['LKR', 'USD', 'EUR', 'GBP', 'AED'] as const;
 
-const emptyForm = (): CompanyExpenseDTO => ({
-    category: 'Admin',
+const emptyForm = (defaultCategory: string): CompanyExpenseDTO => ({
+    category: defaultCategory,
     description: '',
     vendor_or_payee: '',
     voucher_number: '',
@@ -81,7 +81,8 @@ function fmtAmount(amount: number, currency = 'LKR'): string {
     return `${currency} ${Number(amount || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 }
 
-export default function CompanyExpensesClient({ initialExpenses, initialError, isAdmin }: Props) {
+export default function CompanyExpensesClient({ initialExpenses, categories, initialError, isAdmin }: Props) {
+    const defaultCategory = categories[0] || '';
     const [expenses, setExpenses] = useState<CompanyExpenseDTO[]>(initialExpenses);
     const [errorBanner, setErrorBanner] = useState<string | null>(initialError);
     const [successBanner, setSuccessBanner] = useState<string | null>(null);
@@ -93,7 +94,7 @@ export default function CompanyExpensesClient({ initialExpenses, initialError, i
 
     // Modal state
     const [isModalOpen, setIsModalOpen] = useState(false);
-    const [form, setForm] = useState<CompanyExpenseDTO>(emptyForm());
+    const [form, setForm] = useState<CompanyExpenseDTO>(emptyForm(defaultCategory));
     const [saving, setSaving] = useState(false);
     const [modalError, setModalError] = useState<string | null>(null);
     const [uploadingKind, setUploadingKind] = useState<'bill' | 'slip' | 'signed' | null>(null);
@@ -161,7 +162,7 @@ export default function CompanyExpensesClient({ initialExpenses, initialError, i
     }, [filtered]);
 
     const openCreateModal = () => {
-        setForm(emptyForm());
+        setForm(emptyForm(defaultCategory));
         setModalError(null);
         setIsModalOpen(true);
     };
@@ -415,7 +416,7 @@ export default function CompanyExpensesClient({ initialExpenses, initialError, i
                     className="px-3.5 py-2 rounded-xl border border-[#E5E7EB] text-sm bg-white focus:outline-none focus:ring-2 focus:ring-[#D4AF37]/40 focus:border-[#D4AF37]"
                 >
                     <option value="All">All Categories</option>
-                    {COMPANY_EXPENSE_CATEGORIES.map((cat) => (
+                    {categories.map((cat) => (
                         <option key={cat} value={cat}>{cat}</option>
                     ))}
                 </select>
@@ -617,7 +618,10 @@ export default function CompanyExpensesClient({ initialExpenses, initialError, i
                                         onChange={(e) => setForm({ ...form, category: e.target.value as CompanyExpenseCategory })}
                                         className="w-full px-3 py-2 rounded-xl border border-[#D1D5DB] text-sm bg-white focus:outline-none focus:ring-2 focus:ring-[#D4AF37]/40 focus:border-[#D4AF37]"
                                     >
-                                        {COMPANY_EXPENSE_CATEGORIES.map((cat) => (
+                                        {form.category && !categories.includes(form.category) && (
+                                            <option value={form.category}>{form.category}</option>
+                                        )}
+                                        {categories.map((cat) => (
                                             <option key={cat} value={cat}>{cat}</option>
                                         ))}
                                     </select>

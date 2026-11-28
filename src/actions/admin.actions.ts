@@ -31,7 +31,7 @@ import { POBlockService } from "@/services/po-block.service";
 import { enforcePermission } from "@/utils/auth-enforcer";
 import { AppSettingsService } from "@/services/app-settings.service";
 import { CustomerInvoiceService } from "@/services/customer-invoice.service";
-import { Settings } from "@/types/types";
+import { Settings, COMPANY_EXPENSE_CATEGORIES, COMPANY_PAYMENT_RECEIVE_CATEGORIES } from "@/types/types";
 import { TourDailyDriverService } from "@/services/tour-daily-driver.service";
 import { TourConciergeService } from "@/services/tour-concierge.service";
 import { SaveTourConciergeItemDTO } from "@/dtos/tour-concierge.dto";
@@ -2097,12 +2097,22 @@ export async function getAppMarkupsAction() {
             [Settings.Company_Logo]: "",
             [Settings.Bank_Details_Usd]: "Thank you for booking with Nilathra Collection. Payments can be settled via bank transfer.\n\nBank: Hatton National Bank (USD Account)\nAccount Name: Nilathra Collection Pvt Ltd\nAccount Number: 102030405070\nBranch: Colombo Fort\nSWIFT: HNBCLKX",
             [Settings.Bank_Details_Lkr]: "Thank you for booking with Nilathra Collection. Payments can be settled via bank transfer.\n\nBank: Hatton National Bank\nAccount Name: Nilathra Collection Pvt Ltd\nAccount Number: 102030405060\nBranch: Colombo Fort\nSWIFT: HNBCLKX",
+            [Settings.Company_Expense_Categories]: COMPANY_EXPENSE_CATEGORIES.join('\n'),
+            [Settings.Company_Payment_Receive_Categories]: COMPANY_PAYMENT_RECEIVE_CATEGORIES.join('\n'),
         };
 
         if (data) {
             data.forEach(item => {
                 if (item.setting_key in markups) {
-                    if (item.setting_key.startsWith('policy_') || item.setting_key === 'address' || item.setting_key === 'company_logo' || item.setting_key === 'bank_details_usd' || item.setting_key === 'bank_details_lkr') {
+                    if (
+                        item.setting_key.startsWith('policy_') ||
+                        item.setting_key === 'address' ||
+                        item.setting_key === 'company_logo' ||
+                        item.setting_key === 'bank_details_usd' ||
+                        item.setting_key === 'bank_details_lkr' ||
+                        item.setting_key === Settings.Company_Expense_Categories ||
+                        item.setting_key === Settings.Company_Payment_Receive_Categories
+                    ) {
                         (markups as any)[item.setting_key] = item.setting_value || "";
                     } else {
                         (markups as any)[item.setting_key] = Number(item.setting_value);
@@ -2168,6 +2178,8 @@ export async function getAppMarkupsAction() {
             [Settings.Company_Logo]: "",
             [Settings.Bank_Details_Usd]: "Thank you for booking with Nilathra Collection. Payments can be settled via bank transfer.\n\nBank: Hatton National Bank (USD Account)\nAccount Name: Nilathra Collection Pvt Ltd\nAccount Number: 102030405070\nBranch: Colombo Fort\nSWIFT: HNBCLKX",
             [Settings.Bank_Details_Lkr]: "Thank you for booking with Nilathra Collection. Payments can be settled via bank transfer.\n\nBank: Hatton National Bank\nAccount Name: Nilathra Collection Pvt Ltd\nAccount Number: 102030405060\nBranch: Colombo Fort\nSWIFT: HNBCLKX",
+            [Settings.Company_Expense_Categories]: COMPANY_EXPENSE_CATEGORIES.join('\n'),
+            [Settings.Company_Payment_Receive_Categories]: COMPANY_PAYMENT_RECEIVE_CATEGORIES.join('\n'),
         } };
     }
 }

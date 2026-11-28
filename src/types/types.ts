@@ -170,7 +170,9 @@ export const Settings = {
   Bank_Details_Usd: 'bank_details_usd',
   Bank_Details_Lkr: 'bank_details_lkr',
   Transport_Partner_Onboarding_Code: 'transport_partner_onboarding_code',
-  Tour_Guide_Onboarding_Code: 'tour_guide_onboarding_code'
+  Tour_Guide_Onboarding_Code: 'tour_guide_onboarding_code',
+  Company_Expense_Categories: 'company_expense_categories',
+  Company_Payment_Receive_Categories: 'company_payment_receive_categories'
 } as const;
 
 export type RoomSizeName = 'single_room' | 'double_room' | 'twin_room' | 'triple_room' | 'family_room';
@@ -212,7 +214,7 @@ export const COMPANY_EXPENSE_CATEGORIES = [
   'Cleaning & Security',
   'Other',
 ] as const;
-export type CompanyExpenseCategory = typeof COMPANY_EXPENSE_CATEGORIES[number];
+export type CompanyExpenseCategory = string;
 
 export const COMPANY_EXPENSE_PAYMENT_METHODS = [
   'Bank Transfer',
@@ -223,6 +225,29 @@ export const COMPANY_EXPENSE_PAYMENT_METHODS = [
   'Online Payment',
 ] as const;
 export type CompanyExpensePaymentMethod = typeof COMPANY_EXPENSE_PAYMENT_METHODS[number];
+
+export const COMPANY_PAYMENT_RECEIVE_CATEGORIES = [
+  'Tour Customer Payment',
+  'Advance / Deposit',
+  'Balance Settlement',
+  'Partner / Agent Commission Received',
+  'Supplier Refund / Rebate',
+  'Capital / Shareholder Injection',
+  'Bank Interest / FX Gain',
+  'Miscellaneous Income',
+  'Other',
+] as const;
+export type CompanyPaymentReceiveCategory = string;
+
+export const COMPANY_PAYMENT_RECEIVE_METHODS = [
+  'Bank Transfer',
+  'Wire / SWIFT',
+  'Cash',
+  'Credit / Debit Card',
+  'Online Payment Link',
+  'Cheque',
+] as const;
+export type CompanyPaymentReceiveMethod = typeof COMPANY_PAYMENT_RECEIVE_METHODS[number];
 
 export type PoSettlementMode = 'invoice' | 'direct';
 

@@ -1,7 +1,9 @@
 import { createClient } from '@/utils/supabase/server';
 import { createAdminClient } from '@/utils/supabase/admin';
 import { UserService } from '@/services/user.service';
+import { AppSettingsService } from '@/services/app-settings.service';
 import { CompanyExpenseDTO, CompanyExpenseFilterDTO } from '@/dtos/company-expense.dto';
+import { Settings } from '@/types/types';
 
 const STORAGE_BUCKET = 'payslips';
 const ALLOWED_MIME_TYPES: Record<string, string> = {
@@ -33,6 +35,30 @@ export class CompanyExpenseService {
         const displayName = fullName || user.email || (isAdmin ? 'Admin' : 'Finance');
 
         return { userId: user.id, displayName, isAdmin, isFinance };
+    }
+
+    static parseCategoriesSetting(raw?: string | null): string[] {
+        if (!raw || !raw.trim()) {
+            return [];
+        }
+        return Array.from(
+            new Set(
+                raw
+                    .split(/[\r\n,]+/)
+                    .map((s) => s.trim())
+                    .filter(Boolean)
+            )
+        );
+    }
+
+    static async getCategories(): Promise<string[]> {
+        try {
+            const raw = await AppSettingsService.getSettingValue(Settings.Company_Expense_Categories);
+            return this.parseCategoriesSetting(raw);
+        } catch (err) {
+            console.error('Error loading company expense categories from app_settings:', err);
+            return [];
+        }
     }
 
     static async listExpenses(filters?: CompanyExpenseFilterDTO): Promise<CompanyExpenseDTO[]> {

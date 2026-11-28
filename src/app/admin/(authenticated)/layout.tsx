@@ -1,6 +1,6 @@
 import { ReactNode } from "react";
 import Link from "next/link";
-import { LayoutDashboard, Users, Settings, LogOut, MapPin, Database, UserPlus, Mail, LayoutTemplate, Inbox as InboxIcon, Shield, BarChart3, ListChecks, Building2, Receipt } from "lucide-react";
+import { LayoutDashboard, Users, Settings, LogOut, MapPin, Database, UserPlus, Mail, LayoutTemplate, Inbox as InboxIcon, Shield, BarChart3, ListChecks, Building2, Receipt, CircleDollarSign } from "lucide-react";
 import { logoutAction } from "../../actions/auth";
 
 import { createClient } from "@/utils/supabase/server";
@@ -149,6 +149,10 @@ export default async function AdminLayout({ children }: { children: ReactNode })
                             <Link href="/admin/company-expenses" className="flex items-center gap-4 px-6 py-3 text-[#4B5563] hover:bg-[#F5F3EF] hover:text-[#2B2B2B] transition-colors rounded-r-full mr-4 group">
                                 <Receipt size={20} className="text-[#6B7280] group-hover:text-[#D4AF37] transition-colors" />
                                 <span className="font-medium tracking-wide">Company Expenses</span>
+                            </Link>
+                            <Link href="/admin/payment-receive" className="flex items-center gap-4 px-6 py-3 text-[#4B5563] hover:bg-[#F5F3EF] hover:text-[#2B2B2B] transition-colors rounded-r-full mr-4 group">
+                                <CircleDollarSign size={20} className="text-[#6B7280] group-hover:text-[#D4AF37] transition-colors" />
+                                <span className="font-medium tracking-wide">Payment Receive</span>
                             </Link>
                             <Link href="/admin/reports/financial" className="flex items-center gap-4 px-6 py-3 text-[#4B5563] hover:bg-[#F5F3EF] hover:text-[#2B2B2B] transition-colors rounded-r-full mr-4 group">
                                 <BarChart3 size={20} className="text-[#6B7280] group-hover:text-[#D4AF37] transition-colors" />

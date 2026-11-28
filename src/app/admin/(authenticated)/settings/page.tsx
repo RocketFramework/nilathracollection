@@ -1,9 +1,9 @@
 "use client";
 
 import React, { useEffect, useState } from 'react';
-import { Settings } from '@/types/types';
+import { Settings, COMPANY_EXPENSE_CATEGORIES, COMPANY_PAYMENT_RECEIVE_CATEGORIES } from '@/types/types';
 import { getAppMarkupsAction, saveAppMarkupsAction, uploadHotelPhotoAction } from '@/actions/admin.actions';
-import { Save, Loader2, Upload } from 'lucide-react';
+import { Save, Loader2, Upload, Plus, X, RotateCcw } from 'lucide-react';
 
 export default function SettingsPage() {
     const [markups, setMarkups] = useState({
@@ -63,7 +63,11 @@ export default function SettingsPage() {
         [Settings.Bank_Details_Lkr]: "",
         [Settings.Transport_Partner_Onboarding_Code]: "NILATHRA-TRANS-2026",
         [Settings.Tour_Guide_Onboarding_Code]: "NILATHRA-GUIDE-2026",
+        [Settings.Company_Expense_Categories]: COMPANY_EXPENSE_CATEGORIES.join('\n'),
+        [Settings.Company_Payment_Receive_Categories]: COMPANY_PAYMENT_RECEIVE_CATEGORIES.join('\n'),
     });
+    const [newExpenseCategory, setNewExpenseCategory] = useState('');
+    const [newPaymentCategory, setNewPaymentCategory] = useState('');
     const [loading, setLoading] = useState(true);
     const [saving, setSaving] = useState(false);
     const [uploadingLogo, setUploadingLogo] = useState(false);
@@ -1241,6 +1245,258 @@ export default function SettingsPage() {
                     </button>
                 </div>
             </div>
+
+            {/* Company Expense Categories */}
+            {(() => {
+                const rawCategories = String(markups[Settings.Company_Expense_Categories] || '');
+                const parsedCategories = Array.from(
+                    new Set(
+                        rawCategories
+                            .split(/\r?\n/)
+                            .map((s) => s.trim())
+                            .filter(Boolean)
+                    )
+                );
+
+                const handleAddCategory = () => {
+                    const trimmed = newExpenseCategory.trim();
+                    if (!trimmed) return;
+                    if (parsedCategories.some((c) => c.toLowerCase() === trimmed.toLowerCase())) {
+                        setNewExpenseCategory('');
+                        return;
+                    }
+                    const next = [...parsedCategories, trimmed];
+                    setMarkups({ ...markups, [Settings.Company_Expense_Categories]: next.join('\n') });
+                    setNewExpenseCategory('');
+                };
+
+                const handleRemoveCategory = (cat: string) => {
+                    const next = parsedCategories.filter((c) => c !== cat);
+                    setMarkups({ ...markups, [Settings.Company_Expense_Categories]: next.join('\n') });
+                };
+
+                const handleResetCategories = () => {
+                    setMarkups({
+                        ...markups,
+                        [Settings.Company_Expense_Categories]: COMPANY_EXPENSE_CATEGORIES.join('\n'),
+                    });
+                };
+
+                return (
+                    <div className="bg-white rounded-2xl shadow-sm border border-neutral-200 overflow-hidden mt-8">
+                        <div className="p-6 border-b border-neutral-100 bg-neutral-50 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                            <div>
+                                <h2 className="text-lg font-bold text-[#2B2B2B]">Company Expense Categories</h2>
+                                <p className="text-sm text-neutral-500">
+                                    Manage the dropdown categories shown on the Company Expenses page (non-tour, non-salary overhead expenses).
+                                </p>
+                            </div>
+                            <button
+                                type="button"
+                                onClick={handleResetCategories}
+                                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-neutral-300 bg-white text-xs font-semibold text-neutral-700 hover:bg-neutral-100 transition-colors self-start sm:self-auto"
+                            >
+                                <RotateCcw size={13} />
+                                Reset Defaults
+                            </button>
+                        </div>
+
+                        <div className="p-6 space-y-5">
+                            <div className="flex gap-2">
+                                <input
+                                    type="text"
+                                    value={newExpenseCategory}
+                                    onChange={(e) => setNewExpenseCategory(e.target.value)}
+                                    onKeyDown={(e) => {
+                                        if (e.key === 'Enter') {
+                                            e.preventDefault();
+                                            handleAddCategory();
+                                        }
+                                    }}
+                                    placeholder="Add a new category (e.g., Office Internet, Fuel Allowance, Audit Fees)..."
+                                    className="flex-1 px-4 py-2 border border-neutral-300 rounded-xl focus:ring-2 focus:ring-brand-gold focus:border-transparent outline-none text-sm text-[#2B2B2B]"
+                                />
+                                <button
+                                    type="button"
+                                    onClick={handleAddCategory}
+                                    disabled={!newExpenseCategory.trim()}
+                                    className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-brand-charcoal text-white text-sm font-semibold hover:bg-black transition-colors disabled:opacity-50"
+                                >
+                                    <Plus size={16} />
+                                    Add
+                                </button>
+                            </div>
+
+                            <div className="flex flex-wrap gap-2">
+                                {parsedCategories.length === 0 ? (
+                                    <p className="text-xs text-neutral-500 italic">No categories configured. Add at least one or click Reset Defaults.</p>
+                                ) : (
+                                    parsedCategories.map((cat) => (
+                                        <span
+                                            key={cat}
+                                            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-[#FAF8F5] border border-neutral-200 text-xs font-medium text-[#2B2B2B]"
+                                        >
+                                            <span>{cat}</span>
+                                            <button
+                                                type="button"
+                                                onClick={() => handleRemoveCategory(cat)}
+                                                title={`Remove ${cat}`}
+                                                className="text-neutral-400 hover:text-red-600 transition-colors"
+                                            >
+                                                <X size={13} />
+                                            </button>
+                                        </span>
+                                    ))
+                                )}
+                            </div>
+                        </div>
+
+                        <div className="p-6 border-t border-neutral-100 bg-neutral-50 flex items-center justify-between">
+                            <div className="flex-1">
+                                {message && (
+                                    <div className={`text-sm font-bold ${message.type === 'success' ? 'text-green-600' : 'text-red-500'}`}>
+                                        {message.text}
+                                    </div>
+                                )}
+                            </div>
+                            <button
+                                onClick={handleSave}
+                                disabled={saving}
+                                className="flex items-center gap-2 px-6 py-2.5 bg-brand-charcoal text-white font-bold rounded-xl hover:bg-black transition-colors disabled:opacity-50"
+                            >
+                                {saving ? <Loader2 size={18} className="animate-spin" /> : <Save size={18} />}
+                                Save Settings
+                            </button>
+                        </div>
+                    </div>
+                );
+            })()}
+
+            {/* Payment Receive Categories */}
+            {(() => {
+                const rawPaymentCategories = String(markups[Settings.Company_Payment_Receive_Categories] || '');
+                const parsedPaymentCategories = Array.from(
+                    new Set(
+                        rawPaymentCategories
+                            .split(/\r?\n/)
+                            .map((s) => s.trim())
+                            .filter(Boolean)
+                    )
+                );
+
+                const handleAddPaymentCategory = () => {
+                    const trimmed = newPaymentCategory.trim();
+                    if (!trimmed) return;
+                    if (parsedPaymentCategories.some((c) => c.toLowerCase() === trimmed.toLowerCase())) {
+                        setNewPaymentCategory('');
+                        return;
+                    }
+                    const next = [...parsedPaymentCategories, trimmed];
+                    setMarkups({ ...markups, [Settings.Company_Payment_Receive_Categories]: next.join('\n') });
+                    setNewPaymentCategory('');
+                };
+
+                const handleRemovePaymentCategory = (cat: string) => {
+                    const next = parsedPaymentCategories.filter((c) => c !== cat);
+                    setMarkups({ ...markups, [Settings.Company_Payment_Receive_Categories]: next.join('\n') });
+                };
+
+                const handleResetPaymentCategories = () => {
+                    setMarkups({
+                        ...markups,
+                        [Settings.Company_Payment_Receive_Categories]: COMPANY_PAYMENT_RECEIVE_CATEGORIES.join('\n'),
+                    });
+                };
+
+                return (
+                    <div className="bg-white rounded-2xl shadow-sm border border-neutral-200 overflow-hidden mt-8">
+                        <div className="p-6 border-b border-neutral-100 bg-neutral-50 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                            <div>
+                                <h2 className="text-lg font-bold text-[#2B2B2B]">Payment Receive Categories</h2>
+                                <p className="text-sm text-neutral-500">
+                                    Manage the dropdown categories shown on the Payment Receive page.
+                                </p>
+                            </div>
+                            <button
+                                type="button"
+                                onClick={handleResetPaymentCategories}
+                                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-neutral-300 bg-white text-xs font-semibold text-neutral-700 hover:bg-neutral-100 transition-colors self-start sm:self-auto"
+                            >
+                                <RotateCcw size={13} />
+                                Reset Defaults
+                            </button>
+                        </div>
+
+                        <div className="p-6 space-y-5">
+                            <div className="flex gap-2">
+                                <input
+                                    type="text"
+                                    value={newPaymentCategory}
+                                    onChange={(e) => setNewPaymentCategory(e.target.value)}
+                                    onKeyDown={(e) => {
+                                        if (e.key === 'Enter') {
+                                            e.preventDefault();
+                                            handleAddPaymentCategory();
+                                        }
+                                    }}
+                                    placeholder="Add a new payment category (e.g., VIP Retainer, Card Settlement)..."
+                                    className="flex-1 px-4 py-2 border border-neutral-300 rounded-xl focus:ring-2 focus:ring-brand-gold focus:border-transparent outline-none text-sm text-[#2B2B2B]"
+                                />
+                                <button
+                                    type="button"
+                                    onClick={handleAddPaymentCategory}
+                                    disabled={!newPaymentCategory.trim()}
+                                    className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-brand-charcoal text-white text-sm font-semibold hover:bg-black transition-colors disabled:opacity-50"
+                                >
+                                    <Plus size={16} />
+                                    Add
+                                </button>
+                            </div>
+
+                            <div className="flex flex-wrap gap-2">
+                                {parsedPaymentCategories.length === 0 ? (
+                                    <p className="text-xs text-neutral-500 italic">No categories configured. Add at least one or click Reset Defaults.</p>
+                                ) : (
+                                    parsedPaymentCategories.map((cat) => (
+                                        <span
+                                            key={cat}
+                                            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-emerald-50 border border-emerald-200 text-xs font-medium text-emerald-900"
+                                        >
+                                            <span>{cat}</span>
+                                            <button
+                                                type="button"
+                                                onClick={() => handleRemovePaymentCategory(cat)}
+                                                title={`Remove ${cat}`}
+                                                className="text-emerald-600/70 hover:text-red-600 transition-colors"
+                                            >
+                                                <X size={13} />
+                                            </button>
+                                        </span>
+                                    ))
+                                )}
+                            </div>
+                        </div>
+
+                        <div className="p-6 border-t border-neutral-100 bg-neutral-50 flex items-center justify-between">
+                            <div className="flex-1">
+                                {message && (
+                                    <div className={`text-sm font-bold ${message.type === 'success' ? 'text-green-600' : 'text-red-500'}`}>
+                                        {message.text}
+                                    </div>
+                                )}
+                            </div>
+                            <button
+                                onClick={handleSave}
+                                disabled={saving}
+                                className="flex items-center gap-2 px-6 py-2.5 bg-brand-charcoal text-white font-bold rounded-xl hover:bg-black transition-colors disabled:opacity-50"
+                            >
+                                {saving ? <Loader2 size={18} className="animate-spin" /> : <Save size={18} />}
+                                Save Settings
+                            </button>
+                        </div>
+                    </div>
+                );
+            })()}
         </div>
     );
 }

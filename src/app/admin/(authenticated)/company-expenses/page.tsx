@@ -20,13 +20,25 @@ export default async function CompanyExpensesPage() {
     }
 
     let initialExpenses: CompanyExpenseDTO[] = [];
+    let categories: string[] = [];
     let initialError: string | null = null;
 
-    try {
-        initialExpenses = await CompanyExpenseService.listExpenses();
-    } catch (e: any) {
-        initialError = e?.message || 'Failed to load company expenses.';
-    }
+    const [expensesResult, loadedCategories] = await Promise.all([
+        CompanyExpenseService.listExpenses().catch((e: any) => {
+            initialError = e?.message || 'Failed to load company expenses.';
+            return [] as CompanyExpenseDTO[];
+        }),
+        CompanyExpenseService.getCategories(),
+    ]);
+    initialExpenses = expensesResult;
+    categories = loadedCategories;
 
-    return <CompanyExpensesClient initialExpenses={initialExpenses} initialError={initialError} isAdmin={isAdmin} />;
+    return (
+        <CompanyExpensesClient
+            initialExpenses={initialExpenses}
+            categories={categories}
+            initialError={initialError}
+            isAdmin={isAdmin}
+        />
+    );
 }
